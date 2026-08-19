@@ -1,0 +1,193 @@
+// =====================================================
+// User Role
+// =====================================================
+
+export type UserRole =
+  | "user"
+  | "buyer"
+  | "seller"
+  | "admin";
+
+// =====================================================
+// Seller Verification Status
+// =====================================================
+
+export type SellerVerificationStatus =
+  | "unverified"
+  | "pending"
+  | "verified"
+  | "rejected"
+  | "suspended";
+
+// =====================================================
+// Seller Verification
+// =====================================================
+
+export interface SellerVerification {
+  status: SellerVerificationStatus;
+
+  // =====================================
+  // Phone Verification
+  // =====================================
+
+  phoneVerified: boolean;
+
+  // =====================================
+  // Identity Verification
+  // =====================================
+
+  identityVerified: boolean;
+
+  // =====================================
+  // Identity Document
+  //
+  // DealUp currently supports Aadhaar
+  // identity verification only.
+  // =====================================
+
+  identityDocumentType?:
+    | "aadhaar"
+    | null;
+
+  // =====================================
+  // Identity Submission
+  // =====================================
+
+  identitySubmissionId?:
+    | string
+    | null;
+
+  identitySubmittedAt?:
+    | Date
+    | null;
+
+  identityReviewedAt?:
+    | Date
+    | null;
+
+  identityRejectionReason?:
+    | string
+    | null;
+
+  // =====================================
+  // Location Verification
+  // =====================================
+
+  locationVerified: boolean;
+
+  // =====================================
+  // Verification Timeline
+  // =====================================
+
+  submittedAt?: Date | null;
+
+  verifiedAt?: Date | null;
+
+  rejectionReason?: string | null;
+
+  // =====================================
+  // Suspension
+  // =====================================
+
+  suspendedAt?: Date | null;
+
+  suspensionReason?: string | null;
+}
+
+// =====================================================
+// User
+// =====================================================
+
+export interface User {
+  _id: string;
+
+  name: string;
+
+  email: string;
+
+  image?: string;
+
+  phone?: string;
+
+  // =====================================
+  // Account Role
+  //
+  // "user" and "buyer" are kept for
+  // backward compatibility.
+  // =====================================
+
+  role?: UserRole;
+
+  // =====================================
+  // Provider
+  // =====================================
+
+  provider?: string;
+
+  // =====================================
+  // Existing field
+  //
+  // Keep for backward compatibility.
+  //
+  // This field is NOT used for the
+  // new Seller Badge system.
+  // =====================================
+
+  isVerified?: boolean;
+
+  // =====================================
+  // Existing Phone Verification
+  // =====================================
+
+  isPhoneVerified?: boolean;
+
+  // =====================================
+  // Seller Verification
+  // =====================================
+
+  sellerVerification?: SellerVerification;
+
+  // =====================================
+  // Seller Trust
+  // =====================================
+
+  trustScore?: number;
+
+  trustLevel?:
+    | "low"
+    | "basic"
+    | "trusted"
+    | "highly_trusted";
+
+  // =====================================
+  // Seller Risk
+  // =====================================
+
+  riskScore?: number;
+
+  // =====================================
+  // Address
+  // =====================================
+
+  address?: {
+    city?: string;
+
+    district?: string;
+
+    state?: string;
+  };
+
+  // =====================================
+  // Language
+  // =====================================
+
+  language?: string | null;
+
+  // =====================================
+  // Account Dates
+  // =====================================
+
+  createdAt: Date;
+
+  updatedAt: Date;
+}

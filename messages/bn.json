@@ -1,0 +1,35 @@
+{
+  "common": {
+    "home": "হোম",
+    "profile": "প্রোফাইল",
+    "sell": "বিক্রি করুন",
+
+    "dashboard": "ড্যাশবোর্ড",
+    "myProfile": "আমার প্রোফাইল",
+    "myAds": "আমার বিজ্ঞাপন",
+    "wishlist": "ইচ্ছার তালিকা",
+    "messages": "বার্তা",
+    "settings": "সেটিংস",
+    "logout": "লগ আউট",
+    "language": "ভাষা",
+    "myAccount": "আমার অ্যাকাউন্ট",
+    "manageAccount": "আপনার অ্যাকাউন্ট পরিচালনা করুন",
+    "login": "লগইন",
+
+    "loading": "লোড হচ্ছে...",
+    "hi": "হ্যালো",
+    "search": "অনুসন্ধান",
+    "searchPlaceholder": "পণ্য, মোবাইল, গাড়ি খুঁজুন...",
+    "myMessages": "আমার বার্তা",
+    "noConversations": "এখনও কোনো কথোপকথন নেই।",
+    "noMessagesYet": "এখনও কোনো বার্তা নেই",
+    "chat": "চ্যাট",
+    "typeMessage": "আপনার বার্তা লিখুন...",
+    "send": "পাঠান",
+    "sending": "পাঠানো হচ্ছে...",
+    "failedToSend": "বার্তা পাঠানো যায়নি",
+    "somethingWentWrong": "কিছু সমস্যা হয়েছে",
+    "messageSent": "বার্তা সফলভাবে পাঠানো হয়েছে",
+    "helpCenter": "সহায়তা কেন্দ্র"
+  }
+}

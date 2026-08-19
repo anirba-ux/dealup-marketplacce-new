@@ -1,0 +1,34 @@
+{
+  "common": {
+    "home": "Home",
+    "profile": "Profile",
+    "sell": "Sell",
+
+    "dashboard": "Dashboard",
+    "myProfile": "My Profile",
+    "myAds": "My Ads",
+    "wishlist": "Wishlist",
+    "messages": "Messages",
+    "settings": "Settings",
+    "logout": "Logout",
+    "language": "Language",
+    "myAccount": "My Account",
+    "manageAccount": "Manage your account",
+    "login": "Login",
+    "loading": "Loading...",
+    "hi": "Hi",
+    "search": "Search",
+    "searchPlaceholder": "Search products, mobiles, cars...",
+    "myMessages": "My Messages",
+    "noConversations": "No conversations yet.",
+    "noMessagesYet": "No messages yet",
+    "chat": "Chat",
+    "typeMessage": "Type your message...",
+    "send": "Send",
+    "sending": "Sending...",
+    "failedToSend": "Failed to send message",
+    "somethingWentWrong": "Something went wrong",
+    "messageSent": "Message sent successfully",
+    "helpCenter": "Help Center"
+  }
+}

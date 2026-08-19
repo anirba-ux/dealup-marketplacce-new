@@ -1,0 +1,34 @@
+{
+  "common": {
+    "home": "होम",
+    "profile": "प्रोफ़ाइल",
+    "sell": "बेचें",
+
+    "dashboard": "डैशबोर्ड",
+    "myProfile": "मेरी प्रोफ़ाइल",
+    "myAds": "मेरे विज्ञापन",
+    "wishlist": "विशलिस्ट",
+    "messages": "संदेश",
+    "settings": "सेटिंग्स",
+    "logout": "लॉग आउट",
+    "language": "भाषा",
+    "myAccount": "मेरा अकाउंट",
+    "manageAccount": "अपने अकाउंट का प्रबंधन करें",
+    "login": "लॉग इन",
+    "loading": "लोड हो रहा है...",
+    "hi": "नमस्ते",
+    "search": "खोजें",
+    "searchPlaceholder": "उत्पाद, मोबाइल, कार खोजें...",
+    "myMessages": "मेरे संदेश",
+    "noConversations": "अभी तक कोई बातचीत नहीं हुई।",
+    "noMessagesYet": "अभी तक कोई संदेश नहीं है",
+    "chat": "चैट",
+    "typeMessage": "अपना संदेश लिखें...",
+    "send": "भेजें",
+    "sending": "भेजा जा रहा है...",
+    "failedToSend": "संदेश भेजा नहीं जा सका",
+    "somethingWentWrong": "कुछ गलत हो गया",
+    "messageSent": "संदेश सफलतापूर्वक भेजा गया",
+    "helpCenter": "सहायता केंद्र"
+  }
+}

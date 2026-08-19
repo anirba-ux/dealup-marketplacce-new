@@ -1,0 +1,1 @@
+export const wishlistChannel = new BroadcastChannel("dealup-wishlist");
