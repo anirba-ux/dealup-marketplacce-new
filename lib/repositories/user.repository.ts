@@ -139,6 +139,30 @@ export async function findUserById(
         ?.locationVerified ??
       false,
 
+          // ================================================
+    // Live Selfie Verification
+    // ================================================
+
+    selfieVerified:
+      user.sellerVerification
+        ?.selfieVerified ??
+      false,
+
+    selfieUrl:
+      user.sellerVerification
+        ?.selfieUrl ??
+      null,
+
+    selfiePublicId:
+      user.sellerVerification
+        ?.selfiePublicId ??
+      null,
+
+    selfieVerifiedAt:
+      user.sellerVerification
+        ?.selfieVerifiedAt ??
+      null,
+
     // ================================================
     // Verification Timeline
     // ================================================

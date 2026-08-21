@@ -1,4 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
 import { auth } from "@/auth";
 import clientPromise from "@/lib/db/mongodb";
@@ -7,6 +10,10 @@ export async function GET(
   request: NextRequest,
 ) {
   try {
+    // =================================================
+    // Desktop User Authentication
+    // =================================================
+
     const session =
       await auth();
 
@@ -14,13 +21,18 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized",
+          message:
+            "Unauthorized",
         },
         {
           status: 401,
         },
       );
     }
+
+    // =================================================
+    // Token
+    // =================================================
 
     const token =
       request.nextUrl.searchParams.get(
@@ -40,11 +52,23 @@ export async function GET(
       );
     }
 
+    // =================================================
+    // Database
+    // =================================================
+
     const client =
       await clientPromise;
 
     const db =
       client.db("dealup");
+
+    // =================================================
+    // Find Session
+    //
+    // IMPORTANT:
+    // Token MUST belong to the currently
+    // logged-in desktop user.
+    // =================================================
 
     const verification =
       await db
@@ -64,8 +88,9 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Verification session not found.",
+            "Verification session not found or does not belong to this user.",
         },
         {
           status: 404,
@@ -78,22 +103,76 @@ export async function GET(
     // =================================================
 
     if (
+      !verification.expiresAt ||
       new Date() >
-      verification.expiresAt
+        new Date(
+          verification.expiresAt,
+        )
     ) {
       return NextResponse.json({
         success: true,
 
         status:
           "expired",
+
+        selfieVerified:
+          verification.selfieVerified ===
+          true,
+
+        locationVerified:
+          verification.locationVerified ===
+          true,
+
+        selfieUrl:
+          verification.selfieUrl ??
+          null,
+
+        mobileLocation:
+          verification.mobileLocation ??
+          null,
+
+        verifiedAt:
+          verification.verifiedAt ??
+          null,
       });
     }
+
+    // =================================================
+    // Verification State
+    // =================================================
+
+    const selfieVerified =
+      verification.selfieVerified ===
+      true;
+
+    const locationVerified =
+      verification.locationVerified ===
+      true;
+
+    const fullyVerified =
+      selfieVerified &&
+      locationVerified;
+
+    // =================================================
+    // Response
+    // =================================================
 
     return NextResponse.json({
       success: true,
 
       status:
-        verification.status,
+        fullyVerified
+          ? "verified"
+          : verification.status ??
+            "pending",
+
+      selfieVerified,
+
+      locationVerified,
+
+      selfieUrl:
+        verification.selfieUrl ??
+        null,
 
       mobileLocation:
         verification.mobileLocation ??
@@ -101,6 +180,14 @@ export async function GET(
 
       verifiedAt:
         verification.verifiedAt ??
+        null,
+
+      selfieVerifiedAt:
+        verification.selfieVerifiedAt ??
+        null,
+
+      locationVerifiedAt:
+        verification.locationVerifiedAt ??
         null,
     });
   } catch (error) {
@@ -112,6 +199,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
+
         message:
           "Unable to check verification status.",
       },

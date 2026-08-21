@@ -14,19 +14,16 @@ export async function POST(
 ) {
   try {
     // =================================================
-    // Desktop Seller Authentication
+    // Authenticated Desktop / Mobile User
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-
-          message:
-            "Unauthorized",
+          message: "Unauthorized",
         },
         {
           status: 401,
@@ -34,37 +31,35 @@ export async function POST(
       );
     }
 
+    const userId = String(
+      session.user.id,
+    );
+
     // =================================================
     // Generate Secure Token
     // =================================================
 
-    const token =
-      randomBytes(32).toString(
-        "hex",
-      );
+    const token = randomBytes(32).toString(
+      "hex",
+    );
 
     // =================================================
     // Database
     // =================================================
 
-    const client =
-      await clientPromise;
+    const client = await clientPromise;
 
-    const db =
-      client.db("dealup");
+    const db = client.db("dealup");
 
-    const now =
-      new Date();
+    const now = new Date();
 
     // =================================================
     // Session expires after 5 minutes
     // =================================================
 
-    const expiresAt =
-      new Date(
-        now.getTime() +
-          5 * 60 * 1000,
-      );
+    const expiresAt = new Date(
+      now.getTime() + 5 * 60 * 1000,
+    );
 
     // =================================================
     // Create Verification Session
@@ -77,51 +72,62 @@ export async function POST(
       .insertOne({
         token,
 
-        userId:
-          String(
-            session.user.id,
-          ),
+        userId,
 
-        status:
-          "pending",
+        status: "pending",
 
-        createdAt:
-          now,
+        // ---------------------------------------------
+        // Selfie
+        // ---------------------------------------------
 
-        updatedAt:
-          now,
+        selfieVerified: false,
+
+        selfieUrl: null,
+
+        selfiePublicId: null,
+
+        selfieVerifiedAt: null,
+
+        // ---------------------------------------------
+        // Mobile Location
+        // ---------------------------------------------
+
+        locationVerified: false,
+
+        mobileLocation: null,
+
+        locationVerifiedAt: null,
+
+        // ---------------------------------------------
+        // Session
+        // ---------------------------------------------
+
+        createdAt: now,
+
+        updatedAt: now,
 
         expiresAt,
 
-        mobileLocation:
-          null,
-
-        desktopLocation:
-          null,
-
-        verifiedAt:
-          null,
+        verifiedAt: null,
       });
 
     // =================================================
     // Base URL
     // =================================================
     //
-    // Local development:
-    //
-    // NEXT_PUBLIC_APP_URL=
-    // http://192.168.31.79:3000
-    //
     // Production:
     //
     // NEXT_PUBLIC_APP_URL=
-    // https://your-domain.com
+    // https://dealup-marketplacce-new.vercel.app
+    //
+    // Local fallback:
+    //
+    // request.nextUrl.origin
     //
     // =================================================
 
     const baseUrl =
-      process.env
-        .NEXT_PUBLIC_APP_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
       request.nextUrl.origin;
 
     // =================================================
@@ -146,7 +152,7 @@ export async function POST(
     });
   } catch (error) {
     console.error(
-      "CREATE LOCATION SESSION ERROR:",
+      "CREATE LOCATION VERIFICATION SESSION ERROR:",
       error,
     );
 
@@ -155,7 +161,7 @@ export async function POST(
         success: false,
 
         message:
-          "Unable to create location verification session.",
+          "Unable to create verification session.",
       },
       {
         status: 500,

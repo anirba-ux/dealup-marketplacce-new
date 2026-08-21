@@ -75,23 +75,55 @@ export interface SellerVerification {
 
   locationVerified: boolean;
 
+  locationVerifiedAt?:
+    | Date
+    | null;
+
+  // =====================================
+  // Live Selfie Verification
+  // =====================================
+
+  selfieVerified: boolean;
+
+  selfieUrl?:
+    | string
+    | null;
+
+  selfiePublicId?:
+    | string
+    | null;
+
+  selfieVerifiedAt?:
+    | Date
+    | null;
+
   // =====================================
   // Verification Timeline
   // =====================================
 
-  submittedAt?: Date | null;
+  submittedAt?:
+    | Date
+    | null;
 
-  verifiedAt?: Date | null;
+  verifiedAt?:
+    | Date
+    | null;
 
-  rejectionReason?: string | null;
+  rejectionReason?:
+    | string
+    | null;
 
   // =====================================
   // Suspension
   // =====================================
 
-  suspendedAt?: Date | null;
+  suspendedAt?:
+    | Date
+    | null;
 
-  suspensionReason?: string | null;
+  suspensionReason?:
+    | string
+    | null;
 }
 
 // =====================================================
@@ -181,7 +213,9 @@ export interface User {
   // Language
   // =====================================
 
-  language?: string | null;
+  language?:
+    | string
+    | null;
 
   // =====================================
   // Account Dates

@@ -38,8 +38,7 @@ export default function PhoneVerification({
   // =====================================
 
   const isPhoneVerified =
-    session?.user?.isPhoneVerified === true ||
-    session?.user?.sellerVerification?.phoneVerified === true;
+  session?.user?.isPhoneVerified === true;
 
   // =====================================
   // MSG91 SDK
@@ -360,17 +359,7 @@ export default function PhoneVerification({
             return;
           }
 
-          if (!accessToken) {
-            console.error("MSG91 response did not contain access token:", data);
-
-            setError(
-              "OTP verified, but server verification token was not received.",
-            );
-
-            setVerifying(false);
-
-            return;
-          }
+          
 
           // =====================================
           // Send access token to our server

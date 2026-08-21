@@ -5,6 +5,8 @@ import {
 
 import { ObjectId } from "mongodb";
 
+import { auth } from "@/auth";
+
 import clientPromise from "@/lib/db/mongodb";
 
 export async function POST(
@@ -12,31 +14,49 @@ export async function POST(
 ) {
   try {
     // =================================================
-    // Read Request Body
+    // Mobile User Authentication
     // =================================================
 
-    const body =
-      await request.json();
+    const session = await auth();
 
-    const token =
-      String(
-        body?.token ?? "",
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Please log in to the same DealUp account on this mobile device.",
+        },
+        {
+          status: 401,
+        },
       );
+    }
 
-    const latitude =
-      Number(
-        body?.latitude,
-      );
+    const mobileUserId = String(
+      session.user.id,
+    );
 
-    const longitude =
-      Number(
-        body?.longitude,
-      );
+    // =================================================
+    // Request Body
+    // =================================================
 
-    const accuracy =
-      Number(
-        body?.accuracy,
-      );
+    const body = await request.json();
+
+    const token = String(
+      body?.token ?? "",
+    );
+
+    const latitude = Number(
+      body?.latitude,
+    );
+
+    const longitude = Number(
+      body?.longitude,
+    );
+
+    const accuracy = Number(
+      body?.accuracy,
+    );
 
     // =================================================
     // Validate Token
@@ -46,7 +66,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Verification token is required.",
         },
@@ -68,7 +87,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Invalid latitude.",
         },
@@ -90,7 +108,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Invalid longitude.",
         },
@@ -111,7 +128,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Invalid GPS accuracy.",
         },
@@ -122,17 +138,15 @@ export async function POST(
     }
 
     // =================================================
-    // Minimum GPS Quality
+    // GPS Quality
     // =================================================
 
     if (accuracy > 200) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Mobile GPS accuracy is not sufficient. Please enable precise location and try again.",
-
           accuracy,
         },
         {
@@ -157,9 +171,7 @@ export async function POST(
       );
 
     const users =
-      db.collection(
-        "users",
-      );
+      db.collection("users");
 
     // =================================================
     // Find Verification Session
@@ -174,7 +186,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Verification session not found.",
         },
@@ -185,7 +196,7 @@ export async function POST(
     }
 
     // =================================================
-    // Check Expiry
+    // Expiry
     // =================================================
 
     if (
@@ -198,7 +209,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Verification session has expired.",
         },
@@ -209,7 +219,55 @@ export async function POST(
     }
 
     // =================================================
-    // Prevent Reusing Verified Session
+    // Session Seller ID
+    // =================================================
+
+    const sellerUserId = String(
+      verification.userId ?? "",
+    );
+
+    if (
+      !ObjectId.isValid(
+        sellerUserId,
+      )
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid verification session owner.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =================================================
+    // IMPORTANT SECURITY CHECK
+    //
+    // QR session belongs to the desktop seller.
+    // Mobile must be logged into the SAME account.
+    // =================================================
+
+    if (
+      mobileUserId !==
+      sellerUserId
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "This verification session belongs to another DealUp account.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =================================================
+    // Prevent Completed Session
     // =================================================
 
     if (
@@ -219,9 +277,8 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
-            "This location verification session has already been completed.",
+            "This verification session has already been completed.",
         },
         {
           status: 400,
@@ -230,56 +287,21 @@ export async function POST(
     }
 
     // =================================================
-    // Seller User ID
-    // =================================================
-
-    const sellerUserId =
-      String(
-        verification.userId ?? "",
-      );
-
-    if (
-      !ObjectId.isValid(
-        sellerUserId,
-      )
-    ) {
-      console.error(
-        "INVALID SELLER USER ID IN LOCATION SESSION:",
-        sellerUserId,
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-
-          message:
-            "Invalid seller account.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    const sellerObjectId =
-      new ObjectId(
-        sellerUserId,
-      );
-
-    // =================================================
-    // Find Seller
+    // Seller Exists
     // =================================================
 
     const seller =
       await users.findOne({
-        _id: sellerObjectId,
+        _id:
+          new ObjectId(
+            sellerUserId,
+          ),
       });
 
     if (!seller) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Seller account not found.",
         },
@@ -290,14 +312,6 @@ export async function POST(
     }
 
     // =================================================
-    // Current Verification
-    // =================================================
-
-    const currentVerification =
-      seller.sellerVerification ??
-      {};
-
-    // =================================================
     // Timestamp
     // =================================================
 
@@ -305,7 +319,7 @@ export async function POST(
       new Date();
 
     // =================================================
-    // Mobile Location Data
+    // Mobile Location
     // =================================================
 
     const mobileLocation = {
@@ -323,7 +337,20 @@ export async function POST(
     };
 
     // =================================================
-    // 1. Update Verification Session
+    // Selfie State
+    // =================================================
+
+    const selfieAlreadyVerified =
+      verification.selfieVerified ===
+      true;
+
+    const finalStatus =
+      selfieAlreadyVerified
+        ? "verified"
+        : "pending";
+
+    // =================================================
+    // Update Verification Session
     // =================================================
 
     const sessionResult =
@@ -332,22 +359,38 @@ export async function POST(
           _id:
             verification._id,
 
+          userId:
+            sellerUserId,
+
           status:
             "pending",
-        },
 
+          locationVerified:
+            false,
+        },
         {
           $set: {
-            status:
-              "verified",
-
             mobileLocation,
 
-            verifiedAt:
+            locationVerified:
+              true,
+
+            locationVerifiedAt:
               now,
 
             updatedAt:
               now,
+
+            status:
+              finalStatus,
+
+            ...(finalStatus ===
+            "verified"
+              ? {
+                  verifiedAt:
+                    now,
+                }
+              : {}),
           },
         },
       );
@@ -359,7 +402,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Location verification session could not be completed.",
         },
@@ -370,27 +412,19 @@ export async function POST(
     }
 
     // =================================================
-    // 2. Update Seller Verification
+    // Update Seller Verification
     //
-    // IMPORTANT:
-    //
-    // We DO NOT change:
-    //
-    // sellerVerification.status
-    //
-    // because Admin approval controls
-    // the overall seller verification status.
-    //
-    // We only mark LOCATION as verified.
+    // Admin still controls overall status.
     // =================================================
 
     const sellerResult =
       await users.updateOne(
         {
           _id:
-            sellerObjectId,
+            new ObjectId(
+              sellerUserId,
+            ),
         },
-
         {
           $set: {
             "sellerVerification.locationVerified":
@@ -411,23 +445,13 @@ export async function POST(
         },
       );
 
-    // =================================================
-    // Seller Update Failed
-    // =================================================
-
     if (
       sellerResult.matchedCount ===
       0
     ) {
-      console.error(
-        "SELLER LOCATION VERIFICATION UPDATE FAILED:",
-        sellerUserId,
-      );
-
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Location was captured but seller verification could not be updated.",
         },
@@ -446,10 +470,12 @@ export async function POST(
         success: true,
 
         status:
-          "verified",
+          finalStatus,
 
         message:
-          "Mobile location verified successfully.",
+          selfieAlreadyVerified
+            ? "Mobile location verified. Seller verification data is now complete."
+            : "Mobile location verified successfully.",
 
         location: {
           latitude,
@@ -459,12 +485,15 @@ export async function POST(
           accuracy,
         },
 
-        sellerVerification: {
+        verification: {
+          selfieVerified:
+            selfieAlreadyVerified,
+
           locationVerified:
             true,
 
-          locationVerifiedAt:
-            now,
+          status:
+            finalStatus,
         },
       },
       {
@@ -472,10 +501,6 @@ export async function POST(
       },
     );
   } catch (error) {
-    // =================================================
-    // Error
-    // =================================================
-
     console.error(
       "MOBILE LOCATION VERIFICATION ERROR:",
       error,
