@@ -127,7 +127,8 @@ export default function LiveSelfieCapture({
 
         const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
           baseOptions: {
-            modelAssetPath: "/models/face_landmarker.task",
+            modelAssetPath:
+              "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
           },
 
           runningMode: "VIDEO",
