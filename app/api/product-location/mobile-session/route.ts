@@ -1,7 +1,4 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import crypto from "crypto";
 
@@ -15,15 +12,13 @@ import clientPromise from "@/lib/db/mongodb";
 
 const DATABASE_NAME = "dealup";
 
-const COLLECTION_NAME =
-  "productLocationSessions";
+const COLLECTION_NAME = "productLocationSessions";
 
 // =====================================================
 // Session Lifetime
 // =====================================================
 
-const SESSION_LIFETIME_MS =
-  10 * 60 * 1000;
+const SESSION_LIFETIME_MS = 10 * 60 * 1000;
 
 // =====================================================
 // POST
@@ -36,26 +31,20 @@ const SESSION_LIFETIME_MS =
 // It does NOT use selfie verification.
 // =====================================================
 
-export async function POST(
-  request: NextRequest,
-) {
+export async function POST(request: NextRequest) {
   try {
     // =================================================
     // Authentication
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
-    if (
-      !session?.user?.id
-    ) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Please log in before using mobile location.",
+          message: "Please log in before using mobile location.",
         },
         {
           status: 401,
@@ -67,42 +56,29 @@ export async function POST(
     // Generate Secure Token
     // =================================================
 
-    const token =
-      crypto.randomBytes(32).toString("hex");
+    const token = crypto.randomBytes(32).toString("hex");
 
     // =================================================
     // Session ID
     // =================================================
 
-    const sessionId =
-      crypto.randomUUID();
+    const sessionId = crypto.randomUUID();
 
     // =================================================
     // Expiration
     // =================================================
 
-    const expiresAt =
-      new Date(
-        Date.now() +
-          SESSION_LIFETIME_MS,
-      );
+    const expiresAt = new Date(Date.now() + SESSION_LIFETIME_MS);
 
     // =================================================
     // Database
     // =================================================
 
-    const client =
-      await clientPromise;
+    const client = await clientPromise;
 
-    const db =
-      client.db(
-        DATABASE_NAME,
-      );
+    const db = client.db(DATABASE_NAME);
 
-    const collection =
-      db.collection(
-        COLLECTION_NAME,
-      );
+    const collection = db.collection(COLLECTION_NAME);
 
     // =================================================
     // Save Session
@@ -113,41 +89,30 @@ export async function POST(
 
       token,
 
-      userId:
-        String(
-          session.user.id,
-        ),
+      userId: String(session.user.id),
 
-      status:
-        "waiting",
+      status: "waiting",
 
-      purpose:
-        "product-location",
+      purpose: "product-location",
 
-      mobileLocation:
-        null,
+      mobileLocation: null,
 
-      createdAt:
-        new Date(),
+      createdAt: new Date(),
 
       expiresAt,
 
-      completedAt:
-        null,
+      completedAt: null,
     });
 
     // =================================================
     // Mobile URL
     // =================================================
 
-    const origin =
-      request.nextUrl.origin;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
 
-    const mobileUrl =
-      `${origin}/product-location/mobile?token=${encodeURIComponent(
-        token,
-      )}`;
-
+    const mobileUrl = `${origin}/product-location/mobile?token=${encodeURIComponent(
+      token,
+    )}`;
     // =================================================
     // Response
     // =================================================
@@ -160,25 +125,20 @@ export async function POST(
 
         mobileUrl,
 
-        expiresAt:
-          expiresAt.toISOString(),
+        expiresAt: expiresAt.toISOString(),
       },
       {
         status: 201,
       },
     );
   } catch (error) {
-    console.error(
-      "CREATE PRODUCT LOCATION MOBILE SESSION ERROR:",
-      error,
-    );
+    console.error("CREATE PRODUCT LOCATION MOBILE SESSION ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
 
-        message:
-          "Unable to create mobile location session.",
+        message: "Unable to create mobile location session.",
       },
       {
         status: 500,
@@ -196,28 +156,22 @@ export async function POST(
 // This is ONLY for product location.
 // =====================================================
 
-export async function GET(
-  request: NextRequest,
-) {
+export async function GET(request: NextRequest) {
   try {
     // =================================================
     // Authentication
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
-    if (
-      !session?.user?.id
-    ) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
 
           valid: false,
 
-          message:
-            "Unauthorized.",
+          message: "Unauthorized.",
         },
         {
           status: 401,
@@ -229,10 +183,7 @@ export async function GET(
     // Token
     // =================================================
 
-    const token =
-      request.nextUrl.searchParams.get(
-        "token",
-      );
+    const token = request.nextUrl.searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(
@@ -241,8 +192,7 @@ export async function GET(
 
           valid: false,
 
-          message:
-            "Session token is required.",
+          message: "Session token is required.",
         },
         {
           status: 400,
@@ -254,47 +204,32 @@ export async function GET(
     // Database
     // =================================================
 
-    const client =
-      await clientPromise;
+    const client = await clientPromise;
 
-    const db =
-      client.db(
-        DATABASE_NAME,
-      );
+    const db = client.db(DATABASE_NAME);
 
-    const collection =
-      db.collection(
-        COLLECTION_NAME,
-      );
+    const collection = db.collection(COLLECTION_NAME);
 
     // =================================================
     // Find Session
     // =================================================
 
-    const locationSession =
-      await collection.findOne({
-        token,
+    const locationSession = await collection.findOne({
+      token,
 
-        userId:
-          String(
-            session.user.id,
-          ),
+      userId: String(session.user.id),
 
-        purpose:
-          "product-location",
-      });
+      purpose: "product-location",
+    });
 
-    if (
-      !locationSession
-    ) {
+    if (!locationSession) {
       return NextResponse.json(
         {
           success: false,
 
           valid: false,
 
-          message:
-            "Product location session not found.",
+          message: "Product location session not found.",
         },
         {
           status: 404,
@@ -307,21 +242,17 @@ export async function GET(
     // =================================================
 
     if (
-      new Date() >
-        locationSession.expiresAt &&
-      locationSession.status ===
-        "waiting"
+      new Date() > locationSession.expiresAt &&
+      locationSession.status === "waiting"
     ) {
       await collection.updateOne(
         {
-          _id:
-            locationSession._id,
+          _id: locationSession._id,
         },
 
         {
           $set: {
-            status:
-              "expired",
+            status: "expired",
           },
         },
       );
@@ -332,11 +263,9 @@ export async function GET(
 
           valid: false,
 
-          status:
-            "expired",
+          status: "expired",
 
-          message:
-            "Product location session has expired.",
+          message: "Product location session has expired.",
         },
         {
           status: 410,
@@ -348,104 +277,71 @@ export async function GET(
     // Cancelled
     // =================================================
 
-    if (
-      locationSession.status ===
-      "cancelled"
-    ) {
-      return NextResponse.json(
-        {
-          success: true,
+    if (locationSession.status === "cancelled") {
+      return NextResponse.json({
+        success: true,
 
-          valid: false,
+        valid: false,
 
-          status:
-            "cancelled",
+        status: "cancelled",
 
-          mobileLocation:
-            null,
-        },
-      );
+        mobileLocation: null,
+      });
     }
 
     // =================================================
     // Waiting
     // =================================================
 
-    if (
-      locationSession.status ===
-      "waiting"
-    ) {
-      return NextResponse.json(
-        {
-          success: true,
+    if (locationSession.status === "waiting") {
+      return NextResponse.json({
+        success: true,
 
-          valid: true,
+        valid: true,
 
-          status:
-            "waiting",
+        status: "waiting",
 
-          expiresAt:
-            locationSession.expiresAt,
+        expiresAt: locationSession.expiresAt,
 
-          mobileLocation:
-            null,
-        },
-      );
+        mobileLocation: null,
+      });
     }
 
     // =================================================
     // Completed
     // =================================================
 
-    if (
-      locationSession.status ===
-      "completed"
-    ) {
-      return NextResponse.json(
-        {
-          success: true,
+    if (locationSession.status === "completed") {
+      return NextResponse.json({
+        success: true,
 
-          valid: true,
+        valid: true,
 
-          status:
-            "completed",
+        status: "completed",
 
-          expiresAt:
-            locationSession.expiresAt,
+        expiresAt: locationSession.expiresAt,
 
-          completedAt:
-            locationSession.completedAt,
+        completedAt: locationSession.completedAt,
 
-          mobileLocation:
-            locationSession.mobileLocation ??
-            null,
-        },
-      );
+        mobileLocation: locationSession.mobileLocation ?? null,
+      });
     }
 
     // =================================================
     // Unknown Status
     // =================================================
 
-    return NextResponse.json(
-      {
-        success: true,
+    return NextResponse.json({
+      success: true,
 
-        valid: true,
+      valid: true,
 
-        status:
-          locationSession.status,
+      status: locationSession.status,
 
-        mobileLocation:
-          locationSession.mobileLocation ??
-          null,
-      },
-    );
+      mobileLocation: locationSession.mobileLocation ?? null,
+    });
   } catch (error) {
-    console.error(
-      "GET PRODUCT LOCATION SESSION ERROR:",
-      error,
-    );
+    console.error("GET PRODUCT LOCATION SESSION ERROR:", error);
 
     return NextResponse.json(
       {
@@ -453,8 +349,7 @@ export async function GET(
 
         valid: false,
 
-        message:
-          "Unable to check product location session.",
+        message: "Unable to check product location session.",
       },
       {
         status: 500,
@@ -469,26 +364,20 @@ export async function GET(
 // Cancel an existing product-location session.
 // =====================================================
 
-export async function DELETE(
-  request: NextRequest,
-) {
+export async function DELETE(request: NextRequest) {
   try {
     // =================================================
     // Authentication
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
-    if (
-      !session?.user?.id
-    ) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Unauthorized.",
+          message: "Unauthorized.",
         },
         {
           status: 401,
@@ -500,18 +389,14 @@ export async function DELETE(
     // Token
     // =================================================
 
-    const token =
-      request.nextUrl.searchParams.get(
-        "token",
-      );
+    const token = request.nextUrl.searchParams.get("token");
 
     if (!token) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Session token is required.",
+          message: "Session token is required.",
         },
         {
           status: 400,
@@ -523,61 +408,42 @@ export async function DELETE(
     // Database
     // =================================================
 
-    const client =
-      await clientPromise;
+    const client = await clientPromise;
 
-    const db =
-      client.db(
-        DATABASE_NAME,
-      );
+    const db = client.db(DATABASE_NAME);
 
-    const collection =
-      db.collection(
-        COLLECTION_NAME,
-      );
+    const collection = db.collection(COLLECTION_NAME);
 
     // =================================================
     // Cancel Only Own Session
     // =================================================
 
-    const result =
-      await collection.updateOne(
-        {
-          token,
+    const result = await collection.updateOne(
+      {
+        token,
 
-          userId:
-            String(
-              session.user.id,
-            ),
+        userId: String(session.user.id),
 
-          purpose:
-            "product-location",
+        purpose: "product-location",
 
-          status:
-            "waiting",
+        status: "waiting",
+      },
+
+      {
+        $set: {
+          status: "cancelled",
+
+          completedAt: new Date(),
         },
+      },
+    );
 
-        {
-          $set: {
-            status:
-              "cancelled",
-
-            completedAt:
-              new Date(),
-          },
-        },
-      );
-
-    if (
-      result.matchedCount ===
-      0
-    ) {
+    if (result.matchedCount === 0) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Product location session not found or is no longer active.",
+          message: "Product location session not found or is no longer active.",
         },
         {
           status: 404,
@@ -585,26 +451,19 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json(
-      {
-        success: true,
+    return NextResponse.json({
+      success: true,
 
-        message:
-          "Product location session cancelled.",
-      },
-    );
+      message: "Product location session cancelled.",
+    });
   } catch (error) {
-    console.error(
-      "CANCEL PRODUCT LOCATION SESSION ERROR:",
-      error,
-    );
+    console.error("CANCEL PRODUCT LOCATION SESSION ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
 
-        message:
-          "Unable to cancel product location session.",
+        message: "Unable to cancel product location session.",
       },
       {
         status: 500,
