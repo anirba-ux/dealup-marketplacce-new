@@ -9,6 +9,19 @@ import {
 
 import dynamic from "next/dynamic";
 
+import {
+  CheckCircle2,
+  Loader2,
+  MapPin,
+  Navigation,
+  Search,
+  Smartphone,
+  QrCode,
+  X,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
+
 import { QRCodeSVG } from "qrcode.react";
 
 // =====================================================
@@ -32,29 +45,39 @@ interface Props {
   setValue: any;
   getValues: any;
   watch: any;
-
   mode?: "create" | "edit";
 }
 
 // =====================================================
-// Location Verification
+// Mobile Session Response
 // =====================================================
 
-type LocationVerificationStatus =
-  | "unknown"
-  | "nearby"
-  | "different"
-  | "far";
+interface MobileSession {
+  token: string;
+  mobileUrl: string;
+  expiresAt: string;
+}
 
 // =====================================================
-// Default Location
+// Mobile Location
+// =====================================================
+
+interface MobileLocation {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  capturedAt: string;
+}
+
+// =====================================================
+// Defaults
 // =====================================================
 
 const DEFAULT_LATITUDE = 22.9765;
 const DEFAULT_LONGITUDE = 88.4011;
 
 // =====================================================
-// States
+// Indian States
 // =====================================================
 
 const states = [
@@ -71,69 +94,36 @@ const states = [
 ];
 
 // =====================================================
-// Distance
+// Coordinate Validation
 // =====================================================
 
-function calculateDistance(
-  latitude1: number,
-  longitude1: number,
-  latitude2: number,
-  longitude2: number,
+function isValidCoordinate(
+  latitude: number,
+  longitude: number,
 ) {
-  const earthRadius = 6371;
-
-  const latitudeDifference =
-    ((latitude2 - latitude1) * Math.PI) /
-    180;
-
-  const longitudeDifference =
-    ((longitude2 - longitude1) * Math.PI) /
-    180;
-
-  const a =
-    Math.sin(latitudeDifference / 2) **
-      2 +
-    Math.cos(
-      (latitude1 * Math.PI) / 180,
-    ) *
-      Math.cos(
-        (latitude2 * Math.PI) / 180,
-      ) *
-      Math.sin(
-        longitudeDifference / 2,
-      ) **
-        2;
-
-  const c =
-    2 *
-    Math.atan2(
-      Math.sqrt(a),
-      Math.sqrt(1 - a),
-    );
-
-  return earthRadius * c;
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    !(latitude === 0 && longitude === 0)
+  );
 }
 
 // =====================================================
-// Verification Status
+// Device Detection
 // =====================================================
 
-function getLocationVerificationStatus(
-  distanceKm: number | null,
-): LocationVerificationStatus {
-  if (distanceKm === null) {
-    return "unknown";
+function detectMobileDevice() {
+  if (typeof navigator === "undefined") {
+    return false;
   }
 
-  if (distanceKm <= 5) {
-    return "nearby";
-  }
-
-  if (distanceKm <= 25) {
-    return "different";
-  }
-
-  return "far";
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(
+    navigator.userAgent,
+  );
 }
 
 // =====================================================
@@ -149,136 +139,127 @@ export default function LocationSection({
   mode = "create",
 }: Props) {
   // ===================================================
-  // Existing Product Coordinates
+  // Existing Coordinates
   // ===================================================
 
-  const initialLatitude =
-    Number(getValues("latitude"));
+  const initialLatitude = Number(
+    getValues("latitude"),
+  );
 
-  const initialLongitude =
-    Number(getValues("longitude"));
+  const initialLongitude = Number(
+    getValues("longitude"),
+  );
 
-  const hasExistingProductLocation =
-    Number.isFinite(
+  const hasExistingLocation =
+    isValidCoordinate(
       initialLatitude,
-    ) &&
-    Number.isFinite(
       initialLongitude,
-    ) &&
-    initialLatitude !== 0 &&
-    initialLongitude !== 0;
+    );
 
   // ===================================================
-  // Product Location
+  // Product Coordinates
   // ===================================================
 
-  const [
-    latitude,
-    setLatitude,
-  ] = useState<number>(
-    hasExistingProductLocation
-      ? initialLatitude
-      : DEFAULT_LATITUDE,
-  );
+  const [latitude, setLatitude] =
+    useState<number>(
+      hasExistingLocation
+        ? initialLatitude
+        : DEFAULT_LATITUDE,
+    );
 
-  const [
-    longitude,
-    setLongitude,
-  ] = useState<number>(
-    hasExistingProductLocation
-      ? initialLongitude
-      : DEFAULT_LONGITUDE,
-  );
+  const [longitude, setLongitude] =
+    useState<number>(
+      hasExistingLocation
+        ? initialLongitude
+        : DEFAULT_LONGITUDE,
+    );
 
   // ===================================================
-  // Seller Live GPS
+  // Device
   // ===================================================
 
-  const [
-    liveLatitude,
-    setLiveLatitude,
-  ] = useState<number | null>(
-    null,
-  );
-
-  const [
-    liveLongitude,
-    setLiveLongitude,
-  ] = useState<number | null>(
-    null,
-  );
-
-  const [
-    locationAccuracy,
-    setLocationAccuracy,
-  ] = useState<number | null>(
-    null,
-  );
+  const [mobileDevice, setMobileDevice] =
+    useState(false);
 
   // ===================================================
   // GPS Status
   // ===================================================
 
-  const [
-    locationStatus,
-    setLocationStatus,
-  ] = useState<
-    | "idle"
-    | "requesting"
-    | "success"
-    | "error"
-  >("idle");
+  const [locationStatus, setLocationStatus] =
+    useState<
+      "idle" | "detecting" | "success" | "error"
+    >("idle");
+
+  const [locationError, setLocationError] =
+    useState("");
 
   // ===================================================
-  // Address / Map Confirmation
+  // Address Status
   // ===================================================
 
-  const [
-    locationMismatch,
-    setLocationMismatch,
-  ] = useState(false);
+  const [addressLoading, setAddressLoading] =
+    useState(false);
+
+  const [addressError, setAddressError] =
+    useState("");
 
   // ===================================================
-  // Address Snapshot
+  // Location Confirmation
   // ===================================================
 
-  const initialAddressLoaded =
-    useRef(false);
-
-  const [
-    initialAddressSnapshot,
-    setInitialAddressSnapshot,
-  ] = useState("");
+  const [locationConfirmed, setLocationConfirmed] =
+    useState(hasExistingLocation);
 
   // ===================================================
-  // Mobile Verification
+  // Location Source
   // ===================================================
 
-  const [
-    mobileVerification,
-    setMobileVerification,
-  ] = useState<{
-    token: string;
-    mobileUrl: string;
-  } | null>(null);
-
-  const [
-    mobileVerificationLoading,
-    setMobileVerificationLoading,
-  ] = useState(false);
-
-  // ===================================================
-  // Watch Product Coordinates
-  // ===================================================
-
-  const watchedLatitude =
-    watch("latitude");
-
-  const watchedLongitude =
-    watch("longitude");
+  const [locationSource, setLocationSource] =
+    useState<
+      | "none"
+      | "device"
+      | "mobile"
+      | "address"
+      | "map"
+    >(
+      hasExistingLocation
+        ? "map"
+        : "none",
+    );
 
   // ===================================================
-  // Watch Address Fields
+  // Mobile QR Session
+  // ===================================================
+
+  const [mobileSession, setMobileSession] =
+    useState<MobileSession | null>(null);
+
+  const [mobileSessionLoading, setMobileSessionLoading] =
+    useState(false);
+
+  const [mobileSessionError, setMobileSessionError] =
+    useState("");
+
+  const [mobileConnected, setMobileConnected] =
+    useState(false);
+
+  const [mobileLocation, setMobileLocation] =
+    useState<MobileLocation | null>(null);
+
+  const pollingRef =
+    useRef<ReturnType<typeof setInterval> | null>(
+      null,
+    );
+
+  // ===================================================
+  // Last Geocoded Address
+  // ===================================================
+
+  const lastGeocodedAddress =
+    useRef("");
+
+  // ===================================================
+  // Watched Address
   // ===================================================
 
   const watchedState =
@@ -297,136 +278,61 @@ export default function LocationSection({
     watch("address");
 
   // ===================================================
-  // Keep Product Coordinates Synced
+  // Detect Mobile
   // ===================================================
 
   useEffect(() => {
-    const lat =
-      Number(watchedLatitude);
-
-    const lng =
-      Number(watchedLongitude);
-
-    if (
-      Number.isFinite(lat) &&
-      lat !== 0
-    ) {
-      setLatitude(lat);
-    }
-
-    if (
-      Number.isFinite(lng) &&
-      lng !== 0
-    ) {
-      setLongitude(lng);
-    }
-  }, [
-    watchedLatitude,
-    watchedLongitude,
-  ]);
+    setMobileDevice(
+      detectMobileDevice(),
+    );
+  }, []);
 
   // ===================================================
-  // Initial Address Snapshot
+  // Sync Coordinates From Form
   // ===================================================
 
   useEffect(() => {
-    if (
-      initialAddressLoaded.current
-    ) {
-      return;
-    }
-
-    const snapshot = [
-      watchedState,
-      watchedDistrict,
-      watchedCity,
-      watchedPincode,
-      watchedAddress,
-    ]
-      .map((value) =>
-        String(value ?? "")
-          .trim()
-          .toLowerCase(),
-      )
-      .join("|");
-
-    setInitialAddressSnapshot(
-      snapshot,
+    const lat = Number(
+      watch("latitude"),
     );
 
-    initialAddressLoaded.current =
-      true;
-  }, [
-    watchedState,
-    watchedDistrict,
-    watchedCity,
-    watchedPincode,
-    watchedAddress,
-  ]);
+    const lng = Number(
+      watch("longitude"),
+    );
 
-  // ===================================================
-  // Detect Manual Address Change
-  // ===================================================
-
-  useEffect(() => {
     if (
-      !initialAddressLoaded.current
-    ) {
-      return;
-    }
-
-    const currentSnapshot = [
-      watchedState,
-      watchedDistrict,
-      watchedCity,
-      watchedPincode,
-      watchedAddress,
-    ]
-      .map((value) =>
-        String(value ?? "")
-          .trim()
-          .toLowerCase(),
+      isValidCoordinate(
+        lat,
+        lng,
       )
-      .join("|");
-
-    if (
-      currentSnapshot !==
-      initialAddressSnapshot
     ) {
-      setLocationMismatch(true);
+      setLatitude(lat);
+      setLongitude(lng);
+      setLocationConfirmed(true);
     }
-  }, [
-    watchedState,
-    watchedDistrict,
-    watchedCity,
-    watchedPincode,
-    watchedAddress,
-    initialAddressSnapshot,
-  ]);
+  }, [watch]);
 
   // ===================================================
-  // Product Map Selection
+  // Save Coordinates
   // ===================================================
 
-  const handleProductLocationChange =
+  const saveCoordinates =
     useCallback(
       (
         lat: number,
         lng: number,
       ) => {
         if (
-          !Number.isFinite(lat) ||
-          !Number.isFinite(lng)
+          !isValidCoordinate(
+            lat,
+            lng,
+          )
         ) {
-          return;
+          return false;
         }
-
-        // Product coordinates
 
         setLatitude(lat);
         setLongitude(lng);
-
-        // React Hook Form
 
         setValue(
           "latitude",
@@ -446,128 +352,45 @@ export default function LocationSection({
           },
         );
 
-        // Map confirmed
+        setLocationConfirmed(true);
 
-        setLocationMismatch(
-          false,
-        );
-
-        // Update address snapshot
-
-        const currentSnapshot = [
-          watchedState,
-          watchedDistrict,
-          watchedCity,
-          watchedPincode,
-          watchedAddress,
-        ]
-          .map((value) =>
-            String(value ?? "")
-              .trim()
-              .toLowerCase(),
-          )
-          .join("|");
-
-        setInitialAddressSnapshot(
-          currentSnapshot,
-        );
+        return true;
       },
-      [
-        setValue,
-        watchedState,
-        watchedDistrict,
-        watchedCity,
-        watchedPincode,
-        watchedAddress,
-      ],
+      [setValue],
     );
 
   // ===================================================
-  // Create Mobile Verification Session
+  // Reverse Geocode
   // ===================================================
 
-  const startMobileVerification =
-    useCallback(async () => {
-      try {
-        setMobileVerificationLoading(
-          true,
-        );
-
-        const response =
-          await fetch(
-            "/api/location-verification/session",
-            {
-              method: "POST",
-              cache: "no-store",
-            },
-          );
-
-        const data =
-          await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            data?.message ??
-              "Unable to create mobile verification.",
-          );
-        }
-
+  const reverseGeocode =
+    useCallback(
+      async (
+        lat: number,
+        lng: number,
+      ) => {
         if (
-          !data?.token ||
-          !data?.mobileUrl
+          !isValidCoordinate(
+            lat,
+            lng,
+          )
         ) {
-          throw new Error(
-            "Invalid verification session response.",
-          );
+          return false;
         }
 
-        setMobileVerification({
-          token: data.token,
-          mobileUrl:
-            data.mobileUrl,
-        });
-      } catch (error) {
-        console.error(
-          "MOBILE VERIFICATION ERROR:",
-          error,
-        );
-
-        alert(
-          error instanceof Error
-            ? error.message
-            : "Unable to start mobile verification.",
-        );
-      } finally {
-        setMobileVerificationLoading(
-          false,
-        );
-      }
-    }, []);
-
-  // ===================================================
-  // Check Mobile Verification Status
-  // ===================================================
-
-  useEffect(() => {
-    if (
-      !mobileVerification?.token
-    ) {
-      return;
-    }
-
-    let stopped = false;
-
-    const checkStatus =
-      async () => {
         try {
+          setAddressLoading(true);
+          setAddressError("");
+
           const response =
             await fetch(
-              `/api/location-verification/status?token=${encodeURIComponent(
-                mobileVerification.token,
+              `/api/geocode?mode=reverse&lat=${encodeURIComponent(
+                lat,
+              )}&lng=${encodeURIComponent(
+                lng,
               )}`,
               {
-                cache:
-                  "no-store",
+                cache: "no-store",
               },
             );
 
@@ -575,114 +398,308 @@ export default function LocationSection({
             await response.json();
 
           if (
-            stopped ||
-            !response.ok
+            !response.ok ||
+            !data?.success
           ) {
-            return;
-          }
-
-          // =========================================
-          // Mobile verified
-          // =========================================
-
-          if (
-            data.status ===
-            "verified"
-          ) {
-            const mobileLocation =
-              data.mobileLocation;
-
-            if (
-              mobileLocation &&
-              Number.isFinite(
-                Number(
-                  mobileLocation.latitude,
-                ),
-              ) &&
-              Number.isFinite(
-                Number(
-                  mobileLocation.longitude,
-                ),
-              )
-            ) {
-              setLiveLatitude(
-                Number(
-                  mobileLocation.latitude,
-                ),
-              );
-
-              setLiveLongitude(
-                Number(
-                  mobileLocation.longitude,
-                ),
-              );
-
-              setLocationAccuracy(
-                Number(
-                  mobileLocation.accuracy,
-                ),
-              );
-
-              setLocationStatus(
-                "success",
-              );
-            }
-
-            setMobileVerification(
-              null,
-            );
-
-            return;
-          }
-
-          // =========================================
-          // Expired
-          // =========================================
-
-          if (
-            data.status ===
-            "expired"
-          ) {
-            setMobileVerification(
-              null,
-            );
-
-            alert(
-              "Mobile verification session expired. Please generate a new QR code.",
+            throw new Error(
+              data?.message ??
+                "Unable to identify this location.",
             );
           }
+
+          const address =
+            data.address ?? {};
+
+          const state =
+            address.state ?? "";
+
+          const district =
+            address.state_district ??
+            address.county ??
+            address.district ??
+            "";
+
+          const city =
+            address.city ??
+            address.town ??
+            address.municipality ??
+            address.village ??
+            "";
+
+          const pincode =
+            address.postcode ?? "";
+
+          const road =
+            address.road ??
+            address.neighbourhood ??
+            address.suburb ??
+            "";
+
+          setValue(
+            "state",
+            state,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
+
+          setValue(
+            "district",
+            district,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
+
+          setValue(
+            "city",
+            city,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
+
+          setValue(
+            "pincode",
+            pincode,
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
+
+          setValue(
+            "address",
+            road ||
+              data.displayName ||
+              "",
+            {
+              shouldDirty: true,
+              shouldValidate: true,
+            },
+          );
+
+          setLocationConfirmed(true);
+
+          return true;
         } catch (error) {
           console.error(
-            "MOBILE STATUS CHECK ERROR:",
+            "REVERSE GEOCODING ERROR:",
             error,
           );
+
+          setAddressError(
+            error instanceof Error
+              ? error.message
+              : "Unable to identify this location.",
+          );
+
+          return false;
+        } finally {
+          setAddressLoading(false);
         }
-      };
-
-    void checkStatus();
-
-    const interval =
-      window.setInterval(
-        checkStatus,
-        2000,
-      );
-
-    return () => {
-      stopped = true;
-
-      window.clearInterval(
-        interval,
-      );
-    };
-  }, [
-    mobileVerification,
-  ]);
+      },
+      [setValue],
+    );
 
   // ===================================================
-  // Seller Live GPS
+  // Product Location Changed
   // ===================================================
 
-  const detectLiveLocation =
+  const handleProductLocationChange =
+    useCallback(
+      async (
+        lat: number,
+        lng: number,
+        source:
+          | "device"
+          | "mobile"
+          | "map"
+          | "address",
+      ) => {
+        const saved =
+          saveCoordinates(
+            lat,
+            lng,
+          );
+
+        if (!saved) {
+          return;
+        }
+
+        setLocationSource(
+          source,
+        );
+
+        setAddressError("");
+
+        await reverseGeocode(
+          lat,
+          lng,
+        );
+      },
+      [
+        saveCoordinates,
+        reverseGeocode,
+      ],
+    );
+
+  // ===================================================
+  // Map Location
+  // ===================================================
+
+  const handleMapLocationChange =
+    useCallback(
+      (
+        lat: number,
+        lng: number,
+      ) => {
+        void handleProductLocationChange(
+          lat,
+          lng,
+          "map",
+        );
+      },
+      [
+        handleProductLocationChange,
+      ],
+    );
+
+  // ===================================================
+  // Address → Map
+  // ===================================================
+
+  const findAddressOnMap =
+    useCallback(
+      async () => {
+        const query = [
+          watchedAddress,
+          watchedCity,
+          watchedDistrict,
+          watchedState,
+          watchedPincode,
+          "India",
+        ]
+          .map(
+            (value) =>
+              String(
+                value ?? "",
+              ).trim(),
+          )
+          .filter(Boolean)
+          .join(", ");
+
+        if (!query) {
+          setAddressError(
+            "Please enter the product address first.",
+          );
+
+          return;
+        }
+
+        if (
+          query ===
+          lastGeocodedAddress.current
+        ) {
+          return;
+        }
+
+        try {
+          setAddressLoading(true);
+          setAddressError("");
+
+          const response =
+            await fetch(
+              `/api/geocode?mode=search&q=${encodeURIComponent(
+                query,
+              )}`,
+              {
+                cache: "no-store",
+              },
+            );
+
+          const data =
+            await response.json();
+
+          if (
+            !response.ok ||
+            !data?.success
+          ) {
+            throw new Error(
+              data?.message ??
+                "Unable to find this address.",
+            );
+          }
+
+          const lat =
+            Number(
+              data.latitude,
+            );
+
+          const lng =
+            Number(
+              data.longitude,
+            );
+
+          if (
+            !isValidCoordinate(
+              lat,
+              lng,
+            )
+          ) {
+            throw new Error(
+              "The address returned an invalid map location.",
+            );
+          }
+
+          saveCoordinates(
+            lat,
+            lng,
+          );
+
+          setLocationSource(
+            "address",
+          );
+
+          setLocationConfirmed(
+            true,
+          );
+
+          lastGeocodedAddress.current =
+            query;
+        } catch (error) {
+          console.error(
+            "ADDRESS GEOCODING ERROR:",
+            error,
+          );
+
+          setAddressError(
+            error instanceof Error
+              ? error.message
+              : "Unable to find this address.",
+          );
+        } finally {
+          setAddressLoading(false);
+        }
+      },
+      [
+        watchedAddress,
+        watchedCity,
+        watchedDistrict,
+        watchedState,
+        watchedPincode,
+        saveCoordinates,
+      ],
+    );
+
+  // ===================================================
+  // Direct Mobile / Desktop GPS
+  // ===================================================
+
+  const useCurrentLocation =
     useCallback(() => {
       if (
         typeof navigator ===
@@ -693,38 +710,30 @@ export default function LocationSection({
           "error",
         );
 
+        setLocationError(
+          "Your device does not support location services.",
+        );
+
         return;
       }
 
-      // Close old QR
-
-      setMobileVerification(
-        null,
-      );
-
       setLocationStatus(
-        "requesting",
+        "detecting",
       );
+
+      setLocationError("");
 
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat =
-            position.coords
-              .latitude;
+            position.coords.latitude;
 
           const lng =
-            position.coords
-              .longitude;
-
-          const accuracy =
-            position.coords
-              .accuracy;
+            position.coords.longitude;
 
           if (
-            !Number.isFinite(
+            !isValidCoordinate(
               lat,
-            ) ||
-            !Number.isFinite(
               lng,
             )
           ) {
@@ -732,128 +741,374 @@ export default function LocationSection({
               "error",
             );
 
-            return;
-          }
-
-          // =========================================
-          // Save live GPS
-          // =========================================
-
-          setLiveLatitude(
-            lat,
-          );
-
-          setLiveLongitude(
-            lng,
-          );
-
-          setLocationAccuracy(
-            accuracy,
-          );
-
-          // =========================================
-          // New product
-          //
-          // If product doesn't have a location,
-          // use live GPS as initial location.
-          // =========================================
-
-          if (
-            mode === "create" &&
-            !hasExistingProductLocation
-          ) {
-            handleProductLocationChange(
-              lat,
-              lng,
+            setLocationError(
+              "Your device returned an invalid location.",
             );
+
+            return;
           }
 
           setLocationStatus(
             "success",
           );
 
-          // =========================================
-          // Desktop GPS is inaccurate
-          //
-          // Instead of alert:
-          // show QR option.
-          // =========================================
-
-          if (
-            accuracy > 1000
-          ) {
-            console.warn(
-              "DESKTOP GPS ACCURACY TOO LOW:",
-              accuracy,
-            );
-
-            setLocationStatus(
-              "success",
-            );
-          }
+          void handleProductLocationChange(
+            lat,
+            lng,
+            "device",
+          );
         },
-
         (error) => {
           console.error(
-            "LIVE LOCATION ERROR:",
+            "PRODUCT LOCATION ERROR:",
             error,
           );
 
           setLocationStatus(
             "error",
           );
+
+          if (
+            error.code ===
+            error.PERMISSION_DENIED
+          ) {
+            setLocationError(
+              "Location permission was denied. Please allow location access and try again.",
+            );
+          } else if (
+            error.code ===
+            error.TIMEOUT
+          ) {
+            setLocationError(
+              "Location detection timed out. Please try again.",
+            );
+          } else {
+            setLocationError(
+              "Unable to detect your current location.",
+            );
+          }
         },
-
         {
-          enableHighAccuracy:
-            true,
-
-          timeout:
-            15000,
-
-          maximumAge:
-            0,
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
         },
       );
     }, [
-      mode,
-      hasExistingProductLocation,
       handleProductLocationChange,
     ]);
 
   // ===================================================
-  // Automatically Detect Seller GPS
+  // Stop Polling
+  // ===================================================
+
+  const stopMobilePolling =
+    useCallback(() => {
+      if (
+        pollingRef.current
+      ) {
+        clearInterval(
+          pollingRef.current,
+        );
+
+        pollingRef.current =
+          null;
+      }
+    }, []);
+
+  // ===================================================
+  // Cancel Mobile Session
+  // ===================================================
+
+  const cancelMobileSession =
+    useCallback(
+      async () => {
+        if (
+          !mobileSession?.token
+        ) {
+          return;
+        }
+
+        try {
+          await fetch(
+            `/api/product-location/mobile-session?token=${encodeURIComponent(
+              mobileSession.token,
+            )}`,
+            {
+              method: "DELETE",
+            },
+          );
+        } catch (error) {
+          console.error(
+            "CANCEL MOBILE LOCATION SESSION ERROR:",
+            error,
+          );
+        }
+
+        stopMobilePolling();
+
+        setMobileSession(null);
+        setMobileConnected(false);
+        setMobileLocation(null);
+      },
+      [
+        mobileSession,
+        stopMobilePolling,
+      ],
+    );
+
+  // ===================================================
+  // Poll Mobile Session
+  // ===================================================
+
+  const pollMobileSession =
+    useCallback(
+      (
+        token: string,
+      ) => {
+        stopMobilePolling();
+
+        const check =
+          async () => {
+            try {
+              const response =
+                await fetch(
+                  `/api/product-location/mobile-session?token=${encodeURIComponent(
+                    token,
+                  )}`,
+                  {
+                    cache: "no-store",
+                  },
+                );
+
+              const data =
+                await response.json();
+
+              if (
+                !response.ok
+              ) {
+                if (
+                  response.status ===
+                  410
+                ) {
+                  stopMobilePolling();
+
+                  setMobileSessionError(
+                    "The mobile location session has expired. Please generate a new QR code.",
+                  );
+                }
+
+                return;
+              }
+
+              if (
+                data.status ===
+                "completed" &&
+                data.mobileLocation
+              ) {
+                const location =
+                  data.mobileLocation;
+
+                const lat =
+                  Number(
+                    location.latitude,
+                  );
+
+                const lng =
+                  Number(
+                    location.longitude,
+                  );
+
+                const accuracy =
+                  Number(
+                    location.accuracy,
+                  );
+
+                if (
+                  isValidCoordinate(
+                    lat,
+                    lng,
+                  )
+                ) {
+                  stopMobilePolling();
+
+                  setMobileConnected(
+                    true,
+                  );
+
+                  setMobileLocation({
+                    latitude: lat,
+                    longitude: lng,
+                    accuracy:
+                      Number.isFinite(
+                        accuracy,
+                      )
+                        ? accuracy
+                        : 0,
+                    capturedAt:
+                      location.capturedAt ??
+                      new Date().toISOString(),
+                  });
+
+                  setLocationStatus(
+                    "success",
+                  );
+
+                  setLocationSource(
+                    "mobile",
+                  );
+
+                  setLocationError("");
+
+                  await handleProductLocationChange(
+                    lat,
+                    lng,
+                    "mobile",
+                  );
+                }
+              }
+
+              if (
+                data.status ===
+                "expired"
+              ) {
+                stopMobilePolling();
+
+                setMobileSessionError(
+                  "The mobile location session has expired.",
+                );
+              }
+
+              if (
+                data.status ===
+                "cancelled"
+              ) {
+                stopMobilePolling();
+
+                setMobileSessionError(
+                  "The mobile location session was cancelled.",
+                );
+              }
+            } catch (error) {
+              console.error(
+                "MOBILE LOCATION POLLING ERROR:",
+                error,
+              );
+            }
+          };
+
+        void check();
+
+        pollingRef.current =
+          setInterval(
+            () => {
+              void check();
+            },
+            2500,
+          );
+      },
+      [
+        handleProductLocationChange,
+        stopMobilePolling,
+      ],
+    );
+
+  // ===================================================
+  // Create Mobile QR Session
+  // ===================================================
+
+  const createMobileSession =
+    useCallback(
+      async () => {
+        try {
+          setMobileSessionLoading(
+            true,
+          );
+
+          setMobileSessionError("");
+
+          stopMobilePolling();
+
+          const response =
+            await fetch(
+              "/api/product-location/mobile-session",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                },
+              },
+            );
+
+          const data =
+            await response.json();
+
+          if (
+            !response.ok ||
+            !data?.success ||
+            !data?.token ||
+            !data?.mobileUrl
+          ) {
+            throw new Error(
+              data?.message ??
+                "Unable to create mobile location session.",
+            );
+          }
+
+          setMobileSession({
+            token: data.token,
+            mobileUrl:
+              data.mobileUrl,
+            expiresAt:
+              data.expiresAt,
+          });
+
+          setMobileConnected(
+            false,
+          );
+
+          setMobileLocation(
+            null,
+          );
+
+          pollMobileSession(
+            data.token,
+          );
+        } catch (error) {
+          console.error(
+            "CREATE MOBILE LOCATION SESSION ERROR:",
+            error,
+          );
+
+          setMobileSessionError(
+            error instanceof Error
+              ? error.message
+              : "Unable to create mobile location session.",
+          );
+        } finally {
+          setMobileSessionLoading(
+            false,
+          );
+        }
+      },
+      [
+        pollMobileSession,
+        stopMobilePolling,
+      ],
+    );
+
+  // ===================================================
+  // Cleanup
   // ===================================================
 
   useEffect(() => {
-    detectLiveLocation();
+    return () => {
+      stopMobilePolling();
+    };
   }, [
-    detectLiveLocation,
+    stopMobilePolling,
   ]);
-
-  // ===================================================
-  // Seller → Product Distance
-  // ===================================================
-
-  const locationDistance =
-    liveLatitude !== null &&
-    liveLongitude !== null
-      ? calculateDistance(
-          latitude,
-          longitude,
-          liveLatitude,
-          liveLongitude,
-        )
-      : null;
-
-  // ===================================================
-  // Verification Status
-  // ===================================================
-
-  const locationVerification =
-    getLocationVerificationStatus(
-      locationDistance,
-    );
 
   // ===================================================
   // Render
@@ -872,40 +1127,371 @@ export default function LocationSection({
         </h2>
 
         <p className="mt-2 text-slate-500 dark:text-slate-400">
-          Tell buyers where your product is currently located.
+          Set the actual place where your product
+          is physically located.
         </p>
       </div>
 
       {/* =================================================
-          GPS Requesting
+          Seller Instruction
       ================================================= */}
 
-      {locationStatus ===
-        "requesting" && (
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 dark:border-blue-800 dark:bg-blue-950/30">
+      <div className="rounded-3xl border border-blue-200 bg-blue-50 p-6 dark:border-blue-900 dark:bg-blue-950/30">
+        <div className="flex items-start gap-4">
 
-          <div className="flex items-start gap-3">
-
-            <div className="animate-pulse text-2xl">
-              📍
-            </div>
-
-            <div>
-
-              <h3 className="font-bold text-blue-800 dark:text-blue-300">
-                Detecting your live location
-              </h3>
-
-              <p className="mt-1 text-sm leading-6 text-blue-700 dark:text-blue-400">
-                DealUp is checking your device GPS for seller verification.
-              </p>
-
-            </div>
-
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+            <MapPin size={24} />
           </div>
 
+          <div>
+            <h3 className="text-lg font-bold text-blue-900 dark:text-blue-200">
+              Publish From the Actual Product Location
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-blue-800 dark:text-blue-300">
+              Whenever possible, publish this product
+              from the place where the product is
+              physically located.
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-blue-700 dark:text-blue-400">
+              This helps buyers reach the product
+              more accurately using maps and navigation.
+            </p>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* =================================================
+          Location Method
+      ================================================= */}
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+
+        <div>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            Confirm Product Location
+          </h3>
+
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Choose the most accurate way to confirm
+            where your product is physically located.
+          </p>
+        </div>
+
+        {/* =================================================
+            Mobile Device
+        ================================================= */}
+
+        {mobileDevice ? (
+          <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-800 dark:bg-green-950/30">
+
+            <div className="flex items-start gap-3">
+
+              <Smartphone
+                size={22}
+                className="mt-0.5 text-green-600"
+              />
+
+              <div>
+                <h4 className="font-bold text-green-800 dark:text-green-300">
+                  You are using a mobile device
+                </h4>
+
+                <p className="mt-1 text-sm leading-6 text-green-700 dark:text-green-400">
+                  For the best accuracy, allow location
+                  access and confirm the product location
+                  while you are physically there.
+                </p>
+              </div>
+
+            </div>
+
+            <button
+              type="button"
+              onClick={useCurrentLocation}
+              disabled={
+                locationStatus ===
+                "detecting"
+              }
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1565d8] px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {locationStatus ===
+              "detecting" ? (
+                <>
+                  <Loader2
+                    size={18}
+                    className="animate-spin"
+                  />
+                  Detecting...
+                </>
+              ) : (
+                <>
+                  <Navigation size={18} />
+                  Use My Live Location
+                </>
+              )}
+            </button>
+
+          </div>
+        ) : (
+          <>
+            {/* =================================================
+                Desktop
+            ================================================= */}
+
+            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 dark:border-amber-800 dark:bg-amber-950/30">
+
+              <div className="flex items-start gap-3">
+
+                <Smartphone
+                  size={22}
+                  className="mt-0.5 text-amber-600"
+                />
+
+                <div>
+                  <h4 className="font-bold text-amber-900 dark:text-amber-300">
+                    For the most accurate location,
+                    use your phone
+                  </h4>
+
+                  <p className="mt-1 text-sm leading-6 text-amber-800 dark:text-amber-400">
+                    Desktop GPS can be less accurate.
+                    If you are physically at the product
+                    location, scan the QR code with your
+                    phone and use your phone&apos;s GPS.
+                  </p>
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  createMobileSession
+                }
+                disabled={
+                  mobileSessionLoading
+                }
+                className="mt-4 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#1565d8] px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {mobileSessionLoading ? (
+                  <>
+                    <Loader2
+                      size={18}
+                      className="animate-spin"
+                    />
+                    Preparing QR...
+                  </>
+                ) : (
+                  <>
+                    <QrCode size={18} />
+                    Use My Phone for Accurate GPS
+                  </>
+                )}
+              </button>
+
+            </div>
+
+            {/* =================================================
+                QR Session
+            ================================================= */}
+
+            {mobileSession && (
+              <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-800">
+
+                <div className="flex items-center justify-between gap-4">
+
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                      Scan with your phone
+                    </h4>
+
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      Open your phone camera and scan
+                      this QR code.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={
+                      cancelMobileSession
+                    }
+                    className="rounded-xl p-2 text-slate-500 transition hover:bg-white hover:text-red-600 dark:hover:bg-slate-900"
+                    title="Cancel"
+                  >
+                    <X size={20} />
+                  </button>
+
+                </div>
+
+                <div className="mt-6 flex flex-col items-center">
+
+                  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-lg">
+                    <QRCodeSVG
+                      value={
+                        mobileSession.mobileUrl
+                      }
+                      size={240}
+                      level="H"
+                      includeMargin
+                    />
+                  </div>
+
+                  <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-[#1565d8]">
+
+                    {!mobileConnected ? (
+                      <>
+                        <Loader2
+                          size={17}
+                          className="animate-spin"
+                        />
+                        Waiting for your phone...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2
+                          size={17}
+                          className="text-green-600"
+                        />
+                        Phone connected
+                      </>
+                    )}
+
+                  </div>
+
+                  <p className="mt-3 max-w-md text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
+                    Keep this page open while your phone
+                    detects the product location.
+                  </p>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* =================================================
+                Mobile Connected
+            ================================================= */}
+
+            {mobileConnected &&
+              mobileLocation && (
+                <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-800 dark:bg-green-950/30">
+
+                  <div className="flex items-start gap-3">
+
+                    <ShieldCheck
+                      size={22}
+                      className="mt-0.5 text-green-600"
+                    />
+
+                    <div className="flex-1">
+
+                      <h4 className="font-bold text-green-800 dark:text-green-300">
+                        Mobile GPS received successfully
+                      </h4>
+
+                      <p className="mt-1 text-sm leading-6 text-green-700 dark:text-green-400">
+                        Your phone&apos;s live GPS has
+                        replaced the previous product
+                        location.
+                      </p>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+
+                        <div className="rounded-xl bg-white p-3 dark:bg-slate-900">
+                          <p className="text-xs text-slate-500">
+                            Latitude
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold">
+                            {mobileLocation.latitude.toFixed(
+                              6,
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 dark:bg-slate-900">
+                          <p className="text-xs text-slate-500">
+                            Longitude
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold">
+                            {mobileLocation.longitude.toFixed(
+                              6,
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 dark:bg-slate-900">
+                          <p className="text-xs text-slate-500">
+                            GPS Accuracy
+                          </p>
+
+                          <p className="mt-1 text-sm font-semibold">
+                            ±{" "}
+                            {Math.round(
+                              mobileLocation.accuracy,
+                            )}{" "}
+                            m
+                          </p>
+                        </div>
+
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+          </>
+        )}
+
+        {/* =================================================
+            Desktop GPS Fallback
+        ================================================= */}
+
+        {!mobileDevice && (
+          <div className="mt-5">
+
+            <div className="mb-3 text-center text-xs font-medium text-slate-400">
+              Or use desktop GPS as a fallback
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                useCurrentLocation
+              }
+              disabled={
+                locationStatus ===
+                "detecting"
+              }
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            >
+              {locationStatus ===
+              "detecting" ? (
+                <>
+                  <Loader2
+                    size={18}
+                    className="animate-spin"
+                  />
+                  Detecting...
+                </>
+              ) : (
+                <>
+                  <Navigation size={18} />
+                  Try Desktop GPS
+                </>
+              )}
+            </button>
+
+          </div>
+        )}
+
+      </div>
 
       {/* =================================================
           GPS Success
@@ -917,30 +1503,22 @@ export default function LocationSection({
 
           <div className="flex items-start gap-3">
 
-            <div className="text-2xl">
-              📍
-            </div>
+            <CheckCircle2
+              size={22}
+              className="mt-0.5 text-green-600"
+            />
 
-            <div className="flex-1">
+            <div>
 
               <h3 className="font-bold text-green-800 dark:text-green-300">
-                Live location detected
+                Product location confirmed
               </h3>
 
               <p className="mt-1 text-sm leading-6 text-green-700 dark:text-green-400">
-                Your live GPS is being used as a seller verification signal.
+                The latest verified product location
+                is now being used for the map and
+                buyer navigation.
               </p>
-
-              {locationAccuracy !==
-                null && (
-                <p className="mt-2 text-sm font-semibold text-green-800 dark:text-green-300">
-                  GPS accuracy:{" "}
-                  {Math.round(
-                    locationAccuracy,
-                  )}{" "}
-                  metres
-                </p>
-              )}
 
             </div>
 
@@ -948,531 +1526,252 @@ export default function LocationSection({
 
         </div>
       )}
-
-      {/* =================================================
-          Desktop GPS Low Accuracy
-      ================================================= */}
-
-      {locationAccuracy !==
-        null &&
-        locationAccuracy >
-          1000 && (
-          <div className="rounded-3xl border border-orange-200 bg-orange-50 p-6 dark:border-orange-800 dark:bg-orange-950/30">
-
-            <div className="flex flex-col gap-6 md:flex-row md:items-center">
-
-              {/* LEFT */}
-
-              <div className="flex-1">
-
-                <div className="flex items-start gap-3">
-
-                  <div className="text-3xl">
-                    💻
-                  </div>
-
-                  <div>
-
-                    <h3 className="font-bold text-orange-900 dark:text-orange-300">
-                      Desktop GPS is not accurate enough
-                    </h3>
-
-                    <p className="mt-1 text-sm text-orange-800 dark:text-orange-400">
-                      Current accuracy:{" "}
-                      <strong>
-                        {Math.round(
-                          locationAccuracy,
-                        )}{" "}
-                        metres
-                      </strong>
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-orange-800 dark:text-orange-400">
-                  For better seller verification,
-                  use your mobile phone GPS.
-                  Scan the QR code with your
-                  mobile and allow precise
-                  location access.
-                </p>
-
-                {!mobileVerification && (
-                  <button
-                    type="button"
-                    onClick={
-                      startMobileVerification
-                    }
-                    disabled={
-                      mobileVerificationLoading
-                    }
-                    className="mt-5 rounded-2xl bg-[#1565d8] px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {mobileVerificationLoading
-                      ? "Creating QR..."
-                      : "📱 Verify Using Mobile"}
-                  </button>
-                )}
-
-              </div>
-
-              {/* QR */}
-
-              {mobileVerification && (
-                <div className="flex shrink-0 flex-col items-center rounded-2xl border border-slate-200 bg-white p-5 shadow-lg dark:border-slate-700 dark:bg-slate-900">
-
-                  <QRCodeSVG
-                    value={
-                      mobileVerification.mobileUrl
-                    }
-                    size={220}
-                    level="M"
-                    includeMargin
-                  />
-
-                  <p className="mt-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-200">
-                    Scan with your mobile
-                  </p>
-
-                  <p className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
-                    Waiting for mobile GPS...
-                  </p>
-
-                  <div className="mt-3 flex items-center gap-2 text-xs font-medium text-blue-600">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-blue-600" />
-                    Waiting for verification
-                  </div>
-
-                </div>
-              )}
-
-            </div>
-
-          </div>
-        )}
 
       {/* =================================================
           GPS Error
       ================================================= */}
 
-      {locationStatus ===
-        "error" && (
+      {locationError && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-800 dark:bg-red-950/30">
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="font-semibold text-red-800 dark:text-red-300">
+            Location unavailable
+          </p>
 
-            <div>
-
-              <h3 className="font-bold text-red-800 dark:text-red-300">
-                Location access required
-              </h3>
-
-              <p className="mt-1 text-sm leading-6 text-red-700 dark:text-red-400">
-                Please allow device location access so DealUp can perform seller verification.
-              </p>
-
-            </div>
-
-            <button
-              type="button"
-              onClick={
-                detectLiveLocation
-              }
-              className="rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
-            >
-              Try Again
-            </button>
-
-          </div>
+          <p className="mt-1 text-sm leading-6 text-red-700 dark:text-red-400">
+            {locationError}
+          </p>
 
         </div>
       )}
-
-      {/* =================================================
-          Country
-      ================================================= */}
-
-      <div>
-
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          Country
-        </label>
-
-        <input
-          readOnly
-          value="India"
-          className="h-14 w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-        />
-
-      </div>
-
-      {/* =================================================
-          State
-      ================================================= */}
-
-      <div>
-
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          State
-        </label>
-
-        <select
-          {...register("state")}
-          className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 outline-none transition focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        >
-
-          <option value="">
-            Select State
-          </option>
-
-          {states.map(
-            (state) => (
-              <option
-                key={state}
-                value={state}
-              >
-                {state}
-              </option>
-            ),
-          )}
-
-        </select>
-
-        {errors.state && (
-          <p className="mt-2 text-sm text-red-500">
-            {
-              errors.state
-                .message
-            }
-          </p>
-        )}
-
-      </div>
-
-      {/* =================================================
-          District
-      ================================================= */}
-
-      <div>
-
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          District
-        </label>
-
-        <input
-          {...register(
-            "district",
-          )}
-          placeholder="e.g. Hooghly"
-          className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        />
-
-        {errors.district && (
-          <p className="mt-2 text-sm text-red-500">
-            {
-              errors
-                .district
-                .message
-            }
-          </p>
-        )}
-
-      </div>
-
-      {/* =================================================
-          City
-      ================================================= */}
-
-      <div>
-
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          City / Town
-        </label>
-
-        <input
-          {...register(
-            "city",
-          )}
-          placeholder="e.g. Chuchura"
-          className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        />
-
-        {errors.city && (
-          <p className="mt-2 text-sm text-red-500">
-            {
-              errors.city
-                .message
-            }
-          </p>
-        )}
-
-      </div>
-
-      {/* =================================================
-          Pincode
-      ================================================= */}
-
-      <div>
-
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          Pincode
-        </label>
-
-        <input
-          {...register(
-            "pincode",
-          )}
-          placeholder="712502"
-          className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        />
-
-        {errors.pincode && (
-          <p className="mt-2 text-sm text-red-500">
-            {
-              errors
-                .pincode
-                .message
-            }
-          </p>
-        )}
-
-      </div>
 
       {/* =================================================
           Address
       ================================================= */}
 
-      <div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
 
-        <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-          Full Address
-        </label>
+        <div className="mb-6">
 
-        <textarea
-          rows={4}
-          {...register(
-            "address",
-          )}
-          placeholder="Enter complete address..."
-          className="w-full rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-400 outline-none transition focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-        />
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+            Product Address
+          </h3>
 
-        {errors.address && (
-          <p className="mt-2 text-sm text-red-500">
-            {
-              errors
-                .address
-                .message
-            }
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Enter the product address manually,
+            then use &quot;Find on Map&quot; to locate it.
           </p>
-        )}
-
-      </div>
-
-      {/* =================================================
-          Refresh Live GPS
-      ================================================= */}
-
-      <div className="flex justify-end">
-
-        <button
-          type="button"
-          onClick={
-            detectLiveLocation
-          }
-          disabled={
-            locationStatus ===
-            "requesting"
-          }
-          className="rounded-2xl bg-[#1565d8] px-6 py-3 font-semibold text-white shadow-lg transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {locationStatus ===
-          "requesting"
-            ? "📍 Detecting..."
-            : "📍 Refresh Live Location"}
-        </button>
-
-      </div>
-
-      {/* =================================================
-          Address / Map Mismatch
-      ================================================= */}
-
-      {locationMismatch && (
-        <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 dark:border-amber-700 dark:bg-amber-950/30">
-
-          <div className="flex items-start gap-3">
-
-            <div className="text-2xl">
-              ⚠️
-            </div>
-
-            <div>
-
-              <h3 className="font-bold text-amber-900 dark:text-amber-300">
-                Location mismatch
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-amber-800 dark:text-amber-400">
-                Your product address has changed,
-                but the map location has not been
-                confirmed for this address.
-              </p>
-
-              <p className="mt-2 text-sm font-semibold text-amber-900 dark:text-amber-300">
-                Please select the correct product
-                location on the map before continuing.
-              </p>
-
-            </div>
-
-          </div>
 
         </div>
-      )}
 
-      {/* =================================================
-          Seller → Product Distance
-      ================================================= */}
+        <div className="space-y-5">
 
-      {locationDistance !==
-        null && (
-        <div
-          className={`rounded-2xl border p-5 ${
-            locationVerification ===
-            "nearby"
-              ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30"
-              : locationVerification ===
-                  "different"
-                ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30"
-                : "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/30"
-          }`}
-        >
-
-          {locationVerification ===
-            "nearby" && (
-            <>
-              <h3 className="font-bold text-green-800 dark:text-green-300">
-                ✓ Product location is nearby
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-green-700 dark:text-green-400">
-                Your current device location is approximately{" "}
-                <strong>
-                  {locationDistance.toFixed(
-                    1,
-                  )}{" "}
-                  km
-                </strong>{" "}
-                from the product location.
-              </p>
-            </>
-          )}
-
-          {locationVerification ===
-            "different" && (
-            <>
-              <h3 className="font-bold text-amber-800 dark:text-amber-300">
-                ⚠️ Product location differs
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-amber-700 dark:text-amber-400">
-                Your current device location is approximately{" "}
-                <strong>
-                  {locationDistance.toFixed(
-                    1,
-                  )}{" "}
-                  km
-                </strong>{" "}
-                from the product location.
-              </p>
-
-              <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
-                This is allowed. A seller may be listing a product stored at another location.
-              </p>
-            </>
-          )}
-
-          {locationVerification ===
-            "far" && (
-            <>
-              <h3 className="font-bold text-orange-800 dark:text-orange-300">
-                ⚠️ Significant location difference
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-orange-700 dark:text-orange-400">
-                Your current device location is approximately{" "}
-                <strong>
-                  {locationDistance.toFixed(
-                    1,
-                  )}{" "}
-                  km
-                </strong>{" "}
-                from the product location.
-              </p>
-
-              <p className="mt-2 text-sm text-orange-800 dark:text-orange-300">
-                DealUp may use this difference as one signal in its seller trust and risk system.
-              </p>
-            </>
-          )}
-
-        </div>
-      )}
-
-      {/* =================================================
-          Product Location Map
-      ================================================= */}
-
-      <div className="space-y-3">
-
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          {/* Country */}
 
           <div>
-
-            <label className="block font-medium text-slate-700 dark:text-slate-300">
-              Product Location on Map
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              Country
             </label>
 
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Select where the product is actually located.
-            </p>
+            <input
+              readOnly
+              value="India"
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+            />
+          </div>
+
+          {/* State */}
+
+          <div>
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              State
+            </label>
+
+            <select
+              {...register("state")}
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 outline-none focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            >
+              <option value="">
+                Select State
+              </option>
+
+              {states.map(
+                (state) => (
+                  <option
+                    key={state}
+                    value={state}
+                  >
+                    {state}
+                  </option>
+                ),
+              )}
+            </select>
+
+            {errors.state && (
+              <p className="mt-2 text-sm text-red-500">
+                {errors.state.message}
+              </p>
+            )}
+          </div>
+
+          {/* District */}
+
+          <div>
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              District
+            </label>
+
+            <input
+              {...register("district")}
+              placeholder="e.g. Hooghly"
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 outline-none focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+
+            {errors.district && (
+              <p className="mt-2 text-sm text-red-500">
+                {errors.district.message}
+              </p>
+            )}
+          </div>
+
+          {/* City */}
+
+          <div>
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              City / Town
+            </label>
+
+            <input
+              {...register("city")}
+              placeholder="e.g. Bansberia"
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 outline-none focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+
+            {errors.city && (
+              <p className="mt-2 text-sm text-red-500">
+                {errors.city.message}
+              </p>
+            )}
+          </div>
+
+          {/* Pincode */}
+
+          <div>
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              Pincode
+            </label>
+
+            <input
+              {...register("pincode")}
+              placeholder="712502"
+              inputMode="numeric"
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 outline-none focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+
+            {errors.pincode && (
+              <p className="mt-2 text-sm text-red-500">
+                {errors.pincode.message}
+              </p>
+            )}
+          </div>
+
+          {/* Full Address */}
+
+          <div>
+            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+              Full Address
+            </label>
+
+            <textarea
+              rows={4}
+              {...register("address")}
+              placeholder="House / building / road / locality..."
+              className="w-full rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none focus:border-[#1565d8] focus:ring-4 focus:ring-blue-100 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            />
+
+            {errors.address && (
+              <p className="mt-2 text-sm text-red-500">
+                {errors.address.message}
+              </p>
+            )}
+          </div>
+
+          {/* Find On Map */}
+
+          <div className="flex justify-end">
+
+            <button
+              type="button"
+              onClick={
+                findAddressOnMap
+              }
+              disabled={
+                addressLoading
+              }
+              className="inline-flex items-center gap-2 rounded-2xl border border-[#1565d8] bg-white px-5 py-3 font-semibold text-[#1565d8] transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-900 dark:hover:bg-slate-800"
+            >
+              {addressLoading ? (
+                <>
+                  <Loader2
+                    size={18}
+                    className="animate-spin"
+                  />
+                  Finding...
+                </>
+              ) : (
+                <>
+                  <Search size={18} />
+                  Find on Map
+                </>
+              )}
+            </button>
 
           </div>
 
-          {locationMismatch && (
-            <span className="font-semibold text-amber-600">
-              ⚠️ Map confirmation required
+          {addressError && (
+            <p className="text-sm font-medium text-red-600">
+              {addressError}
+            </p>
+          )}
+
+        </div>
+      </div>
+
+      {/* =================================================
+          Map
+      ================================================= */}
+
+      <div className="space-y-4">
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+
+          <div>
+            <h3 className="font-semibold text-slate-900 dark:text-white">
+              Product Location on Map
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              This pin represents the location buyers
+              will use for navigation.
+            </p>
+          </div>
+
+          {locationConfirmed && (
+            <span className="inline-flex items-center gap-2 text-sm font-semibold text-green-600">
+              <CheckCircle2 size={18} />
+              Location confirmed
             </span>
           )}
 
         </div>
 
-        <div className="relative h-[480px] w-full overflow-hidden rounded-3xl border border-slate-300 bg-slate-200 shadow-sm dark:border-slate-700 md:h-[560px] lg:h-[620px]">
+        <div className="relative h-[480px] w-full overflow-hidden rounded-3xl border border-slate-300 bg-slate-200 shadow-sm dark:border-slate-700 md:h-[560px]">
 
           <LocationPicker
-            latitude={
-              latitude
-            }
-            longitude={
-              longitude
-            }
-            liveLatitude={
-              liveLatitude
-            }
-            liveLongitude={
-              liveLongitude
-            }
-            liveAccuracy={
-              locationAccuracy
-            }
+            latitude={latitude}
+            longitude={longitude}
             onLocationChange={
-              handleProductLocationChange
-            }
-            onMobileVerificationRequired={
-              startMobileVerification
+              handleMapLocationChange
             }
           />
 
@@ -1481,126 +1780,80 @@ export default function LocationSection({
       </div>
 
       {/* =================================================
-          Product Coordinates
+          Coordinates
       ================================================= */}
 
-      <div>
+      <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-700 dark:bg-slate-800">
 
-        <div className="mb-3">
+        <h3 className="font-semibold text-slate-900 dark:text-white">
+          Confirmed Product Coordinates
+        </h3>
 
-          <h3 className="font-semibold text-slate-900 dark:text-white">
-            Product Location Coordinates
-          </h3>
+        <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+          These coordinates belong to the product
+          location and will be used for buyer navigation.
+        </p>
 
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            These coordinates belong to the product listing,
-            not your live device location.
-          </p>
-
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="mt-5 grid gap-5 md:grid-cols-2">
 
           <div>
-
-            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+            <label className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-300">
               Latitude
             </label>
 
             <input
               readOnly
-              value={latitude.toFixed(
-                6,
-              )}
-              className="h-14 w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              value={latitude.toFixed(6)}
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
-
           </div>
 
           <div>
-
-            <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
+            <label className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-300">
               Longitude
             </label>
 
             <input
               readOnly
-              value={longitude.toFixed(
-                6,
-              )}
-              className="h-14 w-full rounded-2xl border border-slate-300 bg-slate-100 px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              value={longitude.toFixed(6)}
+              className="h-14 w-full rounded-2xl border border-slate-300 bg-white px-4 text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             />
-
           </div>
+
+        </div>
+
+        {/* Source */}
+
+        <div className="mt-5 rounded-2xl bg-white p-4 dark:bg-slate-900">
+
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            Location source
+          </p>
+
+          <p className="mt-1 font-semibold capitalize text-slate-800 dark:text-slate-200">
+
+            {locationSource ===
+            "device"
+              ? "Live device GPS"
+              : locationSource ===
+                  "mobile"
+                ? "Mobile phone GPS"
+                : locationSource ===
+                    "address"
+                  ? "Manual address search"
+                  : locationSource ===
+                      "map"
+                    ? "Map selection"
+                    : "Not selected"}
+
+          </p>
 
         </div>
 
       </div>
 
       {/* =================================================
-          Seller Live GPS
-      ================================================= */}
-
-      {liveLatitude !==
-        null &&
-        liveLongitude !==
-          null && (
-          <div>
-
-            <div className="mb-3">
-
-              <h3 className="font-semibold text-slate-900 dark:text-white">
-                Seller Live GPS
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Your current device location.
-                This is used only for verification.
-              </p>
-
-            </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-
-              <div>
-
-                <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-                  Live Latitude
-                </label>
-
-                <input
-                  readOnly
-                  value={liveLatitude.toFixed(
-                    6,
-                  )}
-                  className="h-14 w-full rounded-2xl border border-green-200 bg-green-50 px-4 text-slate-900 dark:border-green-800 dark:bg-green-950/30 dark:text-white"
-                />
-
-              </div>
-
-              <div>
-
-                <label className="mb-2 block font-medium text-slate-700 dark:text-slate-300">
-                  Live Longitude
-                </label>
-
-                <input
-                  readOnly
-                  value={liveLongitude.toFixed(
-                    6,
-                  )}
-                  className="h-14 w-full rounded-2xl border border-green-200 bg-green-50 px-4 text-slate-900 dark:border-green-800 dark:bg-green-950/30 dark:text-white"
-                />
-
-              </div>
-
-            </div>
-
-          </div>
-        )}
-
-      {/* =================================================
-          Hidden Product Coordinates
+          Hidden Coordinates
       ================================================= */}
 
       <input
@@ -1628,11 +1881,10 @@ export default function LocationSection({
         </h3>
 
         <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-          Your exact live device location
-          will not be shown publicly to buyers.
-          DealUp uses your live GPS only as a
-          verification signal. The product
-          location is stored separately.
+          Your seller verification location is kept
+          separate from the product location. Buyers
+          will see the product location you confirm here,
+          not your private verification coordinates.
         </p>
 
       </div>

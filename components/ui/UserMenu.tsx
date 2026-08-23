@@ -1,10 +1,16 @@
 "use client";
+
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import LanguageSwitcher from "./LanguageSwitcher";
-import { signOut, useSession } from "next-auth/react";
+
+import {
+  signOut,
+  useSession,
+} from "next-auth/react";
+
 import {
   ChevronDown,
   Heart,
@@ -13,34 +19,81 @@ import {
   MessageCircle,
   Package,
   Settings,
+  ShieldCheck,
   User,
 } from "lucide-react";
 
 export default function UserMenu() {
-  const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [open, setOpen] =
+    useState(false);
 
-  const { data: session } = useSession();
+  const menuRef =
+    useRef<HTMLDivElement>(null);
 
-  const t = useTranslations("common");
+  const {
+    data: session,
+  } = useSession();
 
-  const name = session?.user?.name || "User";
+  const t =
+    useTranslations("common");
 
-  const image = session?.user?.image || "/images/default-avatar.png";
+  // =====================================================
+  // User Information
+  // =====================================================
+
+  const name =
+    session?.user?.name ||
+    "User";
+
+  const image =
+    session?.user?.image ||
+    "/images/default-avatar.png";
+
+  // =====================================================
+  // Admin Check
+  //
+  // Only users whose role is exactly "admin"
+  // will see the Admin Dashboard option.
+  // =====================================================
+
+  const isAdmin =
+    session?.user?.role ===
+    "admin";
+
+  // =====================================================
+  // Close Menu On Outside Click
+  // =====================================================
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+    function handleClickOutside(
+      event: MouseEvent,
+    ) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(
+          event.target as Node,
+        )
+      ) {
         setOpen(false);
       }
     }
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside,
+    );
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
     };
   }, []);
+
+  // =====================================================
+  // Normal User Menu Items
+  // =====================================================
 
   const menuItems = [
     {
@@ -48,26 +101,31 @@ export default function UserMenu() {
       href: "/dashboard",
       icon: LayoutDashboard,
     },
+
     {
       label: t("myProfile"),
       href: "/dashboard/profile",
       icon: User,
     },
+
     {
       label: t("myAds"),
       href: "/dashboard/my-ads",
       icon: Package,
     },
+
     {
       label: t("wishlist"),
       href: "/wishlist",
       icon: Heart,
     },
+
     {
       label: t("messages"),
       href: "/messages",
       icon: MessageCircle,
     },
+
     {
       label: t("settings"),
       href: "/dashboard/settings",
@@ -75,14 +133,32 @@ export default function UserMenu() {
     },
   ];
 
+  // =====================================================
+  // Render
+  // =====================================================
+
   return (
-    <div className="relative" ref={menuRef}>
+    <div
+      className="relative"
+      ref={menuRef}
+    >
+      {/* =================================================
+          Profile Button
+      ================================================= */}
+
       <button
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() =>
+          setOpen(
+            (prev) => !prev,
+          )
+        }
         className="flex items-center gap-3 rounded-full px-2 py-1 transition hover:bg-slate-100"
       >
         <Image
-          src={image || "/images/default-avatar.png"}
+          src={
+            image ||
+            "/images/default-avatar.png"
+          }
           alt={name}
           width={42}
           height={42}
@@ -102,51 +178,140 @@ export default function UserMenu() {
         <ChevronDown
           size={18}
           className={`hidden text-slate-500 dark:text-slate-400 transition sm:block ${
-            open ? "rotate-180" : ""
+            open
+              ? "rotate-180"
+              : ""
           }`}
         />
       </button>
 
+      {/* =================================================
+          Dropdown Menu
+      ================================================= */}
+
       {open && (
-        <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
-          <div className="border-b bg-slate-50 px-5 py-4">
-            <p className="truncate font-semibold text-slate-800">{name}</p>
+        <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+
+          {/* =================================================
+              User Header
+          ================================================= */}
+
+          <div className="border-b bg-slate-50 px-5 py-4 dark:border-slate-700 dark:bg-slate-800">
+            <p className="truncate font-semibold text-slate-800 dark:text-white">
+              {name}
+            </p>
 
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {t("manageAccount")}
             </p>
+
+            {/* Admin Indicator */}
+
+            {isAdmin && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                <ShieldCheck
+                  size={13}
+                />
+
+                Administrator
+              </div>
+            )}
           </div>
 
-          {menuItems.map((item) => {
-            const Icon = item.icon;
+          {/* =================================================
+              Normal Menu Items
+          ================================================= */}
 
-            return (
+          {menuItems.map(
+            (item) => {
+              const Icon =
+                item.icon;
+
+              return (
+                <Link
+                  key={
+                    item.href
+                  }
+                  href={
+                    item.href
+                  }
+                  onClick={() =>
+                    setOpen(
+                      false,
+                    )
+                  }
+                  className="flex items-center gap-3 px-5 py-3 text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  <Icon
+                    size={18}
+                  />
+
+                  <span>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            },
+          )}
+
+          {/* =================================================
+              ADMIN DASHBOARD
+              
+              Only visible to admin.
+          ================================================= */}
+
+          {isAdmin && (
+            <>
+              <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
+
               <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-5 py-3 transition hover:bg-slate-100"
+                href="/admin"
+                onClick={() =>
+                  setOpen(
+                    false,
+                  )
+                }
+                className="flex items-center gap-3 px-5 py-3 font-semibold text-purple-700 transition hover:bg-purple-50 dark:text-purple-300 dark:hover:bg-purple-900/20"
               >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+                <ShieldCheck
+                  size={18}
+                />
 
-          <div className="border-t" />
+                <span>
+                  Admin Dashboard
+                </span>
+              </Link>
+            </>
+          )}
+
+          {/* =================================================
+              Language
+          ================================================= */}
+
+          <div className="border-t border-slate-200 dark:border-slate-700" />
 
           <LanguageSwitcher />
+
+          {/* =================================================
+              Logout
+          ================================================= */}
 
           <button
             onClick={() =>
               signOut({
-                callbackUrl: "/login",
+                callbackUrl:
+                  "/login",
               })
             }
-            className="flex w-full items-center gap-3 px-5 py-3 font-medium text-red-600 transition hover:bg-red-50"
+            className="flex w-full items-center gap-3 px-5 py-3 font-medium text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"
           >
-            <LogOut size={18} />
-            <span>{t("logout")}</span>
+            <LogOut
+              size={18}
+            />
+
+            <span>
+              {t("logout")}
+            </span>
           </button>
         </div>
       )}

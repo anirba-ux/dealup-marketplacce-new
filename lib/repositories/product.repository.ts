@@ -1,6 +1,8 @@
 import { ObjectId } from "mongodb";
 
-import { getConversationCountByProduct } from "./chat.repository";
+import {
+  getConversationCountByProduct,
+} from "./chat.repository";
 
 import clientPromise from "@/lib/db/mongodb";
 
@@ -14,73 +16,384 @@ import {
   calculateProductRisk,
 } from "@/lib/risk/productRisk";
 
+import {
+  getSellerBadge,
+} from "@/lib/risk/sellerTrust";
+
+// =====================================================
+// Database
+// =====================================================
+
 const DATABASE_NAME = "dealup";
-const COLLECTION_NAME = "products";
+
+const COLLECTION_NAME =
+  "products";
 
 // =====================================================
 // MongoDB Collection
 // =====================================================
 
 async function getCollection() {
-  const client = await clientPromise;
+  const client =
+    await clientPromise;
 
-  const db = client.db(DATABASE_NAME);
+  const db =
+    client.db(DATABASE_NAME);
 
-  console.log("DATABASE:", db.databaseName);
-  console.log("COLLECTION:", COLLECTION_NAME);
+  console.log(
+    "DATABASE:",
+    db.databaseName,
+  );
 
-  return db.collection<Product>(COLLECTION_NAME);
+  console.log(
+    "COLLECTION:",
+    COLLECTION_NAME,
+  );
+
+  return db.collection<Product>(
+    COLLECTION_NAME,
+  );
 }
 
 // =====================================================
-// Attach Seller Phone Verification
+// Seller Verification + Badge
+//
+// IMPORTANT:
+//
+// Product does NOT store a permanent verifiedSeller
+// value.
+//
+// Badge is calculated from the CURRENT seller record.
+//
+// This means:
+//
+// Seller verified  -> badge appears
+// Seller pending   -> badge disappears
+// Seller rejected  -> badge disappears
+// Seller suspended -> badge disappears
+//
 // =====================================================
 
-async function attachSellerPhoneVerification(
+async function attachSellerVerification(
   products: any[],
 ) {
-  const client = await clientPromise;
+  if (!products.length) {
+    return [];
+  }
 
-  const db = client.db(DATABASE_NAME);
+  const client =
+    await clientPromise;
 
-  const users = db.collection("users");
+  const db =
+    client.db(DATABASE_NAME);
 
-  return Promise.all(
-    products.map(async (product) => {
-      if (!product.sellerId) {
-        return {
-          ...product,
-          sellerIsPhoneVerified: false,
-        };
-      }
+  const users =
+    db.collection("users");
 
-      let seller;
+  // ===================================================
+  // Unique Seller IDs
+  // ===================================================
 
-      try {
-        seller = await users.findOne(
-          {
-            _id: new ObjectId(product.sellerId),
+  const sellerIds = [
+    ...new Set(
+      products
+        .map(
+          (product) =>
+            product.sellerId,
+        )
+        .filter(Boolean)
+        .map(String),
+    ),
+  ];
+
+  // ===================================================
+  // Valid ObjectIds
+  // ===================================================
+
+  const validSellerIds =
+    sellerIds.filter(
+      (id) =>
+        ObjectId.isValid(id),
+    );
+
+  if (!validSellerIds.length) {
+    return products.map(
+      (product) => ({
+        ...product,
+
+        sellerIsPhoneVerified:
+          false,
+
+        sellerVerificationStatus:
+          "unverified",
+
+        sellerPhoneVerified:
+          false,
+
+        sellerIdentityVerified:
+          false,
+
+        sellerLocationVerified:
+          false,
+
+        sellerTrustScore:
+          0,
+
+        sellerTrustLevel:
+          "low",
+
+        sellerBadge:
+          null,
+      }),
+    );
+  }
+
+  // ===================================================
+  // Fetch All Sellers In One Query
+  //
+  // Avoids one database query per product.
+  // ===================================================
+
+  const sellers =
+    await users
+      .find(
+        {
+          _id: {
+            $in:
+              validSellerIds.map(
+                (id) =>
+                  new ObjectId(id),
+              ),
           },
-          {
-            projection: {
-              isPhoneVerified: 1,
-            },
+        },
+        {
+          projection: {
+            isPhoneVerified: 1,
+            sellerVerification: 1,
+            trustScore: 1,
+            trustLevel: 1,
           },
+        },
+      )
+      .toArray();
+
+  // ===================================================
+  // Seller Map
+  // ===================================================
+
+  const sellerMap =
+    new Map<
+      string,
+      any
+    >();
+
+  for (
+    const seller of sellers
+  ) {
+    sellerMap.set(
+      seller._id.toString(),
+      seller,
+    );
+  }
+
+  // ===================================================
+  // Attach Seller Data
+  // ===================================================
+
+  return products.map(
+    (product) => {
+      const sellerId =
+        String(
+          product.sellerId ??
+            "",
         );
-      } catch {
+
+      const seller =
+        sellerMap.get(
+          sellerId,
+        );
+
+      // =================================================
+      // Seller Not Found
+      // =================================================
+
+      if (!seller) {
         return {
           ...product,
-          sellerIsPhoneVerified: false,
+
+          sellerIsPhoneVerified:
+            false,
+
+          sellerVerificationStatus:
+            "unverified",
+
+          sellerPhoneVerified:
+            false,
+
+          sellerIdentityVerified:
+            false,
+
+          sellerLocationVerified:
+            false,
+
+          sellerTrustScore:
+            0,
+
+          sellerTrustLevel:
+            "low",
+
+          sellerBadge:
+            null,
         };
       }
+
+      // =================================================
+      // Seller Verification Status
+      // =================================================
+
+      const sellerVerificationStatus =
+        seller.sellerVerification
+          ?.status ??
+        "unverified";
+
+      // =================================================
+      // Phone Verification
+      // =================================================
+
+      const sellerPhoneVerified =
+        Boolean(
+          seller.sellerVerification
+            ?.phoneVerified ??
+            seller.isPhoneVerified ??
+            false,
+        );
+
+      // =================================================
+      // Identity Verification
+      // =================================================
+
+      const sellerIdentityVerified =
+        Boolean(
+          seller.sellerVerification
+            ?.identityVerified ??
+            false,
+        );
+
+      // =================================================
+      // Location Verification
+      // =================================================
+
+      const sellerLocationVerified =
+        Boolean(
+          seller.sellerVerification
+            ?.locationVerified ??
+            false,
+        );
+
+      // =================================================
+      // Trust Score
+      // =================================================
+
+      const sellerTrustScore =
+        Number(
+          seller.trustScore ??
+            0,
+        );
+
+      // =================================================
+      // Trust Level
+      // =================================================
+
+      const sellerTrustLevel =
+        seller.trustLevel ??
+        (
+          sellerTrustScore >= 85
+            ? "highly_trusted"
+            : sellerTrustScore >= 70
+              ? "trusted"
+              : sellerTrustScore >= 40
+                ? "basic"
+                : "low"
+        );
+
+      // =================================================
+      // Serious Bad History
+      //
+      // Report/moderation history can be connected later.
+      // =================================================
+
+      const sellerHasSeriousBadHistory =
+        false;
+
+      // =================================================
+      // Calculate Seller Badge
+      // =================================================
+
+      const sellerBadge =
+        getSellerBadge({
+          verificationStatus:
+            sellerVerificationStatus,
+
+          phoneVerified:
+            sellerPhoneVerified,
+
+          identityVerified:
+            sellerIdentityVerified,
+
+          locationVerified:
+            sellerLocationVerified,
+
+          trustScore:
+            sellerTrustScore,
+
+          trustLevel:
+            sellerTrustLevel,
+
+          hasSeriousBadHistory:
+            sellerHasSeriousBadHistory,
+        });
+
+      // =================================================
+      // Return Product
+      // =================================================
 
       return {
         ...product,
 
+        // -----------------------------------------------
+        // Backward Compatibility
+        // -----------------------------------------------
+
         sellerIsPhoneVerified:
-          seller?.isPhoneVerified === true,
+          sellerPhoneVerified,
+
+        // -----------------------------------------------
+        // Seller Verification
+        // -----------------------------------------------
+
+        sellerVerificationStatus,
+
+        sellerPhoneVerified,
+
+        sellerIdentityVerified,
+
+        sellerLocationVerified,
+
+        // -----------------------------------------------
+        // Trust
+        // -----------------------------------------------
+
+        sellerTrustScore,
+
+        sellerTrustLevel,
+
+        // -----------------------------------------------
+        // Badge
+        // -----------------------------------------------
+
+        sellerBadge,
       };
-    }),
+    },
   );
 }
 
@@ -91,10 +404,13 @@ async function attachSellerPhoneVerification(
 export async function createProduct(
   product: Product,
 ) {
-  const collection = await getCollection();
+  const collection =
+    await getCollection();
 
   const result =
-    await collection.insertOne(product);
+    await collection.insertOne(
+      product,
+    );
 
   return result;
 }
@@ -106,14 +422,26 @@ export async function createProduct(
 export async function findProductById(
   id: string,
 ) {
-  const collection = await getCollection();
+  const collection =
+    await getCollection();
 
   const product =
     await collection.findOne({
       _id: new ObjectId(id),
     });
 
-  return product;
+  if (!product) {
+    return null;
+  }
+
+  const products =
+    await attachSellerVerification([
+      product,
+    ]);
+
+  return (
+    products[0] ?? null
+  );
 }
 
 // =====================================================
@@ -123,7 +451,8 @@ export async function findProductById(
 export async function findProductBySlug(
   slug: string,
 ) {
-  const collection = await getCollection();
+  const collection =
+    await getCollection();
 
   const product =
     await collection.findOne({
@@ -139,14 +468,24 @@ export async function findProductBySlug(
       product.category.toString(),
     );
 
+  const products =
+    await attachSellerVerification([
+      product,
+    ]);
+
+  const productWithSeller =
+    products[0] ?? product;
+
   return {
-    ...product,
+    ...productWithSeller,
 
     categoryName:
-      category?.name ?? "Unknown",
+      category?.name ??
+      "Unknown",
 
     categorySlug:
-      category?.slug ?? "",
+      category?.slug ??
+      "",
   };
 }
 
@@ -169,19 +508,25 @@ export async function findActiveProductsBySeller(
 
   if (currentProductId) {
     query._id = {
-      $ne: new ObjectId(
-        currentProductId,
-      ),
+      $ne:
+        new ObjectId(
+          currentProductId,
+        ),
     };
   }
 
-  return collection
-    .find(query)
-    .sort({
-      createdAt: -1,
-    })
-    .limit(limit)
-    .toArray();
+  const products =
+    await collection
+      .find(query)
+      .sort({
+        createdAt: -1,
+      })
+      .limit(limit)
+      .toArray();
+
+  return attachSellerVerification(
+    products,
+  );
 }
 
 // =====================================================
@@ -208,7 +553,8 @@ export async function findSellerStats(
   const totalViews =
     products.reduce(
       (sum, product) =>
-        sum + (product.views ?? 0),
+        sum +
+        (product.views ?? 0),
       0,
     );
 
@@ -242,7 +588,7 @@ export async function findLatestProducts(
       .limit(limit)
       .toArray();
 
-  return attachSellerPhoneVerification(
+  return attachSellerVerification(
     products,
   );
 }
@@ -274,9 +620,16 @@ export async function findProductsBySeller(
       })
       .toArray();
 
+  const productsWithSeller =
+    await attachSellerVerification(
+      products,
+    );
+
   return Promise.all(
-    products.map(
-      async (product) => ({
+    productsWithSeller.map(
+      async (
+        product,
+      ) => ({
         ...product,
 
         isBoosted:
@@ -315,7 +668,7 @@ export async function findFeaturedProducts(
       .limit(limit)
       .toArray();
 
-  return attachSellerPhoneVerification(
+  return attachSellerVerification(
     products,
   );
 }
@@ -330,13 +683,18 @@ export async function findProductsByCategory(
   const collection =
     await getCollection();
 
-  return collection
-    .find({
-      category,
+  const products =
+    await collection
+      .find({
+        category,
 
-      status: "active",
-    })
-    .toArray();
+        status: "active",
+      })
+      .toArray();
+
+  return attachSellerVerification(
+    products,
+  );
 }
 
 // =====================================================
@@ -399,7 +757,8 @@ export async function searchProductsPage({
 
   if (maxPrice) {
     query.price = {
-      $lte: Number(maxPrice),
+      $lte:
+        Number(maxPrice),
     };
   }
 
@@ -411,42 +770,48 @@ export async function searchProductsPage({
     query.$or = [
       {
         title: {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
 
       {
         brand: {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
 
       {
         model: {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
 
       {
         category: {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
 
       {
         subcategory: {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
 
       {
         "location.city": {
-          $regex: keyword,
+          $regex:
+            keyword,
           $options: "i",
         },
       },
@@ -458,7 +823,10 @@ export async function searchProductsPage({
   // ===================================================
 
   let sortOption:
-    Record<string, 1 | -1> = {
+    Record<
+      string,
+      1 | -1
+    > = {
     isBoosted: -1,
     createdAt: -1,
   };
@@ -503,7 +871,8 @@ export async function searchProductsPage({
   const limit = 20;
 
   const skip =
-    (page - 1) * limit;
+    (page - 1) *
+    limit;
 
   const totalProducts =
     await collection.countDocuments(
@@ -512,8 +881,13 @@ export async function searchProductsPage({
 
   const totalPages =
     Math.ceil(
-      totalProducts / limit,
+      totalProducts /
+        limit,
     );
+
+  // ===================================================
+  // Products
+  // ===================================================
 
   const products =
     await collection
@@ -523,10 +897,17 @@ export async function searchProductsPage({
       .limit(limit)
       .toArray();
 
-  return {
-    products,
+  const productsWithSeller =
+    await attachSellerVerification(
+      products,
+    );
 
-    currentPage: page,
+  return {
+    products:
+      productsWithSeller,
+
+    currentPage:
+      page,
 
     totalPages,
 
@@ -558,7 +939,8 @@ export async function updateProduct(
 
   const existingProduct =
     await collection.findOne({
-      _id: new ObjectId(id),
+      _id:
+        new ObjectId(id),
     });
 
   if (!existingProduct) {
@@ -567,7 +949,8 @@ export async function updateProduct(
     );
   }
 
-  const now = new Date();
+  const now =
+    new Date();
 
   // ===================================================
   // Remove Client Supplied History
@@ -595,8 +978,9 @@ export async function updateProduct(
       (existingProduct as any)
         .priceHistory,
     )
-      ? (existingProduct as any)
-          .priceHistory
+      ? (
+          existingProduct as any
+        ).priceHistory
       : [];
 
   // ===================================================
@@ -608,8 +992,9 @@ export async function updateProduct(
       (existingProduct as any)
         .locationHistory,
     )
-      ? (existingProduct as any)
-          .locationHistory
+      ? (
+          existingProduct as any
+        ).locationHistory
       : [];
 
   // ===================================================
@@ -622,14 +1007,20 @@ export async function updateProduct(
     );
 
   const newPrice =
-    data.price !== undefined
+    data.price !==
+    undefined
       ? Number(data.price)
       : oldPrice;
 
   const priceChanged =
-    Number.isFinite(oldPrice) &&
-    Number.isFinite(newPrice) &&
-    oldPrice !== newPrice;
+    Number.isFinite(
+      oldPrice,
+    ) &&
+    Number.isFinite(
+      newPrice,
+    ) &&
+    oldPrice !==
+      newPrice;
 
   // ===================================================
   // LOCATION CHANGE DETECTION
@@ -640,7 +1031,8 @@ export async function updateProduct(
       .location ?? {};
 
   const newLocation =
-    (data as any).location ??
+    (data as any)
+      .location ??
     oldLocation;
 
   const oldCoordinates =
@@ -694,21 +1086,25 @@ export async function updateProduct(
     oldLocation.address !==
       newLocation.address ||
 
-    oldLat !== newLat ||
+    oldLat !==
+      newLat ||
 
-    oldLng !== newLng;
+    oldLng !==
+      newLng;
 
   // ===================================================
   // PRICE HISTORY ENTRY
   // ===================================================
 
   const priceHistoryEntry = {
-    price: newPrice,
+    price:
+      newPrice,
 
     previousPrice:
       oldPrice,
 
-    changedAt: now,
+    changedAt:
+      now,
 
     changedBy:
       existingProduct.sellerId,
@@ -787,7 +1183,8 @@ export async function updateProduct(
       },
     },
 
-    changedAt: now,
+    changedAt:
+      now,
 
     changedBy:
       existingProduct.sellerId,
@@ -805,7 +1202,6 @@ export async function updateProduct(
     priceChanged
       ? [
           ...existingPriceHistory,
-
           priceHistoryEntry,
         ]
       : existingPriceHistory;
@@ -818,7 +1214,6 @@ export async function updateProduct(
     locationChanged
       ? [
           ...existingLocationHistory,
-
           locationHistoryEntry,
         ]
       : existingLocationHistory;
@@ -833,7 +1228,8 @@ export async function updateProduct(
 
       ...safeData,
 
-      price: newPrice,
+      price:
+        newPrice,
 
       priceHistory:
         updatedPriceHistory,
@@ -868,15 +1264,18 @@ export async function updateProduct(
   // MongoDB Update Operation
   // ===================================================
 
-  const updateOperation: any = {
-    $set: {
-      ...safeData,
+  const updateOperation: any =
+    {
+      $set: {
+        ...safeData,
 
-      risk: productRisk,
+        risk:
+          productRisk,
 
-      updatedAt: now,
-    },
-  };
+        updatedAt:
+          now,
+      },
+    };
 
   // ===================================================
   // Add Price History
@@ -912,7 +1311,8 @@ export async function updateProduct(
 
   return collection.updateOne(
     {
-      _id: new ObjectId(id),
+      _id:
+        new ObjectId(id),
     },
 
     updateOperation,
@@ -930,7 +1330,8 @@ export async function deleteProduct(
     await getCollection();
 
   return collection.deleteOne({
-    _id: new ObjectId(id),
+    _id:
+      new ObjectId(id),
   });
 }
 
@@ -946,7 +1347,8 @@ export async function deleteProductByOwner(
     await getCollection();
 
   return collection.deleteOne({
-    _id: new ObjectId(id),
+    _id:
+      new ObjectId(id),
 
     sellerId,
   });
@@ -964,7 +1366,8 @@ export async function increaseProductViews(
 
   return collection.updateOne(
     {
-      _id: new ObjectId(id),
+      _id:
+        new ObjectId(id),
     },
 
     {
@@ -987,20 +1390,26 @@ export async function findRelatedProducts(
   const collection =
     await getCollection();
 
-  return collection
-    .find({
-      category,
+  const products =
+    await collection
+      .find({
+        category,
 
-      status: "active",
+        status: "active",
 
-      _id: {
-        $ne: new ObjectId(
-          currentProductId,
-        ),
-      },
-    })
-    .limit(limit)
-    .toArray();
+        _id: {
+          $ne:
+            new ObjectId(
+              currentProductId,
+            ),
+        },
+      })
+      .limit(limit)
+      .toArray();
+
+  return attachSellerVerification(
+    products,
+  );
 }
 
 // =====================================================
@@ -1017,16 +1426,18 @@ export async function markProductSold(
   const result =
     await collection.updateOne(
       {
-        _id: new ObjectId(
-          productId,
-        ),
+        _id:
+          new ObjectId(
+            productId,
+          ),
 
         sellerId,
       },
 
       {
         $set: {
-          status: "sold",
+          status:
+            "sold",
 
           updatedAt:
             new Date(),
@@ -1035,7 +1446,8 @@ export async function markProductSold(
     );
 
   return (
-    result.modifiedCount > 0
+    result.modifiedCount >
+    0
   );
 }
 
@@ -1055,22 +1467,25 @@ export async function boostProduct(
 
   // 7 days boost
   boostedUntil.setDate(
-    boostedUntil.getDate() + 7,
+    boostedUntil.getDate() +
+      7,
   );
 
   const result =
     await collection.updateOne(
       {
-        _id: new ObjectId(
-          productId,
-        ),
+        _id:
+          new ObjectId(
+            productId,
+          ),
 
         sellerId,
       },
 
       {
         $set: {
-          isBoosted: true,
+          isBoosted:
+            true,
 
           boostedUntil,
 
@@ -1081,7 +1496,8 @@ export async function boostProduct(
     );
 
   return (
-    result.modifiedCount > 0
+    result.modifiedCount >
+    0
   );
 }
 
@@ -1095,16 +1511,19 @@ export async function removeExpiredBoosts() {
 
   await collection.updateMany(
     {
-      isBoosted: true,
+      isBoosted:
+        true,
 
       boostedUntil: {
-        $lt: new Date(),
+        $lt:
+          new Date(),
       },
     },
 
     {
       $set: {
-        isBoosted: false,
+        isBoosted:
+          false,
       },
     },
   );
@@ -1151,63 +1570,77 @@ export async function searchProducts(
     activeProducts,
   );
 
-  return collection
-    .find({
-      status: "active",
+  const products =
+    await collection
+      .find({
+        status: "active",
 
-      $or: [
-        {
-          title: {
-            $regex: keyword,
-            $options: "i",
+        $or: [
+          {
+            title: {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
 
-        {
-          brand: {
-            $regex: keyword,
-            $options: "i",
+          {
+            brand: {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
 
-        {
-          model: {
-            $regex: keyword,
-            $options: "i",
+          {
+            model: {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
 
-        {
-          category: {
-            $regex: keyword,
-            $options: "i",
+          {
+            category: {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
 
-        {
-          subcategory: {
-            $regex: keyword,
-            $options: "i",
+          {
+            subcategory: {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
 
-        {
-          "location.city": {
-            $regex: keyword,
-            $options: "i",
+          {
+            "location.city": {
+              $regex:
+                keyword,
+
+              $options: "i",
+            },
           },
-        },
-      ],
-    })
+        ],
+      })
+      .sort({
+        isBoosted: -1,
+        createdAt: -1,
+      })
+      .limit(limit)
+      .toArray();
 
-    .sort({
-      isBoosted: -1,
-      createdAt: -1,
-    })
-
-    .limit(limit)
-
-    .toArray();
+  return attachSellerVerification(
+    products,
+  );
 }
 
 // =====================================================
@@ -1252,8 +1685,12 @@ export async function findNearbyProducts(
           );
 
         if (
-          !Number.isFinite(lat) ||
-          !Number.isFinite(lng)
+          !Number.isFinite(
+            lat,
+          ) ||
+          !Number.isFinite(
+            lng,
+          )
         ) {
           return null;
         }
@@ -1294,7 +1731,7 @@ export async function findNearbyProducts(
           b.distance,
       );
 
-  return attachSellerPhoneVerification(
+  return attachSellerVerification(
     nearbyProducts,
   );
 }
@@ -1354,7 +1791,8 @@ export async function searchNearbyProducts({
       condition.split(",");
 
     query.condition = {
-      $in: conditions,
+      $in:
+        conditions,
     };
   }
 
@@ -1364,7 +1802,8 @@ export async function searchNearbyProducts({
 
   if (maxPrice) {
     query.price = {
-      $lte: Number(maxPrice),
+      $lte:
+        Number(maxPrice),
     };
   }
 
@@ -1376,42 +1815,54 @@ export async function searchNearbyProducts({
     query.$or = [
       {
         title: {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
 
       {
         brand: {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
 
       {
         model: {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
 
       {
         category: {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
 
       {
         subcategory: {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
 
       {
         "location.city": {
-          $regex: keyword,
+          $regex:
+            keyword,
+
           $options: "i",
         },
       },
@@ -1508,14 +1959,16 @@ export async function searchNearbyProducts({
     case "price_asc":
       filteredProducts.sort(
         (a, b) =>
-          a.price - b.price,
+          a.price -
+          b.price,
       );
       break;
 
     case "price_desc":
       filteredProducts.sort(
         (a, b) =>
-          b.price - a.price,
+          b.price -
+          a.price,
       );
       break;
 
@@ -1553,6 +2006,7 @@ export async function searchNearbyProducts({
 
     default:
       // Default = nearest
+
       filteredProducts.sort(
         (a, b) =>
           a.distance -
@@ -1560,5 +2014,11 @@ export async function searchNearbyProducts({
       );
   }
 
-  return filteredProducts;
+  // ===================================================
+  // Attach Seller Verification + Badge
+  // ===================================================
+
+  return attachSellerVerification(
+    filteredProducts,
+  );
 }

@@ -1,4 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
 import { ObjectId } from "mongodb";
 
 import { auth } from "@/auth";
@@ -25,7 +29,8 @@ interface RouteContext {
 // Final Seller Verification
 //
 // APPROVE:
-// Phone + Identity + Location must all be verified.
+// Phone + Identity + Live Selfie + Location
+// must ALL be verified.
 //
 // REJECT:
 // Seller verification rejected.
@@ -61,11 +66,15 @@ export async function PATCH(
     // Admin Authorization
     // =================================================
 
-    if (session.user.role !== "admin") {
+    if (
+      session.user.role !==
+      "admin"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Admin access required.",
+          message:
+            "Admin access required.",
         },
         {
           status: 403,
@@ -80,11 +89,14 @@ export async function PATCH(
     const { userId } =
       await context.params;
 
-    if (!ObjectId.isValid(userId)) {
+    if (
+      !ObjectId.isValid(userId)
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid seller ID.",
+          message:
+            "Invalid seller ID.",
         },
         {
           status: 400,
@@ -96,8 +108,23 @@ export async function PATCH(
     // Request Body
     // =================================================
 
-    const body =
-      await request.json();
+    let body: any = {};
+
+    try {
+      body =
+        await request.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Invalid request body.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
 
     const action =
       String(
@@ -105,7 +132,8 @@ export async function PATCH(
       ) as VerificationAction;
 
     const reason =
-      typeof body?.reason === "string"
+      typeof body?.reason ===
+      "string"
         ? body.reason.trim()
         : "";
 
@@ -203,8 +231,9 @@ export async function PATCH(
     // =================================================
 
     if (
-      String(session.user.id) ===
-      userId
+      String(
+        session.user.id,
+      ) === userId
     ) {
       return NextResponse.json(
         {
@@ -223,8 +252,10 @@ export async function PATCH(
     // =================================================
 
     const verification =
-      seller.sellerVerification ?? {
-        status: "unverified",
+      seller.sellerVerification ??
+      {
+        status:
+          "unverified",
 
         phoneVerified:
           seller.isPhoneVerified ??
@@ -233,12 +264,25 @@ export async function PATCH(
         identityVerified:
           false,
 
+        selfieVerified:
+          false,
+
         locationVerified:
           false,
       };
 
     // =================================================
     // Verification Checks
+    //
+    // IMPORTANT:
+    //
+    // These are the FOUR required checks
+    // for final Verified Seller status.
+    //
+    // 1. Phone
+    // 2. Identity
+    // 3. Live Selfie
+    // 4. Location
     // =================================================
 
     const phoneVerified =
@@ -250,13 +294,39 @@ export async function PATCH(
 
     const identityVerified =
       Boolean(
-        verification.identityVerified,
+        verification.identityVerified ??
+          false,
+      );
+
+    const selfieVerified =
+      Boolean(
+        verification.selfieVerified ??
+          false,
       );
 
     const locationVerified =
       Boolean(
-        verification.locationVerified,
+        verification.locationVerified ??
+          false,
       );
+
+    // =================================================
+    // Completed Checks
+    // =================================================
+
+    const completedChecks =
+      [
+        phoneVerified,
+        identityVerified,
+        selfieVerified,
+        locationVerified,
+      ].filter(Boolean).length;
+
+    const totalChecks = 4;
+
+    const fullyVerified =
+      completedChecks ===
+      totalChecks;
 
     // =================================================
     // Current Time
@@ -268,26 +338,19 @@ export async function PATCH(
     // =================================================
     // APPROVE
     //
-    // IMPORTANT:
-    //
-    // Seller can ONLY become fully verified when:
-    //
-    // 1. Phone verified
-    // 2. Aadhaar identity verified
-    // 3. Location verified
-    //
-    // Product selling alone is NOT enough.
-    // isVerified is NOT used here.
+    // ALL FOUR checks are mandatory.
     // =================================================
 
     if (
       action === "approve"
     ) {
-      // =================================================
-      // Check Phone
-      // =================================================
+      // ===============================================
+      // Phone
+      // ===============================================
 
-      if (!phoneVerified) {
+      if (
+        !phoneVerified
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -297,10 +360,11 @@ export async function PATCH(
 
             verification: {
               phoneVerified,
-
               identityVerified,
-
+              selfieVerified,
               locationVerified,
+              completedChecks,
+              totalChecks,
             },
           },
           {
@@ -309,11 +373,13 @@ export async function PATCH(
         );
       }
 
-      // =================================================
-      // Check Identity
-      // =================================================
+      // ===============================================
+      // Identity
+      // ===============================================
 
-      if (!identityVerified) {
+      if (
+        !identityVerified
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -323,10 +389,11 @@ export async function PATCH(
 
             verification: {
               phoneVerified,
-
               identityVerified,
-
+              selfieVerified,
               locationVerified,
+              completedChecks,
+              totalChecks,
             },
           },
           {
@@ -335,11 +402,42 @@ export async function PATCH(
         );
       }
 
-      // =================================================
-      // Check Location
-      // =================================================
+      // ===============================================
+      // Live Selfie
+      // ===============================================
 
-      if (!locationVerified) {
+      if (
+        !selfieVerified
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            message:
+              "Seller live selfie verification is not complete.",
+
+            verification: {
+              phoneVerified,
+              identityVerified,
+              selfieVerified,
+              locationVerified,
+              completedChecks,
+              totalChecks,
+            },
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // ===============================================
+      // Location
+      // ===============================================
+
+      if (
+        !locationVerified
+      ) {
         return NextResponse.json(
           {
             success: false,
@@ -349,10 +447,11 @@ export async function PATCH(
 
             verification: {
               phoneVerified,
-
               identityVerified,
-
+              selfieVerified,
               locationVerified,
+              completedChecks,
+              totalChecks,
             },
           },
           {
@@ -361,9 +460,38 @@ export async function PATCH(
         );
       }
 
-      // =================================================
-      // ALL THREE VERIFIED
-      // =================================================
+      // ===============================================
+      // Final Safety Check
+      // ===============================================
+
+      if (
+        !fullyVerified
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            message:
+              "All four verification checks must be completed before the seller can be verified.",
+
+            verification: {
+              phoneVerified,
+              identityVerified,
+              selfieVerified,
+              locationVerified,
+              completedChecks,
+              totalChecks,
+            },
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // ===============================================
+      // FINAL VERIFIED SELLER
+      // ===============================================
 
       const result =
         await usersCollection.updateOne(
@@ -372,7 +500,23 @@ export async function PATCH(
               new ObjectId(
                 userId,
               ),
-        },
+
+            // =========================================
+            // Re-check database values inside update
+            // =========================================
+
+            "sellerVerification.phoneVerified":
+              true,
+
+            "sellerVerification.identityVerified":
+              true,
+
+            "sellerVerification.selfieVerified":
+              true,
+
+            "sellerVerification.locationVerified":
+              true,
+          },
           {
             $set: {
               "sellerVerification.status":
@@ -396,8 +540,12 @@ export async function PATCH(
           },
         );
 
+      // ===============================================
+      // Database Safety Check
+      // ===============================================
+
       if (
-        result.modifiedCount ===
+        result.matchedCount ===
         0
       ) {
         return NextResponse.json(
@@ -405,17 +553,17 @@ export async function PATCH(
             success: false,
 
             message:
-              "Seller verification was not updated.",
+              "Seller verification changed before approval. Please refresh and try again.",
           },
           {
-            status: 400,
+            status: 409,
           },
         );
       }
 
-      // =================================================
+      // ===============================================
       // Success
-      // =================================================
+      // ===============================================
 
       return NextResponse.json({
         success: true,
@@ -425,11 +573,26 @@ export async function PATCH(
         status: "verified",
 
         verification: {
-          phoneVerified,
+          phoneVerified:
+            true,
 
-          identityVerified,
+          identityVerified:
+            true,
 
-          locationVerified,
+          selfieVerified:
+            true,
+
+          locationVerified:
+            true,
+
+          completedChecks:
+            4,
+
+          totalChecks:
+            4,
+
+          progress:
+            100,
         },
 
         message:
@@ -476,7 +639,7 @@ export async function PATCH(
         );
 
       if (
-        result.modifiedCount ===
+        result.matchedCount ===
         0
       ) {
         return NextResponse.json(
@@ -540,7 +703,7 @@ export async function PATCH(
         );
 
       if (
-        result.modifiedCount ===
+        result.matchedCount ===
         0
       ) {
         return NextResponse.json(

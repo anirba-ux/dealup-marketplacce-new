@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useForm } from "react-hook-form";
+import {
+  useForm,
+  type FieldErrors,
+} from "react-hook-form";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import ProductStepper from "./ProductStepper";
@@ -14,9 +18,12 @@ import ImageUploadSection from "./ImageUploadSection";
 import LocationSection from "./LocationSection";
 import PreviewSection from "./PreviewSection";
 
-import { productSchema, ProductFormData } from "@/lib/validations/product";
+import {
+  productSchema,
+  type ProductFormData,
+} from "@/lib/validations/product";
 
-import { Product } from "@/lib/models/product";
+import type { Product } from "@/lib/models/product";
 
 // =====================================================
 // Types
@@ -36,6 +43,8 @@ interface ProductFormProps {
 // =====================================================
 
 const TOTAL_STEPS = 6;
+
+const DRAFT_KEY = "dealup-product-draft";
 
 // =====================================================
 // Component
@@ -90,7 +99,11 @@ export default function ProductForm({
     trigger,
     setFocus,
 
-    formState: { errors, isSubmitting, isDirty },
+    formState: {
+      errors,
+      isSubmitting,
+      isDirty,
+    },
   } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
 
@@ -184,116 +197,98 @@ export default function ProductForm({
     // Existing thumbnail
     if (initialData.images?.length) {
       const index = initialData.images.findIndex(
-        (img) => img.url === initialData.thumbnail,
+        (image) =>
+          image.url === initialData.thumbnail,
       );
 
-      setThumbnailIndex(index >= 0 ? index : 0);
+      setThumbnailIndex(
+        index >= 0 ? index : 0,
+      );
     }
-  }, [mode, initialData, reset]);
-
-  // ===================================================
-  // Get Seller Live Location
-  //
-  // IMPORTANT:
-  // This is OPTIONAL.
-  //
-  // Product location does NOT depend on
-  // seller live GPS.
-  // ===================================================
-
-  function getSellerLiveLocation(): Promise<{
-    latitude: number;
-    longitude: number;
-    accuracy: number;
-  }> {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) {
-        reject(
-          new Error("Location services are not supported on this device."),
-        );
-
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            latitude: position.coords.latitude,
-
-            longitude: position.coords.longitude,
-
-            accuracy: position.coords.accuracy,
-          });
-        },
-
-        (error) => {
-          console.warn("SELLER GPS UNAVAILABLE:", error);
-
-          reject(new Error("Seller live location unavailable."));
-        },
-
-        {
-          enableHighAccuracy: true,
-
-          timeout: 15000,
-
-          maximumAge: 0,
-        },
-      );
-    });
-  }
+  }, [
+    mode,
+    initialData,
+    reset,
+  ]);
 
   // ===================================================
   // Submit Product
+  //
+  // IMPORTANT:
+  //
+  // Product location is completely independent
+  // from seller live GPS.
+  //
+  // Seller verification/location will be handled
+  // separately on the server using the seller's
+  // already verified profile location.
   // ===================================================
 
-  async function onSubmit(data: ProductFormData) {
+  async function onSubmit(
+    data: ProductFormData,
+  ) {
     try {
       // =================================================
       // STEP 1
-      // Validate Product Map Coordinates
+      // Validate Product Coordinates
       // =================================================
 
-      const productLatitude = Number(data.latitude);
+      const productLatitude =
+        Number(data.latitude);
 
-      const productLongitude = Number(data.longitude);
+      const productLongitude =
+        Number(data.longitude);
 
       if (
         !Number.isFinite(productLatitude) ||
         !Number.isFinite(productLongitude)
       ) {
-        throw new Error("Please select a valid product location on the map.");
+        throw new Error(
+          "Please select a valid product location on the map.",
+        );
       }
 
       // =================================================
       // STEP 2
-      // Try Seller Live GPS
-      //
-      // IMPORTANT:
-      // Failure here will NOT stop publishing.
+      // Validate Product Address
       // =================================================
 
-      let sellerLocation:
-        | {
-            latitude: number;
-            longitude: number;
-            accuracy: number;
-          }
-        | undefined;
+      const state =
+        data.state?.trim() ?? "";
 
-      try {
-        sellerLocation = await getSellerLiveLocation();
+      const district =
+        data.district?.trim() ?? "";
 
-        console.log("SELLER LIVE LOCATION:", sellerLocation);
-      } catch (locationError) {
-        console.warn("SELLER LIVE LOCATION NOT AVAILABLE:", locationError);
+      const city =
+        data.city?.trim() ?? "";
 
-        sellerLocation = undefined;
+      const pincode =
+        data.pincode?.trim() ?? "";
+
+      const address =
+        data.address?.trim() ?? "";
+
+      if (
+        !state ||
+        !district ||
+        !city ||
+        !pincode
+      ) {
+        throw new Error(
+          "Please complete the product location details before publishing.",
+        );
       }
 
       // =================================================
       // STEP 3
       // Prepare Product Payload
+      //
+      // IMPORTANT:
+      //
+      // We DO NOT send seller live GPS here.
+      //
+      // The product location selected by the seller
+      // is the location that will be stored.
       // =================================================
 
       const payload = {
@@ -310,37 +305,36 @@ export default function ProductForm({
         // -----------------------------------------------
 
         thumbnail:
-          productImages[thumbnailIndex]?.url ?? productImages[0]?.url ?? "",
+          productImages[thumbnailIndex]?.url ??
+          productImages[0]?.url ??
+          "",
 
         // -----------------------------------------------
         // Product Location
         //
-        // This is the actual location selected
-        // on the product map.
+        // This is the actual location of the product.
         // -----------------------------------------------
+
+        state,
+
+        district,
+
+        city,
+
+        pincode,
+
+        address,
 
         latitude: productLatitude,
 
         longitude: productLongitude,
-
-        // -----------------------------------------------
-        // Optional Seller Live GPS
-        // -----------------------------------------------
-
-        ...(sellerLocation
-          ? {
-              sellerLocation: {
-                latitude: sellerLocation.latitude,
-
-                longitude: sellerLocation.longitude,
-
-                accuracy: sellerLocation.accuracy,
-              },
-            }
-          : {}),
       };
 
-      console.log("PRODUCT SUBMIT PAYLOAD:", payload);
+      // Helpful development log
+      console.log(
+        "PRODUCT SUBMIT PAYLOAD:",
+        payload,
+      );
 
       // =================================================
       // STEP 4
@@ -348,38 +342,56 @@ export default function ProductForm({
       // =================================================
 
       const url =
-        mode === "edit" ? `/api/products/${initialData?._id}` : "/api/products";
+        mode === "edit"
+          ? `/api/products/${initialData?._id}`
+          : "/api/products";
 
       // =================================================
       // STEP 5
       // HTTP Method
       // =================================================
 
-      const method = mode === "edit" ? "PUT" : "POST";
+      const method =
+        mode === "edit"
+          ? "PUT"
+          : "POST";
 
       // =================================================
       // STEP 6
       // API Request
       // =================================================
 
-      const response = await fetch(url, {
-        method,
+      const response =
+        await fetch(url, {
+          method,
 
-        headers: {
-          "Content-Type": "application/json",
-        },
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-        body: JSON.stringify(payload),
-      });
+          body: JSON.stringify(
+            payload,
+          ),
+        });
 
       // =================================================
       // STEP 7
       // API Response
       // =================================================
 
-      const result = await response.json();
+      let result: any = null;
 
-      console.log("PRODUCT API RESULT:", result);
+      try {
+        result = await response.json();
+      } catch {
+        result = null;
+      }
+
+      console.log(
+        "PRODUCT API RESULT:",
+        result,
+      );
 
       // =================================================
       // STEP 8
@@ -387,21 +399,40 @@ export default function ProductForm({
       // =================================================
 
       if (!response.ok) {
-        throw new Error(result.message ?? "Something went wrong.");
+        throw new Error(
+          result?.message ??
+            (mode === "edit"
+              ? "Failed to update product."
+              : "Failed to publish product."),
+        );
       }
 
       // =================================================
       // STEP 9
-      // Location Verification Result
+      // Location Information
       //
-      // Only available when seller live GPS
-      // was successfully captured.
+      // Server may return seller/product distance
+      // or location verification information.
+      //
+      // We don't require it for publishing.
       // =================================================
 
-      if (result.locationVerification) {
-        console.log("LOCATION VERIFICATION:", result.locationVerification);
-      } else {
-        console.log("Seller live location verification was not available.");
+      if (
+        result?.locationVerification
+      ) {
+        console.log(
+          "LOCATION VERIFICATION:",
+          result.locationVerification,
+        );
+      }
+
+      if (
+        result?.sellerProductDistance
+      ) {
+        console.log(
+          "SELLER → PRODUCT DISTANCE:",
+          result.sellerProductDistance,
+        );
       }
 
       // =================================================
@@ -409,7 +440,9 @@ export default function ProductForm({
       // Clear Draft
       // =================================================
 
-      localStorage.removeItem("dealup-product-draft");
+      localStorage.removeItem(
+        DRAFT_KEY,
+      );
 
       // =================================================
       // STEP 11
@@ -424,7 +457,10 @@ export default function ProductForm({
 
       setCountdown(5);
     } catch (error) {
-      console.error("PRODUCT SUBMIT ERROR:", error);
+      console.error(
+        "PRODUCT SUBMIT ERROR:",
+        error,
+      );
 
       alert(
         error instanceof Error
@@ -441,7 +477,10 @@ export default function ProductForm({
   // ===================================================
 
   async function nextStep() {
-    if (step >= TOTAL_STEPS - 1) {
+    if (
+      step >=
+      TOTAL_STEPS - 1
+    ) {
       return;
     }
 
@@ -457,7 +496,11 @@ export default function ProductForm({
       // -----------------------------------------------
 
       case 0:
-        isValid = await trigger(["title", "description"]);
+        isValid =
+          await trigger([
+            "title",
+            "description",
+          ]);
 
         break;
 
@@ -466,7 +509,11 @@ export default function ProductForm({
       // -----------------------------------------------
 
       case 1:
-        isValid = await trigger(["category", "subcategory"]);
+        isValid =
+          await trigger([
+            "category",
+            "subcategory",
+          ]);
 
         break;
 
@@ -475,7 +522,11 @@ export default function ProductForm({
       // -----------------------------------------------
 
       case 2:
-        isValid = await trigger(["price", "condition"]);
+        isValid =
+          await trigger([
+            "price",
+            "condition",
+          ]);
 
         break;
 
@@ -484,8 +535,12 @@ export default function ProductForm({
       // -----------------------------------------------
 
       case 3:
-        if (productImages.length === 0) {
-          setImageError("Please upload at least one image.");
+        if (
+          productImages.length === 0
+        ) {
+          setImageError(
+            "Please upload at least one image.",
+          );
 
           return;
         }
@@ -497,11 +552,55 @@ export default function ProductForm({
         break;
 
       // -----------------------------------------------
-      // Step 5 — Location
+      // Step 5 — Product Location
       // -----------------------------------------------
 
       case 4:
-        isValid = await trigger(["state", "district", "city", "pincode"]);
+        isValid =
+          await trigger([
+            "state",
+            "district",
+            "city",
+            "pincode",
+            "address",
+            "latitude",
+            "longitude",
+          ]);
+
+        // ---------------------------------------------
+        // Additional coordinate validation
+        // ---------------------------------------------
+
+        if (isValid) {
+          const latitude =
+            Number(
+              getValues(
+                "latitude",
+              ),
+            );
+
+          const longitude =
+            Number(
+              getValues(
+                "longitude",
+              ),
+            );
+
+          if (
+            !Number.isFinite(
+              latitude,
+            ) ||
+            !Number.isFinite(
+              longitude,
+            )
+          ) {
+            isValid = false;
+
+            alert(
+              "Please select a valid product location on the map.",
+            );
+          }
+        }
 
         break;
 
@@ -514,13 +613,20 @@ export default function ProductForm({
     // =================================================
 
     if (!isValid) {
+      const formErrors =
+        errors as FieldErrors<ProductFormData>;
+
       switch (step) {
         // ---------------------------------------------
         // Basic Information
         // ---------------------------------------------
 
         case 0:
-          setFocus(errors.title ? "title" : "description");
+          setFocus(
+            formErrors.title
+              ? "title"
+              : "description",
+          );
 
           break;
 
@@ -529,7 +635,11 @@ export default function ProductForm({
         // ---------------------------------------------
 
         case 1:
-          setFocus(errors.category ? "category" : "subcategory");
+          setFocus(
+            formErrors.category
+              ? "category"
+              : "subcategory",
+          );
 
           break;
 
@@ -538,7 +648,11 @@ export default function ProductForm({
         // ---------------------------------------------
 
         case 2:
-          setFocus(errors.price ? "price" : "condition");
+          setFocus(
+            formErrors.price
+              ? "price"
+              : "condition",
+          );
 
           break;
 
@@ -547,16 +661,34 @@ export default function ProductForm({
         // ---------------------------------------------
 
         case 4:
-          if (errors.state) {
+          if (
+            formErrors.state
+          ) {
             setFocus("state");
-          } else if (errors.district) {
+          } else if (
+            formErrors.district
+          ) {
             setFocus("district");
-          } else if (errors.city) {
+          } else if (
+            formErrors.city
+          ) {
             setFocus("city");
-          } else if (errors.pincode) {
+          } else if (
+            formErrors.pincode
+          ) {
             setFocus("pincode");
-          } else if (errors.address) {
+          } else if (
+            formErrors.address
+          ) {
             setFocus("address");
+          } else if (
+            formErrors.latitude
+          ) {
+            setFocus("latitude");
+          } else if (
+            formErrors.longitude
+          ) {
+            setFocus("longitude");
           }
 
           break;
@@ -569,7 +701,10 @@ export default function ProductForm({
     // Move To Next Step
     // =================================================
 
-    setStep((previous) => previous + 1);
+    setStep(
+      (previous) =>
+        previous + 1,
+    );
   }
 
   // ===================================================
@@ -581,7 +716,10 @@ export default function ProductForm({
       return;
     }
 
-    setStep((previous) => previous - 1);
+    setStep(
+      (previous) =>
+        previous - 1,
+    );
   }
 
   // ===================================================
@@ -589,7 +727,9 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (
+      event: BeforeUnloadEvent,
+    ) => {
       if (!isDirty) {
         return;
       }
@@ -599,10 +739,16 @@ export default function ProductForm({
       event.returnValue = "";
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener(
+      "beforeunload",
+      handleBeforeUnload,
+    );
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener(
+        "beforeunload",
+        handleBeforeUnload,
+      );
     };
   }, [isDirty]);
 
@@ -611,37 +757,113 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    // Do not restore draft during edit mode.
+    // Never restore draft during edit mode.
     if (mode === "edit") {
       return;
     }
 
-    const draft = localStorage.getItem("dealup-product-draft");
+    const draft =
+      localStorage.getItem(
+        DRAFT_KEY,
+      );
 
     if (!draft) {
       return;
     }
 
     try {
-      const parsed = JSON.parse(draft);
+      const parsed =
+        JSON.parse(draft);
 
+      // -----------------------------------------------
       // Form values
+      // -----------------------------------------------
+
       if (parsed.values) {
-        reset(parsed.values);
+        reset(
+          parsed.values,
+        );
       }
 
+      // -----------------------------------------------
       // Step
-      setStep(parsed.step ?? 0);
+      // -----------------------------------------------
 
+      setStep(
+        parsed.step ?? 0,
+      );
+
+      // -----------------------------------------------
       // Images
-      setProductImages(parsed.productImages ?? []);
+      // -----------------------------------------------
 
+      setProductImages(
+        parsed.productImages ??
+          [],
+      );
+
+      // -----------------------------------------------
       // Thumbnail
-      setThumbnailIndex(parsed.thumbnailIndex ?? 0);
+      // -----------------------------------------------
+
+      setThumbnailIndex(
+        parsed.thumbnailIndex ??
+          0,
+      );
     } catch (error) {
-      console.error("DRAFT LOAD ERROR:", error);
+      console.error(
+        "DRAFT LOAD ERROR:",
+        error,
+      );
     }
-  }, [mode, reset]);
+  }, [
+    mode,
+    reset,
+  ]);
+
+  // ===================================================
+  // Save Draft
+  //
+  // We save the form state locally while creating
+  // a product so accidental refresh does not destroy
+  // the user's work.
+  // ===================================================
+
+  useEffect(() => {
+    if (mode === "edit") {
+      return;
+    }
+
+    if (successMessage) {
+      return;
+    }
+
+    const draft = {
+      values: formValues,
+      step,
+      productImages,
+      thumbnailIndex,
+    };
+
+    try {
+      localStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify(draft),
+      );
+    } catch (error) {
+      console.warn(
+        "DRAFT SAVE ERROR:",
+        error,
+      );
+    }
+  }, [
+    mode,
+    formValues,
+    step,
+    productImages,
+    thumbnailIndex,
+    successMessage,
+  ]);
 
   // ===================================================
   // Success Countdown
@@ -653,21 +875,31 @@ export default function ProductForm({
     }
 
     if (countdown === 0) {
-      router.push("/dashboard");
+      router.push(
+        "/dashboard",
+      );
 
       router.refresh();
 
       return;
     }
 
-    const timer = setTimeout(() => {
-      setCountdown((previous) => previous - 1);
-    }, 1000);
+    const timer =
+      setTimeout(() => {
+        setCountdown(
+          (previous) =>
+            previous - 1,
+        );
+      }, 1000);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [successMessage, countdown, router]);
+  }, [
+    successMessage,
+    countdown,
+    router,
+  ]);
 
   // ===================================================
   // Success Screen
@@ -695,11 +927,21 @@ export default function ProductForm({
             Your changes have been saved successfully.
           </p>
 
+          {/* Location note */}
+
+          <p className="mt-3 text-sm text-slate-500 dark:text-slate-500">
+            Product location has been saved
+            separately from seller verification.
+          </p>
+
           {/* Countdown */}
 
           <p className="mt-6 text-xl font-semibold text-[#1565d8]">
-            Redirecting in {countdown} second
-            {countdown !== 1 ? "s" : ""}
+            Redirecting in{" "}
+            {countdown} second
+            {countdown !== 1
+              ? "s"
+              : ""}
             ...
           </p>
 
@@ -708,7 +950,9 @@ export default function ProductForm({
           <button
             type="button"
             onClick={() => {
-              router.push("/dashboard");
+              router.push(
+                "/dashboard",
+              );
 
               router.refresh();
             }}
@@ -726,12 +970,19 @@ export default function ProductForm({
   // ===================================================
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
+    <form
+      onSubmit={handleSubmit(
+        onSubmit,
+      )}
+      className="space-y-10"
+    >
       {/* =================================================
           Stepper
       ================================================= */}
 
-      <ProductStepper currentStep={step} />
+      <ProductStepper
+        currentStep={step}
+      />
 
       {/* =================================================
           Form Sections
@@ -742,15 +993,30 @@ export default function ProductForm({
             STEP 1 — Basic Information
         =============================================== */}
 
-        <div className={step === 0 ? "block" : "hidden"}>
-          <BasicInformation register={register} errors={errors} />
+        <div
+          className={
+            step === 0
+              ? "block"
+              : "hidden"
+          }
+        >
+          <BasicInformation
+            register={register}
+            errors={errors}
+          />
         </div>
 
         {/* ===============================================
             STEP 2 — Category
         =============================================== */}
 
-        <div className={step === 1 ? "block" : "hidden"}>
+        <div
+          className={
+            step === 1
+              ? "block"
+              : "hidden"
+          }
+        >
           <CategorySection
             register={register}
             watch={watch}
@@ -763,26 +1029,53 @@ export default function ProductForm({
             STEP 3 — Pricing
         =============================================== */}
 
-        <div className={step === 2 ? "block" : "hidden"}>
-          <PricingSection register={register} errors={errors} />
+        <div
+          className={
+            step === 2
+              ? "block"
+              : "hidden"
+          }
+        >
+          <PricingSection
+            register={register}
+            errors={errors}
+          />
         </div>
 
         {/* ===============================================
             STEP 4 — Images
         =============================================== */}
 
-        <div className={step === 3 ? "block" : "hidden"}>
+        <div
+          className={
+            step === 3
+              ? "block"
+              : "hidden"
+          }
+        >
           <ImageUploadSection
-            uploadedImages={productImages}
-            setUploadedImages={(images) => {
-              setProductImages(images);
+            uploadedImages={
+              productImages
+            }
+            setUploadedImages={(
+              images,
+            ) => {
+              setProductImages(
+                images,
+              );
 
-              if (images.length > 0) {
+              if (
+                images.length > 0
+              ) {
                 setImageError("");
               }
             }}
-            thumbnailIndex={thumbnailIndex}
-            setThumbnailIndex={setThumbnailIndex}
+            thumbnailIndex={
+              thumbnailIndex
+            }
+            setThumbnailIndex={
+              setThumbnailIndex
+            }
           />
 
           {/* Image Error */}
@@ -798,7 +1091,13 @@ export default function ProductForm({
             STEP 5 — Product Location
         =============================================== */}
 
-        <div className={step === 4 ? "block" : "hidden"}>
+        <div
+          className={
+            step === 4
+              ? "block"
+              : "hidden"
+          }
+        >
           <LocationSection
             register={register}
             errors={errors}
@@ -813,8 +1112,17 @@ export default function ProductForm({
             STEP 6 — Preview
         =============================================== */}
 
-        <div className={step === 5 ? "block" : "hidden"}>
-          <PreviewSection values={formValues} images={productImages} />
+        <div
+          className={
+            step === 5
+              ? "block"
+              : "hidden"
+          }
+        >
+          <PreviewSection
+            values={formValues}
+            images={productImages}
+          />
         </div>
       </div>
 
@@ -829,8 +1137,13 @@ export default function ProductForm({
 
         <button
           type="button"
-          onClick={previousStep}
-          disabled={step === 0 || isSubmitting}
+          onClick={
+            previousStep
+          }
+          disabled={
+            step === 0 ||
+            isSubmitting
+          }
           className="
             rounded-2xl
             border
@@ -856,10 +1169,13 @@ export default function ProductForm({
             Final Submit
         =============================================== */}
 
-        {step === TOTAL_STEPS - 1 ? (
+        {step ===
+        TOTAL_STEPS - 1 ? (
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={
+              isSubmitting
+            }
             className="
               rounded-2xl
               bg-[#1565d8]
@@ -883,14 +1199,14 @@ export default function ProductForm({
                 : "🚀 Publish Product"}
           </button>
         ) : (
-          /* =============================================
-             Continue Button
-          ============================================= */
-
           <button
             type="button"
-            onClick={nextStep}
-            disabled={isSubmitting}
+            onClick={
+              nextStep
+            }
+            disabled={
+              isSubmitting
+            }
             className="
               rounded-2xl
               bg-[#1565d8]

@@ -13,6 +13,11 @@ interface SellerVerificationActionsProps {
     | "verified"
     | "rejected"
     | "suspended";
+
+  phoneVerified: boolean;
+  identityVerified: boolean;
+  selfieVerified: boolean;
+  locationVerified: boolean;
 }
 
 type VerificationAction =
@@ -23,6 +28,10 @@ type VerificationAction =
 export default function SellerVerificationActions({
   userId,
   currentStatus,
+  phoneVerified,
+  identityVerified,
+  selfieVerified,
+  locationVerified,
 }: SellerVerificationActionsProps) {
   const router = useRouter();
 
@@ -38,6 +47,27 @@ export default function SellerVerificationActions({
     >(null);
 
   // =====================================================
+  // Verification Progress
+  // =====================================================
+
+  const completedChecks = [
+    phoneVerified,
+    identityVerified,
+    selfieVerified,
+    locationVerified,
+  ].filter(Boolean).length;
+
+  const totalChecks = 4;
+
+  const progress = Math.round(
+    (completedChecks / totalChecks) *
+      100,
+  );
+
+  const fullyVerified =
+    completedChecks === totalChecks;
+
+  // =====================================================
   // Update Verification
   // =====================================================
 
@@ -47,25 +77,27 @@ export default function SellerVerificationActions({
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `/api/admin/verification/${userId}`,
-        {
-          method: "PATCH",
+      const response =
+        await fetch(
+          `/api/admin/verification/${userId}`,
+          {
+            method: "PATCH",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              action,
+
+              reason:
+                action === "approve"
+                  ? ""
+                  : reason.trim(),
+            }),
           },
-
-          body: JSON.stringify({
-            action,
-            reason:
-              action === "approve"
-                ? ""
-                : reason.trim(),
-          }),
-        },
-      );
+        );
 
       const data =
         await response.json();
@@ -78,10 +110,12 @@ export default function SellerVerificationActions({
       }
 
       toast.success(
-        "Verification updated successfully.",
+        action === "approve"
+          ? "Seller verified successfully."
+          : "Verification updated successfully.",
         {
           description:
-            data.message,
+            data?.message,
         },
       );
 
@@ -115,7 +149,8 @@ export default function SellerVerificationActions({
   // =====================================================
 
   if (
-    currentStatus === "suspended"
+    currentStatus ===
+    "suspended"
   ) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/30">
@@ -125,58 +160,60 @@ export default function SellerVerificationActions({
         </p>
 
         <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-          Seller verification actions are
-          currently restricted.
+          Seller verification actions
+          are currently restricted.
         </p>
       </div>
     );
   }
 
   // =====================================================
-  // Already Rejected
+  // Already Verified
   // =====================================================
 
   if (
-    currentStatus === "rejected"
+    currentStatus ===
+    "verified"
   ) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/30">
-          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-            ✕ Verification was rejected.
+
+        <div className="rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-900 dark:bg-green-950/30">
+          <p className="text-sm font-semibold text-green-700 dark:text-green-300">
+            ✓ Seller is fully verified.
           </p>
 
-          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-            You can review the seller again
-            if a new verification request is
-            submitted.
+          <p className="mt-1 text-xs text-green-600 dark:text-green-400">
+            All required seller
+            verification checks have
+            been completed and approved.
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() =>
-              setReasonModal("suspend")
-            }
-            className="
-              rounded-xl
-              bg-slate-700
-              px-5
-              py-3
-              text-sm
-              font-semibold
-              text-white
-              transition
-              hover:bg-slate-800
-              disabled:cursor-not-allowed
-              disabled:opacity-50
-            "
-          >
-            ⛔ Suspend Seller
-          </button>
-        </div>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() =>
+            setReasonModal(
+              "suspend",
+            )
+          }
+          className="
+            rounded-xl
+            bg-slate-700
+            px-5
+            py-3
+            text-sm
+            font-semibold
+            text-white
+            transition
+            hover:bg-slate-800
+            disabled:cursor-not-allowed
+            disabled:opacity-50
+          "
+        >
+          ⛔ Suspend Seller
+        </button>
 
         {reasonModal ===
           "suspend" &&
@@ -188,22 +225,25 @@ export default function SellerVerificationActions({
   }
 
   // =====================================================
-  // Already Verified
+  // Rejected
   // =====================================================
 
   if (
-    currentStatus === "verified"
+    currentStatus ===
+    "rejected"
   ) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-900 dark:bg-green-950/30">
-          <p className="text-sm font-semibold text-green-700 dark:text-green-300">
-            ✓ Seller is verified.
+
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 dark:border-red-900 dark:bg-red-950/30">
+          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+            ✕ Verification was rejected.
           </p>
 
-          <p className="mt-1 text-xs text-green-600 dark:text-green-400">
-            This seller has successfully
-            completed seller verification.
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+            Review the seller again when
+            a new verification request is
+            submitted.
           </p>
         </div>
 
@@ -211,7 +251,9 @@ export default function SellerVerificationActions({
           type="button"
           disabled={loading}
           onClick={() =>
-            setReasonModal("suspend")
+            setReasonModal(
+              "suspend",
+            )
           }
           className="
             rounded-xl
@@ -245,17 +287,113 @@ export default function SellerVerificationActions({
 
   return (
     <div className="space-y-5">
+
+      {/* =================================================
+          Verification Summary
+      ================================================= */}
+
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+
+        <div className="flex items-center justify-between gap-4">
+
+          <div>
+            <p className="text-sm font-bold text-slate-900 dark:text-white">
+              Verification Readiness
+            </p>
+
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              {completedChecks} of{" "}
+              {totalChecks} checks completed
+            </p>
+          </div>
+
+          <span
+            className={`
+              rounded-full
+              px-3
+              py-1
+              text-xs
+              font-bold
+              ${
+                fullyVerified
+                  ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
+                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
+              }
+            `}
+          >
+            {progress}%
+          </span>
+        </div>
+
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div
+            className="h-full rounded-full bg-[#1565d8] transition-all"
+            style={{
+              width: `${progress}%`,
+            }}
+          />
+        </div>
+
+        {/* =================================================
+            Individual Checks
+        ================================================= */}
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+
+          <CheckItem
+            label="Phone"
+            verified={
+              phoneVerified
+            }
+          />
+
+          <CheckItem
+            label="Identity"
+            verified={
+              identityVerified
+            }
+          />
+
+          <CheckItem
+            label="Live Selfie"
+            verified={
+              selfieVerified
+            }
+          />
+
+          <CheckItem
+            label="Location"
+            verified={
+              locationVerified
+            }
+          />
+
+        </div>
+      </div>
+
+      {/* =================================================
+          Admin Actions
+      ================================================= */}
+
       <div className="flex flex-wrap gap-3">
 
         {/* Approve */}
 
         <button
           type="button"
-          disabled={loading}
+          disabled={
+            loading ||
+            !fullyVerified
+          }
           onClick={() =>
             updateVerification(
               "approve",
             )
+          }
+          title={
+            !fullyVerified
+              ? "All 4 verification checks must be completed first."
+              : "Approve seller"
           }
           className="
             rounded-xl
@@ -267,15 +405,15 @@ export default function SellerVerificationActions({
             text-white
             transition
             hover:bg-green-700
-            hover:scale-[1.02]
-            active:scale-95
             disabled:cursor-not-allowed
             disabled:opacity-50
           "
         >
           {loading
             ? "Updating..."
-            : "✓ Approve Seller"}
+            : fullyVerified
+              ? "✓ Approve Seller"
+              : "✓ Approve Seller"}
         </button>
 
         {/* Reject */}
@@ -284,7 +422,9 @@ export default function SellerVerificationActions({
           type="button"
           disabled={loading}
           onClick={() =>
-            setReasonModal("reject")
+            setReasonModal(
+              "reject",
+            )
           }
           className="
             rounded-xl
@@ -296,8 +436,6 @@ export default function SellerVerificationActions({
             text-white
             transition
             hover:bg-red-700
-            hover:scale-[1.02]
-            active:scale-95
             disabled:cursor-not-allowed
             disabled:opacity-50
           "
@@ -311,7 +449,9 @@ export default function SellerVerificationActions({
           type="button"
           disabled={loading}
           onClick={() =>
-            setReasonModal("suspend")
+            setReasonModal(
+              "suspend",
+            )
           }
           className="
             rounded-xl
@@ -323,17 +463,18 @@ export default function SellerVerificationActions({
             text-white
             transition
             hover:bg-slate-800
-            hover:scale-[1.02]
-            active:scale-95
             disabled:cursor-not-allowed
             disabled:opacity-50
           "
         >
           ⛔ Suspend Seller
         </button>
+
       </div>
 
-      {/* Reason Form */}
+      {/* =================================================
+          Reason Form
+      ================================================= */}
 
       {reasonModal &&
         renderReasonForm(
@@ -347,13 +488,16 @@ export default function SellerVerificationActions({
   // =====================================================
 
   function renderReasonForm(
-    action: "reject" | "suspend",
+    action:
+      | "reject"
+      | "suspend",
   ) {
     const isReject =
       action === "reject";
 
     return (
       <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+
         <h3 className="font-bold text-slate-900 dark:text-white">
           {isReject
             ? "Reject Verification"
@@ -368,7 +512,9 @@ export default function SellerVerificationActions({
 
         <textarea
           value={reason}
-          onChange={(event) =>
+          onChange={(
+            event,
+          ) =>
             setReason(
               event.target.value,
             )
@@ -399,6 +545,7 @@ export default function SellerVerificationActions({
         />
 
         <div className="mt-4 flex flex-wrap gap-3">
+
           <button
             type="button"
             disabled={
@@ -462,12 +609,48 @@ export default function SellerVerificationActions({
           >
             Cancel
           </button>
+
         </div>
 
         <p className="mt-3 text-right text-xs text-slate-400">
           {reason.length}/500
         </p>
+
       </div>
     );
   }
+}
+
+// =====================================================
+// Check Item
+// =====================================================
+
+function CheckItem({
+  label,
+  verified,
+}: {
+  label: string;
+  verified: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-xl bg-white px-4 py-3 dark:bg-slate-900">
+
+      <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        {label}
+      </span>
+
+      <span
+        className={
+          verified
+            ? "text-green-600 dark:text-green-400"
+            : "text-slate-400 dark:text-slate-500"
+        }
+      >
+        {verified
+          ? "✓ Verified"
+          : "○ Not Verified"}
+      </span>
+
+    </div>
+  );
 }

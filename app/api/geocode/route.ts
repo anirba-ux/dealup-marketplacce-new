@@ -1,202 +1,319 @@
-import { NextResponse } from "next/server";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
 
 // =====================================================
-// GET /api/geocode?q=Chuchura
+// OpenStreetMap Nominatim Proxy
+//
+// Used for:
+// 1. Address -> Coordinates
+// 2. Coordinates -> Address
+//
+// IMPORTANT:
+// Requests are server-side so we can provide a proper
+// application User-Agent and keep geocoding logic out
+// of the browser.
 // =====================================================
 
-export async function GET(request: Request) {
+const NOMINATIM_URL =
+  "https://nominatim.openstreetmap.org";
+
+const USER_AGENT =
+  "DealUp Marketplace/1.0 (location service)";
+
+export async function GET(
+  request: NextRequest,
+) {
   try {
-    // =================================================
-    // Query
-    // =================================================
+    const searchParams =
+      request.nextUrl.searchParams;
 
-    const { searchParams } = new URL(request.url);
-
-    const query = searchParams.get("q")?.trim();
+    const mode =
+      searchParams.get("mode");
 
     // =================================================
-    // Validation
+    // Forward Geocoding
+    //
+    // Address -> Coordinates
     // =================================================
 
-    if (!query) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Location search query is required.",
-          results: [],
-        },
-        { status: 400 },
+    if (mode === "search") {
+      const query =
+        searchParams.get("q")?.trim();
+
+      if (!query) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Address is required.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      const url =
+        new URL(
+          `${NOMINATIM_URL}/search`,
+        );
+
+      url.searchParams.set(
+        "format",
+        "jsonv2",
       );
+
+      url.searchParams.set(
+        "addressdetails",
+        "1",
+      );
+
+      url.searchParams.set(
+        "limit",
+        "1",
+      );
+
+      url.searchParams.set(
+        "countrycodes",
+        "in",
+      );
+
+      url.searchParams.set(
+        "q",
+        query,
+      );
+
+      const response =
+        await fetch(
+          url.toString(),
+          {
+            headers: {
+              "User-Agent":
+                USER_AGENT,
+
+              Accept:
+                "application/json",
+            },
+
+            cache:
+              "no-store",
+          },
+        );
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Unable to find this address.",
+          },
+          {
+            status: 502,
+          },
+        );
+      }
+
+      const results =
+        await response.json();
+
+      if (
+        !Array.isArray(results) ||
+        results.length === 0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "We could not find this address. Please enter a more complete address.",
+          },
+          {
+            status: 404,
+          },
+        );
+      }
+
+      const result =
+        results[0];
+
+      return NextResponse.json({
+        success: true,
+
+        latitude:
+          Number(result.lat),
+
+        longitude:
+          Number(result.lon),
+
+        displayName:
+          result.display_name ?? "",
+
+        address:
+          result.address ?? {},
+      });
     }
 
-    if (query.length < 2) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Please enter at least 2 characters.",
-          results: [],
-        },
-        { status: 400 },
+    // =================================================
+    // Reverse Geocoding
+    //
+    // Coordinates -> Address
+    // =================================================
+
+    if (mode === "reverse") {
+      const latitude =
+        Number(
+          searchParams.get(
+            "lat",
+          ),
+        );
+
+      const longitude =
+        Number(
+          searchParams.get(
+            "lng",
+          ),
+        );
+
+      if (
+        !Number.isFinite(latitude) ||
+        !Number.isFinite(longitude)
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Valid coordinates are required.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (
+        latitude < -90 ||
+        latitude > 90 ||
+        longitude < -180 ||
+        longitude > 180
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Invalid coordinates.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      const url =
+        new URL(
+          `${NOMINATIM_URL}/reverse`,
+        );
+
+      url.searchParams.set(
+        "format",
+        "jsonv2",
       );
+
+      url.searchParams.set(
+        "addressdetails",
+        "1",
+      );
+
+      url.searchParams.set(
+        "zoom",
+        "18",
+      );
+
+      url.searchParams.set(
+        "lat",
+        String(latitude),
+      );
+
+      url.searchParams.set(
+        "lon",
+        String(longitude),
+      );
+
+      const response =
+        await fetch(
+          url.toString(),
+          {
+            headers: {
+              "User-Agent":
+                USER_AGENT,
+
+              Accept:
+                "application/json",
+            },
+
+            cache:
+              "no-store",
+          },
+        );
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Unable to identify this location.",
+          },
+          {
+            status: 502,
+          },
+        );
+      }
+
+      const result =
+        await response.json();
+
+      const address =
+        result.address ?? {};
+
+      return NextResponse.json({
+        success: true,
+
+        latitude,
+
+        longitude,
+
+        displayName:
+          result.display_name ?? "",
+
+        address,
+      });
     }
-
-    // =================================================
-    // Nominatim
-    // =================================================
-
-    const nominatimUrl = new URL(
-      "https://nominatim.openstreetmap.org/search",
-    );
-
-    nominatimUrl.searchParams.set("q", query);
-    nominatimUrl.searchParams.set("format", "jsonv2");
-    nominatimUrl.searchParams.set("addressdetails", "1");
-    nominatimUrl.searchParams.set("limit", "8");
-    nominatimUrl.searchParams.set("countrycodes", "in");
-
-    // =================================================
-    // Fetch
-    // =================================================
-
-    const response = await fetch(nominatimUrl.toString(), {
-      method: "GET",
-
-      headers: {
-        Accept: "application/json",
-
-        "User-Agent":
-          "DealUp Marketplace/1.0 (location search)",
-      },
-
-      cache: "no-store",
-    });
-
-    // =================================================
-    // Nominatim Error
-    // =================================================
-
-    if (!response.ok) {
-      console.error(
-        "NOMINATIM ERROR:",
-        response.status,
-        response.statusText,
-      );
-
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Location search service is temporarily unavailable.",
-          results: [],
-        },
-        { status: 502 },
-      );
-    }
-
-    // =================================================
-    // Parse
-    // =================================================
-
-    const data: unknown = await response.json();
-
-    // =================================================
-    // Normalize
-    // =================================================
-
-    const results = Array.isArray(data)
-      ? data
-          .map((item: any) => {
-            // -----------------------------------------
-            // IMPORTANT
-            // Nominatim returns:
-            //
-            // lat -> string
-            // lon -> string
-            // -----------------------------------------
-
-            const latitude = Number(item?.lat);
-            const longitude = Number(item?.lon);
-
-            // -----------------------------------------
-            // NEVER allow NaN
-            // -----------------------------------------
-
-            if (
-              !Number.isFinite(latitude) ||
-              !Number.isFinite(longitude)
-            ) {
-              return null;
-            }
-
-            // -----------------------------------------
-            // Coordinate range validation
-            // -----------------------------------------
-
-            if (
-              latitude < -90 ||
-              latitude > 90 ||
-              longitude < -180 ||
-              longitude > 180
-            ) {
-              return null;
-            }
-
-            return {
-              placeId: String(item?.place_id ?? ""),
-
-              displayName: String(
-                item?.display_name ?? "",
-              ),
-
-              latitude,
-
-              longitude,
-
-              type: String(item?.type ?? ""),
-
-              category: String(
-                item?.category ?? "",
-              ),
-
-              address:
-                item?.address &&
-                typeof item.address === "object"
-                  ? item.address
-                  : {},
-            };
-          })
-          .filter(
-            (
-              item,
-            ): item is NonNullable<typeof item> =>
-              item !== null,
-          )
-      : [];
-
-    // =================================================
-    // Response
-    // =================================================
 
     return NextResponse.json(
       {
-        success: true,
-        results,
+        success: false,
+        message:
+          "Invalid geocoding mode.",
       },
-      { status: 200 },
+      {
+        status: 400,
+      },
     );
   } catch (error) {
     console.error(
-      "GEOCODE API ERROR:",
+      "GEOCODING API ERROR:",
       error,
     );
 
     return NextResponse.json(
       {
         success: false,
-        message: "Failed to search location.",
-        results: [],
+        message:
+          "Unable to process location.",
       },
-      { status: 500 },
+      {
+        status: 500,
+      },
     );
   }
 }

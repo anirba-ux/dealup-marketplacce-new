@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+
 import { useEffect, useState } from "react";
 
 import { QRCodeSVG } from "qrcode.react";
@@ -25,7 +26,9 @@ import {
 
 type LocationSession = {
   token: string;
+
   mobileUrl: string;
+
   expiresAt: string;
 };
 
@@ -39,30 +42,72 @@ type LocationStatus =
 
 type VerificationProgress = {
   phone: boolean;
+
   identity: boolean;
+
   selfie: boolean;
+
   location: boolean;
 };
 
 type SessionStatusResponse = {
   success?: boolean;
+
   valid?: boolean;
+
   authenticated?: boolean;
+
   status?: string;
 
   selfieVerified?: boolean;
+
   locationVerified?: boolean;
 
   expiresAt?: string;
+
   verifiedAt?: string | null;
 
   mobileLocation?: {
     latitude?: number;
+
     longitude?: number;
+
     accuracy?: number;
+
     method?: string;
+
     capturedAt?: string;
   } | null;
+
+  message?: string;
+};
+
+type SellerVerificationStatusResponse = {
+  success?: boolean;
+
+  verification?: {
+    phoneVerified?: boolean;
+
+    identityVerified?: boolean;
+
+    selfieVerified?: boolean;
+
+    locationVerified?: boolean;
+
+    status?: string;
+
+    rejectionReason?: string | null;
+
+    verifiedAt?: string | null;
+  };
+
+  progress?: {
+    completedSteps?: number;
+
+    totalSteps?: number;
+
+    percent?: number;
+  };
 
   message?: string;
 };
@@ -100,15 +145,106 @@ export default function VerificationPage() {
   // ===================================================
 
   const [progress, setProgress] = useState<VerificationProgress>({
-    phone: true,
+    phone: false,
+
     identity: false,
+
     selfie: false,
+
     location: false,
   });
+
+  const [loadingVerification, setLoadingVerification] = useState(true);
 
   const completedSteps = Object.values(progress).filter(Boolean).length;
 
   const progressPercent = completedSteps * 25;
+
+  // ===================================================
+  // LOAD PERMANENT VERIFICATION STATUS
+  //
+  // IMPORTANT:
+  // MongoDB users.sellerVerification is the
+  // permanent source of truth.
+  // ===================================================
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadVerificationStatus() {
+      try {
+        setLoadingVerification(true);
+
+        const response = await fetch("/api/seller-verification/status", {
+          method: "GET",
+
+          cache: "no-store",
+        });
+
+        const data =
+          (await response.json()) as SellerVerificationStatusResponse;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.message || "Unable to load verification status.",
+          );
+        }
+
+        const verification = data.verification ?? {};
+
+        const selfieVerified = verification.selfieVerified === true;
+
+        const locationVerified = verification.locationVerified === true;
+
+        setProgress({
+          phone: verification.phoneVerified === true,
+
+          identity: verification.identityVerified === true,
+
+          selfie: selfieVerified,
+
+          location: locationVerified,
+        });
+
+        // =================================================
+        // IMPORTANT
+        //
+        // If selfie + location are already completed,
+        // NEVER show/create another QR session.
+        // =================================================
+
+        if (selfieVerified && locationVerified) {
+          setLocationStatus("verified");
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.error("LOAD SELLER VERIFICATION STATUS ERROR:", error);
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to load verification status.",
+        );
+      } finally {
+        if (!cancelled) {
+          setLoadingVerification(false);
+        }
+      }
+    }
+
+    loadVerificationStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ===================================================
   // CREATE MOBILE VERIFICATION SESSION
@@ -117,6 +253,23 @@ export default function VerificationPage() {
   // ===================================================
 
   async function createMobileVerificationSession() {
+    // =================================================
+    // SECURITY / UI CHECK
+    //
+    // Never create another session if both are already
+    // verified.
+    // =================================================
+
+    if (progress.selfie && progress.location) {
+      setLocationStatus("verified");
+
+      setMessage(
+        "Your Live Selfie and mobile GPS location are already verified.",
+      );
+
+      return;
+    }
+
     try {
       setCreatingSession(true);
 
@@ -143,6 +296,28 @@ export default function VerificationPage() {
       });
 
       const data = await response.json();
+
+      // =================================================
+      // Already verified
+      // =================================================
+
+      if (data?.alreadyVerified === true) {
+        setProgress((previous) => ({
+          ...previous,
+
+          selfie: true,
+
+          location: true,
+        }));
+
+        setLocationStatus("verified");
+
+        setMessage(
+          "Your Live Selfie and mobile GPS location are already verified.",
+        );
+
+        return;
+      }
 
       if (!response.ok || !data?.success) {
         throw new Error(
@@ -192,8 +367,6 @@ export default function VerificationPage() {
 
   // ===================================================
   // POLL MOBILE VERIFICATION STATUS
-  //
-  // Desktop automatically watches the same session.
   // ===================================================
 
   useEffect(() => {
@@ -207,16 +380,13 @@ export default function VerificationPage() {
 
     async function checkMobileVerification() {
       try {
-        // =============================================
-        // Check authenticated mobile session state
-        // =============================================
-
         const response = await fetch(
           `/api/location-verification/mobile-session?token=${encodeURIComponent(
             token,
           )}`,
           {
             method: "GET",
+
             cache: "no-store",
           },
         );
@@ -242,7 +412,7 @@ export default function VerificationPage() {
         }
 
         // =============================================
-        // Wrong account / authentication problem
+        // Wrong account
         // =============================================
 
         if (response.status === 401 || response.status === 403) {
@@ -265,6 +435,7 @@ export default function VerificationPage() {
         if (data.selfieVerified === true) {
           setProgress((previous) => ({
             ...previous,
+
             selfie: true,
           }));
         }
@@ -276,12 +447,9 @@ export default function VerificationPage() {
         if (data.locationVerified === true) {
           setProgress((previous) => ({
             ...previous,
+
             location: true,
           }));
-
-          // ===========================================
-          // Get GPS accuracy
-          // ===========================================
 
           if (typeof data.mobileLocation?.accuracy === "number") {
             setLocationAccuracy(data.mobileLocation.accuracy);
@@ -318,10 +486,8 @@ export default function VerificationPage() {
       }
     }
 
-    // First check immediately
     checkMobileVerification();
 
-    // Then every 2.5 seconds
     const interval = window.setInterval(checkMobileVerification, 2500);
 
     return () => {
@@ -362,6 +528,19 @@ export default function VerificationPage() {
   // ===================================================
 
   function resetMobileVerification() {
+    // =================================================
+    // IMPORTANT:
+    //
+    // If verification is permanently complete,
+    // do NOT allow reset back to idle.
+    // =================================================
+
+    if (progress.selfie && progress.location) {
+      setLocationStatus("verified");
+
+      return;
+    }
+
     setLocationSession(null);
 
     setLocationStatus("idle");
@@ -378,6 +557,8 @@ export default function VerificationPage() {
   // ===================================================
   // RENDER
   // ===================================================
+
+  const mobileVerificationCompleted = progress.selfie && progress.location;
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
@@ -432,7 +613,7 @@ export default function VerificationPage() {
             </div>
 
             <div className="text-sm font-bold text-[#1565d8]">
-              {progressPercent}%
+              {loadingVerification ? "..." : `${progressPercent}%`}
             </div>
           </div>
 
@@ -474,7 +655,9 @@ export default function VerificationPage() {
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                Your phone number is already verified.
+                {progress.phone
+                  ? "Your phone number is already verified."
+                  : "Your phone number has not been verified yet."}
               </p>
             </div>
           </div>
@@ -516,7 +699,11 @@ export default function VerificationPage() {
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0f52ba]"
               >
                 <FileCheck2 size={17} />
-                Open Identity Verification
+
+                {progress.identity
+                  ? "View Identity Verification"
+                  : "Open Identity Verification"}
+
                 <ExternalLink size={15} />
               </Link>
             </div>
@@ -547,57 +734,28 @@ export default function VerificationPage() {
               </div>
 
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Your live selfie will be captured securely using your mobile
-                phone.
+                {progress.selfie
+                  ? "Your live selfie has already been verified."
+                  : "Your live selfie will be captured securely using your mobile phone."}
               </p>
+
+              {progress.selfie && (
+                <div className="mt-5 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
+                  <CheckCircle2 size={23} className="shrink-0 text-green-600" />
+
+                  <div>
+                    <p className="text-sm font-bold text-green-800">
+                      Live Selfie Verified
+                    </p>
+
+                    <p className="mt-1 text-xs text-green-700">
+                      Your mobile selfie was successfully verified.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
-          {/* =================================================
-              SELFIE WAITING
-          ================================================= */}
-
-          {!progress.selfie && locationStatus === "idle" && (
-            <div className="mt-6 rounded-2xl border border-purple-200 bg-purple-50 p-5">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                  <Smartphone size={21} />
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-purple-900">
-                    Verify your selfie using mobile
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-6 text-purple-700">
-                    Your desktop camera will not be used. Scan one secure QR
-                    code with your mobile phone and complete the live selfie
-                    there.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================
-              SELFIE VERIFIED
-          ================================================= */}
-
-          {progress.selfie && (
-            <div className="mt-5 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
-              <CheckCircle2 size={23} className="shrink-0 text-green-600" />
-
-              <div>
-                <p className="text-sm font-bold text-green-800">
-                  Live Selfie Verified
-                </p>
-
-                <p className="mt-1 text-xs text-green-700">
-                  Your mobile selfie was successfully verified.
-                </p>
-              </div>
-            </div>
-          )}
         </section>
 
         {/* =================================================
@@ -617,7 +775,7 @@ export default function VerificationPage() {
                   Mobile Selfie & Location Verification
                 </h2>
 
-                {progress.location && (
+                {mobileVerificationCompleted && (
                   <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
                     Completed
                   </span>
@@ -625,38 +783,68 @@ export default function VerificationPage() {
               </div>
 
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Use your mobile phone to securely complete both your live selfie
-                and precise GPS location.
+                {mobileVerificationCompleted
+                  ? "Your Live Selfie and mobile GPS location have already been verified."
+                  : "Use your mobile phone to securely complete both your live selfie and precise GPS location."}
               </p>
             </div>
           </div>
 
           {/* =================================================
+              COMPLETED
+          ================================================= */}
+
+          {mobileVerificationCompleted && (
+            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 size={27} className="shrink-0 text-green-600" />
+
+                <div>
+                  <h3 className="font-bold text-green-800">
+                    Selfie & Location Verification Completed
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-green-700">
+                    Your Live Selfie and mobile GPS location have both been
+                    successfully verified.
+                  </p>
+
+                  <p className="mt-2 text-xs font-semibold text-green-700">
+                    You do not need to repeat this verification.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* =================================================
               START
           ================================================= */}
 
-          {locationStatus === "idle" && (
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={createMobileVerificationSession}
-                disabled={creatingSession}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-5 py-4 font-semibold text-white transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {creatingSession ? (
-                  <>
-                    <Loader2 size={20} className="animate-spin" />
-                    Creating secure session...
-                  </>
-                ) : (
-                  <>
-                    <Smartphone size={20} />
-                    Verify Selfie & Location on Mobile
-                  </>
-                )}
-              </button>
-            </div>
-          )}
+          {!mobileVerificationCompleted &&
+            locationStatus === "idle" &&
+            !loadingVerification && (
+              <div className="mt-6">
+                <button
+                  type="button"
+                  onClick={createMobileVerificationSession}
+                  disabled={creatingSession}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-5 py-4 font-semibold text-white transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {creatingSession ? (
+                    <>
+                      <Loader2 size={20} className="animate-spin" />
+                      Creating secure session...
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone size={20} />
+                      Verify Selfie & Location on Mobile
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
 
           {/* =================================================
               CREATING
@@ -676,9 +864,7 @@ export default function VerificationPage() {
           {locationStatus === "waiting" && locationSession && (
             <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5">
               <div className="grid gap-8 md:grid-cols-[240px_1fr] md:items-center">
-                {/* =================================================
-                      QR CODE
-                  ================================================= */}
+                {/* QR */}
 
                 <div className="flex flex-col items-center">
                   <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-md">
@@ -701,9 +887,7 @@ export default function VerificationPage() {
                   </p>
                 </div>
 
-                {/* =================================================
-                      INSTRUCTIONS
-                  ================================================= */}
+                {/* Instructions */}
 
                 <div className="min-w-0">
                   <div className="flex items-start gap-3">
@@ -729,9 +913,7 @@ export default function VerificationPage() {
                     </div>
                   </div>
 
-                  {/* =================================================
-                        STEP INDICATORS
-                    ================================================= */}
+                  {/* Step Indicators */}
 
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div
@@ -789,9 +971,7 @@ export default function VerificationPage() {
                     </div>
                   </div>
 
-                  {/* =================================================
-                        MOBILE URL
-                    ================================================= */}
+                  {/* Mobile URL */}
 
                   <div className="mt-5 rounded-xl border border-blue-200 bg-white p-3">
                     <p className="break-all text-xs font-medium text-slate-600">
@@ -799,9 +979,7 @@ export default function VerificationPage() {
                     </p>
                   </div>
 
-                  {/* =================================================
-                        ACTIONS
-                    ================================================= */}
+                  {/* Actions */}
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
                     <button
@@ -833,9 +1011,7 @@ export default function VerificationPage() {
                     </a>
                   </div>
 
-                  {/* =================================================
-                        WAITING STATUS
-                    ================================================= */}
+                  {/* Waiting */}
 
                   <div className="mt-5 flex items-start gap-3 rounded-xl bg-white p-4">
                     <Loader2
@@ -856,35 +1032,6 @@ export default function VerificationPage() {
                       </p>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* =================================================
-              VERIFIED
-          ================================================= */}
-
-          {locationStatus === "verified" && (
-            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 size={27} className="shrink-0 text-green-600" />
-
-                <div>
-                  <h3 className="font-bold text-green-800">
-                    Mobile Verification Completed
-                  </h3>
-
-                  <p className="mt-1 text-sm leading-6 text-green-700">
-                    Your Live Selfie and mobile GPS location have both been
-                    successfully verified.
-                  </p>
-
-                  {locationAccuracy !== null && (
-                    <p className="mt-2 text-xs font-semibold text-green-700">
-                      GPS accuracy: {Math.round(locationAccuracy)} metres
-                    </p>
-                  )}
                 </div>
               </div>
             </div>

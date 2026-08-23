@@ -1,7 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
+import {
+  NextRequest,
+  NextResponse,
+} from "next/server";
+
+import {
+  ObjectId,
+} from "mongodb";
 
 import { auth } from "@/auth";
+
 import clientPromise from "@/lib/db/mongodb";
 
 // =====================================================
@@ -16,24 +23,39 @@ type IdentityReviewAction =
 // PATCH
 //
 // Admin approves/rejects Aadhaar identity verification.
-// This DOES NOT directly make the seller fully verified.
+//
+// VERIFIED SELLER REQUIREMENTS:
+//
+// 1. Phone verified
+// 2. Identity verified
+// 3. Live selfie verified
+// 4. Location verified
+//
+// Identity approval alone does NOT automatically make
+// the seller verified.
+//
+// Seller becomes "verified" ONLY when all four checks
+// are completed.
 // =====================================================
 
 export async function PATCH(
   request: NextRequest,
 ) {
   try {
-    // ===================================================
+    // =================================================
     // Authentication
-    // ===================================================
+    // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized.",
+
+          message:
+            "Unauthorized.",
         },
         {
           status: 401,
@@ -41,14 +63,18 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Admin Authorization
-    // ===================================================
+    // =================================================
 
-    if (session.user.role !== "admin") {
+    if (
+      session.user.role !==
+      "admin"
+    ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Administrator access required.",
         },
@@ -58,11 +84,12 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Request Body
-    // ===================================================
+    // =================================================
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     const submissionId =
       typeof body?.submissionId ===
@@ -71,23 +98,26 @@ export async function PATCH(
         : "";
 
     const action =
-      typeof body?.action === "string"
+      typeof body?.action ===
+      "string"
         ? body.action.trim()
         : "";
 
     const reason =
-      typeof body?.reason === "string"
+      typeof body?.reason ===
+      "string"
         ? body.reason.trim()
         : "";
 
-    // ===================================================
+    // =================================================
     // Validate Submission ID
-    // ===================================================
+    // =================================================
 
     if (!submissionId) {
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Identity submission ID is required.",
         },
@@ -97,9 +127,9 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Validate Action
-    // ===================================================
+    // =================================================
 
     if (
       action !== "approve" &&
@@ -108,6 +138,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Invalid identity review action.",
         },
@@ -117,9 +148,9 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
-    // Reject requires reason
-    // ===================================================
+    // =================================================
+    // Reject Requires Reason
+    // =================================================
 
     if (
       action === "reject" &&
@@ -128,6 +159,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "A rejection reason is required.",
         },
@@ -137,9 +169,9 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Database
-    // ===================================================
+    // =================================================
 
     const client =
       await clientPromise;
@@ -153,11 +185,13 @@ export async function PATCH(
       );
 
     const users =
-      db.collection("users");
+      db.collection(
+        "users",
+      );
 
-    // ===================================================
-    // Find Submission
-    // ===================================================
+    // =================================================
+    // Find Identity Submission
+    // =================================================
 
     const submission =
       await submissions.findOne({
@@ -168,6 +202,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Identity submission not found.",
         },
@@ -177,13 +212,14 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
-    // Validate Seller ID
-    // ===================================================
+    // =================================================
+    // Seller User ID
+    // =================================================
 
     const sellerUserId =
       String(
-        submission.userId ?? "",
+        submission.userId ??
+          "",
       );
 
     if (
@@ -194,6 +230,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Invalid seller account.",
         },
@@ -203,9 +240,14 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    const sellerObjectId =
+      new ObjectId(
+        sellerUserId,
+      );
+
+    // =================================================
     // Already Reviewed
-    // ===================================================
+    // =================================================
 
     if (
       submission.reviewStatus ===
@@ -214,6 +256,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "This identity submission has already been approved.",
         },
@@ -230,6 +273,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "This identity submission has already been rejected.",
         },
@@ -239,9 +283,9 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Only Pending Submission Can Be Reviewed
-    // ===================================================
+    // =================================================
 
     if (
       submission.reviewStatus !==
@@ -250,6 +294,7 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
             "This identity submission is not awaiting review.",
         },
@@ -259,22 +304,21 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Find Seller
-    // ===================================================
+    // =================================================
 
     const seller =
       await users.findOne({
         _id:
-          new ObjectId(
-            sellerUserId,
-          ),
+          sellerObjectId,
       });
 
     if (!seller) {
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Seller account not found.",
         },
@@ -284,17 +328,19 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Prevent Admin Self Review
-    // ===================================================
+    // =================================================
 
     if (
-      String(session.user.id) ===
-      sellerUserId
+      String(
+        session.user.id,
+      ) === sellerUserId
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
             "You cannot review your own identity verification.",
         },
@@ -304,34 +350,259 @@ export async function PATCH(
       );
     }
 
-    // ===================================================
+    // =================================================
     // Current Time
-    // ===================================================
+    // =================================================
 
-    const now = new Date();
+    const now =
+      new Date();
 
-    // ===================================================
+    // =================================================
     // APPROVE IDENTITY
-    // ===================================================
+    // =================================================
 
     if (
       action === "approve"
     ) {
-      // -----------------------------------------------
-      // Update submission
-      // -----------------------------------------------
+      // ===============================================
+      // Update Identity Submission
+      // ===============================================
 
+      const submissionResult =
+        await submissions.updateOne(
+          {
+            _id:
+              submission._id,
+
+            reviewStatus:
+              "pending",
+          },
+          {
+            $set: {
+              reviewStatus:
+                "approved",
+
+              reviewedAt:
+                now,
+
+              reviewedBy:
+                String(
+                  session.user.id,
+                ),
+
+              rejectionReason:
+                null,
+
+              updatedAt:
+                now,
+            },
+          },
+        );
+
+      if (
+        submissionResult.modifiedCount ===
+        0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            message:
+              "Identity submission could not be approved.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // ===============================================
+      // Existing Seller Verification State
+      // ===============================================
+
+      const sellerVerification =
+        seller.sellerVerification ??
+        {};
+
+      // ===============================================
+      // Verification Checks
+      // ===============================================
+
+      const phoneVerified =
+        sellerVerification.phoneVerified ===
+          true ||
+        seller.isPhoneVerified ===
+          true;
+
+      // Identity is TRUE because admin
+      // has just approved it.
+
+      const identityVerified =
+        true;
+
+      const selfieVerified =
+        sellerVerification.selfieVerified ===
+        true;
+
+      const locationVerified =
+        sellerVerification.locationVerified ===
+        true;
+
+      // ===============================================
+      // Final Verified Seller Condition
+      // ===============================================
+
+      const fullyVerified =
+        phoneVerified &&
+        identityVerified &&
+        selfieVerified &&
+        locationVerified;
+
+      // ===============================================
+      // Final Seller Status
+      // ===============================================
+
+      const finalStatus =
+        fullyVerified
+          ? "verified"
+          : "pending";
+
+      // ===============================================
+      // Verified Timestamp
+      // ===============================================
+
+      const verifiedAt =
+        fullyVerified
+          ? now
+          : null;
+
+      // ===============================================
+      // Update Seller
+      // ===============================================
+
+      const sellerResult =
+        await users.updateOne(
+          {
+            _id:
+              sellerObjectId,
+          },
+          {
+            $set: {
+              // ---------------------------------------
+              // Identity
+              // ---------------------------------------
+
+              "sellerVerification.identityVerified":
+                true,
+
+              "sellerVerification.identityDocumentType":
+                "aadhaar",
+
+              "sellerVerification.identitySubmissionId":
+                submissionId,
+
+              "sellerVerification.identityReviewedAt":
+                now,
+
+              "sellerVerification.identityRejectionReason":
+                null,
+
+              // ---------------------------------------
+              // Final Seller Verification
+              // ---------------------------------------
+
+              "sellerVerification.status":
+                finalStatus,
+
+              "sellerVerification.verifiedAt":
+                verifiedAt,
+
+              "sellerVerification.rejectionReason":
+                null,
+
+              updatedAt:
+                now,
+            },
+          },
+        );
+
+      if (
+        sellerResult.matchedCount ===
+        0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            message:
+              "Identity was approved, but seller verification could not be updated.",
+          },
+          {
+            status: 500,
+          },
+        );
+      }
+
+      // ===============================================
+      // Success Response
+      // ===============================================
+
+      return NextResponse.json(
+        {
+          success: true,
+
+          action:
+            "approve",
+
+          submissionId,
+
+          identityVerified:
+            true,
+
+          phoneVerified,
+
+          selfieVerified,
+
+          locationVerified,
+
+          fullyVerified,
+
+          verifiedSeller:
+            fullyVerified,
+
+          status:
+            finalStatus,
+
+          verifiedAt,
+
+          message:
+            fullyVerified
+              ? "Identity approved and seller is now a Verified Seller."
+              : "Identity approved successfully. Remaining verification steps are still required.",
+        },
+        {
+          status: 200,
+        },
+      );
+    }
+
+    // =================================================
+    // REJECT IDENTITY
+    // =================================================
+
+    const submissionResult =
       await submissions.updateOne(
         {
           _id:
             submission._id,
+
           reviewStatus:
             "pending",
         },
         {
           $set: {
             reviewStatus:
-              "approved",
+              "rejected",
 
             reviewedAt:
               now,
@@ -342,7 +613,7 @@ export async function PATCH(
               ),
 
             rejectionReason:
-              null,
+              reason,
 
             updatedAt:
               now,
@@ -350,25 +621,41 @@ export async function PATCH(
         },
       );
 
-      // -----------------------------------------------
-      // Update seller identity
-      //
-      // IMPORTANT:
-      // This does NOT automatically make seller
-      // fully verified.
-      // -----------------------------------------------
+    if (
+      submissionResult.modifiedCount ===
+      0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
 
+          message:
+            "Identity submission could not be rejected.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =================================================
+    // Update Seller After Rejection
+    // =================================================
+
+    const sellerResult =
       await users.updateOne(
         {
           _id:
-            new ObjectId(
-              sellerUserId,
-            ),
+            sellerObjectId,
         },
         {
           $set: {
+            // -----------------------------------------
+            // Identity
+            // -----------------------------------------
+
             "sellerVerification.identityVerified":
-              true,
+              false,
 
             "sellerVerification.identityDocumentType":
               "aadhaar",
@@ -380,6 +667,19 @@ export async function PATCH(
               now,
 
             "sellerVerification.identityRejectionReason":
+              reason,
+
+            // -----------------------------------------
+            // Seller Status
+            // -----------------------------------------
+
+            "sellerVerification.status":
+              "rejected",
+
+            "sellerVerification.rejectionReason":
+              reason,
+
+            "sellerVerification.verifiedAt":
               null,
 
             updatedAt:
@@ -388,105 +688,26 @@ export async function PATCH(
         },
       );
 
+    if (
+      sellerResult.matchedCount ===
+      0
+    ) {
       return NextResponse.json(
         {
-          success: true,
-
-          action:
-            "approve",
-
-          submissionId,
-
-          status:
-            "approved",
-
-          identityVerified:
-            true,
+          success: false,
 
           message:
-            "Aadhaar identity verification approved successfully.",
+            "Identity was rejected, but seller verification could not be updated.",
+        },
+        {
+          status: 500,
         },
       );
     }
 
-    // ===================================================
-    // REJECT IDENTITY
-    // ===================================================
-
-    await submissions.updateOne(
-      {
-        _id:
-          submission._id,
-        reviewStatus:
-          "pending",
-      },
-      {
-        $set: {
-          reviewStatus:
-            "rejected",
-
-          reviewedAt:
-            now,
-
-          reviewedBy:
-            String(
-              session.user.id,
-            ),
-
-          rejectionReason:
-            reason,
-
-          updatedAt:
-            now,
-        },
-      },
-    );
-
-    // ===================================================
-    // Update Seller
-    //
-    // Seller becomes eligible to submit again.
-    // ===================================================
-
-    await users.updateOne(
-      {
-        _id:
-          new ObjectId(
-            sellerUserId,
-          ),
-      },
-      {
-        $set: {
-          "sellerVerification.identityVerified":
-            false,
-
-          "sellerVerification.identityDocumentType":
-            "aadhaar",
-
-          "sellerVerification.identitySubmissionId":
-            submissionId,
-
-          "sellerVerification.identityReviewedAt":
-            now,
-
-          "sellerVerification.identityRejectionReason":
-            reason,
-
-          "sellerVerification.status":
-            "rejected",
-
-          "sellerVerification.rejectionReason":
-            reason,
-
-          updatedAt:
-            now,
-        },
-      },
-    );
-
-    // ===================================================
-    // Success
-    // ===================================================
+    // =================================================
+    // Reject Success
+    // =================================================
 
     return NextResponse.json(
       {
@@ -497,16 +718,29 @@ export async function PATCH(
 
         submissionId,
 
+        identityVerified:
+          false,
+
+        fullyVerified:
+          false,
+
+        verifiedSeller:
+          false,
+
         status:
           "rejected",
 
-        identityVerified:
-          false,
+        verifiedAt:
+          null,
 
         message:
           "Aadhaar identity verification rejected.",
       },
+      {
+        status: 200,
+      },
     );
+
   } catch (error) {
     console.error(
       "ADMIN IDENTITY REVIEW ERROR:",
@@ -516,6 +750,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
+
         message:
           "Unable to review identity verification.",
       },

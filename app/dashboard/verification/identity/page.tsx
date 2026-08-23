@@ -120,7 +120,7 @@ export default function IdentityVerificationPage() {
       // =================================================
 
       const response = await fetch("/api/verification/identity", {
-        method: "PUT",
+        method: "POST",
         body: formData,
       });
 

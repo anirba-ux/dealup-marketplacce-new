@@ -3,11 +3,18 @@ import {
   NextResponse,
 } from "next/server";
 
-import { randomBytes } from "crypto";
+import {
+  ObjectId,
+} from "mongodb";
+
+import {
+  randomBytes,
+} from "crypto";
 
 import { auth } from "@/auth";
 
 import clientPromise from "@/lib/db/mongodb";
+
 
 // =====================================================
 // POST — Create Mobile Direct Verification Session
@@ -16,22 +23,31 @@ import clientPromise from "@/lib/db/mongodb";
 // directly on a mobile device.
 //
 // No QR code is required.
+//
+// IMPORTANT:
+// A user who has already completed both
+// selfie + location verification cannot create
+// another verification session.
 // =====================================================
 
 export async function POST(
   request: NextRequest,
 ) {
   try {
+
     // =================================================
     // Authentication
     // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
+
       return NextResponse.json(
         {
           success: false,
+
           message:
             "Please log in before starting verification.",
         },
@@ -39,11 +55,40 @@ export async function POST(
           status: 401,
         },
       );
+
     }
 
-    const userId = String(
-      session.user.id,
-    );
+
+    const userId =
+      String(
+        session.user.id,
+      );
+
+
+    // =================================================
+    // Validate User ID
+    // =================================================
+
+    if (
+      !ObjectId.isValid(
+        userId,
+      )
+    ) {
+
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "Invalid user account.",
+        },
+        {
+          status: 400,
+        },
+      );
+
+    }
+
 
     // =================================================
     // Database
@@ -55,142 +100,279 @@ export async function POST(
     const db =
       client.db("dealup");
 
+
+    const users =
+      db.collection(
+        "users",
+      );
+
+
     const sessions =
       db.collection(
         "locationVerificationSessions",
       );
 
+
+    // =================================================
+    // Find User
+    // =================================================
+
+    const user =
+      await users.findOne({
+        _id:
+          new ObjectId(
+            userId,
+          ),
+      });
+
+
+    if (!user) {
+
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "User account not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+
+    }
+
+
+    // =================================================
+    // Permanent Seller Verification
+    // =================================================
+
+    const sellerVerification =
+      user.sellerVerification ??
+      {};
+
+
+    const selfieVerified =
+      sellerVerification.selfieVerified ===
+      true;
+
+
+    const locationVerified =
+      sellerVerification.locationVerified ===
+      true;
+
+
+    // =================================================
+    // ALREADY VERIFIED
+    //
+    // IMPORTANT:
+    // Never create another mobile session.
+    // =================================================
+
+    if (
+      selfieVerified &&
+      locationVerified
+    ) {
+
+      return NextResponse.json(
+        {
+          success: false,
+
+          alreadyVerified: true,
+
+          selfieVerified: true,
+
+          locationVerified: true,
+
+          message:
+            "Your Live Selfie and mobile location have already been verified.",
+        },
+        {
+          status: 200,
+        },
+      );
+
+    }
+
+
     // =================================================
     // Check Existing Active Session
+    //
+    // Prevent multiple pending sessions.
     // =================================================
 
     const existingSession =
       await sessions.findOne({
         userId,
 
-        status: "pending",
+        status:
+          "pending",
 
         expiresAt: {
-          $gt: new Date(),
+          $gt:
+            new Date(),
         },
       });
 
+
     // =================================================
     // Reuse Existing Active Session
-    //
-    // This prevents multiple verification sessions
-    // being created accidentally by repeated clicks.
     // =================================================
 
-    if (existingSession) {
-      return NextResponse.json({
-        success: true,
+    if (
+      existingSession
+    ) {
 
-        mode: "mobile",
+      return NextResponse.json(
+        {
+          success: true,
 
-        token:
-          existingSession.token,
+          mode:
+            "mobile",
 
-        expiresAt:
-          existingSession.expiresAt,
+          token:
+            existingSession.token,
 
-        reused: true,
-      });
+          expiresAt:
+            existingSession.expiresAt,
+
+          reused: true,
+        },
+        {
+          status: 200,
+        },
+      );
+
     }
+
 
     // =================================================
     // Generate Secure Token
     // =================================================
 
     const token =
-      randomBytes(32).toString(
+      randomBytes(
+        32,
+      ).toString(
         "hex",
       );
 
+
     // =================================================
-    // Expiry
+    // Session Expiry
     //
-    // Mobile verification session:
     // 5 minutes
     // =================================================
 
     const now =
       new Date();
 
+
     const expiresAt =
       new Date(
         now.getTime() +
-          5 * 60 * 1000,
+          5 *
+            60 *
+            1000,
       );
+
 
     // =================================================
     // Create Session
     // =================================================
 
     await sessions.insertOne({
+
       token,
 
       userId,
 
-      mode: "mobile",
+      mode:
+        "mobile",
 
-      status: "pending",
+      status:
+        "pending",
+
 
       // -----------------------------------------------
       // Selfie
       // -----------------------------------------------
 
-      selfieVerified: false,
+      selfieVerified:
+        false,
 
-      selfieUrl: null,
+      selfieUrl:
+        null,
 
-      selfiePublicId: null,
+      selfiePublicId:
+        null,
 
-      selfieVerifiedAt: null,
+      selfieVerifiedAt:
+        null,
+
 
       // -----------------------------------------------
       // Location
       // -----------------------------------------------
 
-      locationVerified: false,
+      locationVerified:
+        false,
 
-      mobileLocation: null,
+      mobileLocation:
+        null,
 
-      locationVerifiedAt: null,
+      locationVerifiedAt:
+        null,
+
 
       // -----------------------------------------------
       // Session
       // -----------------------------------------------
 
-      createdAt: now,
+      createdAt:
+        now,
 
-      updatedAt: now,
+      updatedAt:
+        now,
 
       expiresAt,
 
-      verifiedAt: null,
+      verifiedAt:
+        null,
+
     });
+
 
     // =================================================
     // Success
     // =================================================
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(
+      {
+        success: true,
 
-      mode: "mobile",
+        mode:
+          "mobile",
 
-      token,
+        token,
 
-      expiresAt,
+        expiresAt,
 
-      reused: false,
-    });
+        reused: false,
+      },
+      {
+        status: 200,
+      },
+    );
+
+
   } catch (error) {
+
     console.error(
       "CREATE MOBILE VERIFICATION SESSION ERROR:",
       error,
     );
+
 
     return NextResponse.json(
       {
@@ -203,8 +385,10 @@ export async function POST(
         status: 500,
       },
     );
+
   }
 }
+
 
 // =====================================================
 // GET — Validate Mobile Verification Session
@@ -218,18 +402,25 @@ export async function GET(
   request: NextRequest,
 ) {
   try {
+
     // =================================================
     // Mobile Authentication
     // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
+
 
     if (!session?.user?.id) {
+
       return NextResponse.json(
         {
           success: false,
+
           valid: false,
+
           authenticated: false,
+
           message:
             "Please log in to the same DealUp account on this mobile device.",
         },
@@ -237,11 +428,15 @@ export async function GET(
           status: 401,
         },
       );
+
     }
 
-    const mobileUserId = String(
-      session.user.id,
-    );
+
+    const mobileUserId =
+      String(
+        session.user.id,
+      );
+
 
     // =================================================
     // Token
@@ -252,12 +447,17 @@ export async function GET(
         "token",
       );
 
+
     if (!token) {
+
       return NextResponse.json(
         {
           success: false,
+
           valid: false,
+
           authenticated: true,
+
           message:
             "Verification token is required.",
         },
@@ -265,7 +465,9 @@ export async function GET(
           status: 400,
         },
       );
+
     }
+
 
     // =================================================
     // Database
@@ -274,13 +476,16 @@ export async function GET(
     const client =
       await clientPromise;
 
+
     const db =
       client.db("dealup");
+
 
     const sessions =
       db.collection(
         "locationVerificationSessions",
       );
+
 
     // =================================================
     // Find Verification Session
@@ -291,12 +496,17 @@ export async function GET(
         token,
       });
 
+
     if (!verification) {
+
       return NextResponse.json(
         {
           success: false,
+
           valid: false,
+
           authenticated: true,
+
           message:
             "Verification session not found.",
         },
@@ -304,7 +514,9 @@ export async function GET(
           status: 404,
         },
       );
+
     }
+
 
     // =================================================
     // Expiry
@@ -317,12 +529,18 @@ export async function GET(
           verification.expiresAt,
         )
     ) {
+
       return NextResponse.json(
         {
           success: true,
+
           valid: false,
+
           authenticated: true,
-          status: "expired",
+
+          status:
+            "expired",
+
           message:
             "This verification session has expired.",
         },
@@ -330,7 +548,9 @@ export async function GET(
           status: 410,
         },
       );
+
     }
+
 
     // =================================================
     // Verification Owner
@@ -338,8 +558,10 @@ export async function GET(
 
     const verificationUserId =
       String(
-        verification.userId ?? "",
+        verification.userId ??
+          "",
       );
+
 
     // =================================================
     // SAME USER SECURITY CHECK
@@ -350,11 +572,15 @@ export async function GET(
       mobileUserId !==
         verificationUserId
     ) {
+
       return NextResponse.json(
         {
           success: false,
+
           valid: false,
+
           authenticated: true,
+
           message:
             "This verification session belongs to another DealUp account.",
         },
@@ -362,7 +588,9 @@ export async function GET(
           status: 403,
         },
       );
+
     }
+
 
     // =================================================
     // Verification State
@@ -372,13 +600,16 @@ export async function GET(
       verification.selfieVerified ===
       true;
 
+
     const locationVerified =
       verification.locationVerified ===
       true;
 
+
     const fullyVerified =
       selfieVerified &&
       locationVerified;
+
 
     // =================================================
     // Session Status
@@ -389,41 +620,51 @@ export async function GET(
         ? "verified"
         : "pending";
 
+
     // =================================================
     // Response
     //
     // Never expose private user information.
     // =================================================
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(
+      {
+        success: true,
 
-      valid: true,
+        valid: true,
 
-      authenticated: true,
+        authenticated: true,
 
-      mode:
-        verification.mode ??
-        "desktop-mobile",
+        mode:
+          verification.mode ??
+          "desktop-mobile",
 
-      status,
+        status,
 
-      selfieVerified,
+        selfieVerified,
 
-      locationVerified,
+        locationVerified,
 
-      expiresAt:
-        verification.expiresAt,
+        expiresAt:
+          verification.expiresAt,
 
-      verifiedAt:
-        verification.verifiedAt ??
-        null,
-    });
+        verifiedAt:
+          verification.verifiedAt ??
+          null,
+      },
+      {
+        status: 200,
+      },
+    );
+
+
   } catch (error) {
+
     console.error(
       "MOBILE SESSION VALIDATION ERROR:",
       error,
     );
+
 
     return NextResponse.json(
       {
@@ -440,5 +681,6 @@ export async function GET(
         status: 500,
       },
     );
+
   }
 }
