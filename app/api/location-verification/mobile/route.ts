@@ -1,7 +1,4 @@
-import {
-  NextRequest,
-  NextResponse,
-} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { ObjectId } from "mongodb";
 
@@ -9,9 +6,7 @@ import { auth } from "@/auth";
 
 import clientPromise from "@/lib/db/mongodb";
 
-export async function POST(
-  request: NextRequest,
-) {
+export async function POST(request: NextRequest) {
   try {
     // =================================================
     // Mobile User Authentication
@@ -32,9 +27,7 @@ export async function POST(
       );
     }
 
-    const mobileUserId = String(
-      session.user.id,
-    );
+    const mobileUserId = String(session.user.id);
 
     // =================================================
     // Request Body
@@ -42,21 +35,13 @@ export async function POST(
 
     const body = await request.json();
 
-    const token = String(
-      body?.token ?? "",
-    );
+    const token = String(body?.token ?? "");
 
-    const latitude = Number(
-      body?.latitude,
-    );
+    const latitude = Number(body?.latitude);
 
-    const longitude = Number(
-      body?.longitude,
-    );
+    const longitude = Number(body?.longitude);
 
-    const accuracy = Number(
-      body?.accuracy,
-    );
+    const accuracy = Number(body?.accuracy);
 
     // =================================================
     // Validate Token
@@ -66,8 +51,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Verification token is required.",
+          message: "Verification token is required.",
         },
         {
           status: 400,
@@ -79,16 +63,11 @@ export async function POST(
     // Validate Latitude
     // =================================================
 
-    if (
-      !Number.isFinite(latitude) ||
-      latitude < -90 ||
-      latitude > 90
-    ) {
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid latitude.",
+          message: "Invalid latitude.",
         },
         {
           status: 400,
@@ -100,16 +79,11 @@ export async function POST(
     // Validate Longitude
     // =================================================
 
-    if (
-      !Number.isFinite(longitude) ||
-      longitude < -180 ||
-      longitude > 180
-    ) {
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid longitude.",
+          message: "Invalid longitude.",
         },
         {
           status: 400,
@@ -121,15 +95,11 @@ export async function POST(
     // Validate GPS Accuracy
     // =================================================
 
-    if (
-      !Number.isFinite(accuracy) ||
-      accuracy <= 0
-    ) {
+    if (!Number.isFinite(accuracy) || accuracy <= 0) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid GPS accuracy.",
+          message: "Invalid GPS accuracy.",
         },
         {
           status: 400,
@@ -159,35 +129,27 @@ export async function POST(
     // Database
     // =================================================
 
-    const client =
-      await clientPromise;
+    const client = await clientPromise;
 
-    const db =
-      client.db("dealup");
+    const db = client.db("dealup");
 
-    const sessions =
-      db.collection(
-        "locationVerificationSessions",
-      );
+    const sessions = db.collection("locationVerificationSessions");
 
-    const users =
-      db.collection("users");
+    const users = db.collection("users");
 
     // =================================================
     // Find Verification Session
     // =================================================
 
-    const verification =
-      await sessions.findOne({
-        token,
-      });
+    const verification = await sessions.findOne({
+      token,
+    });
 
     if (!verification) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Verification session not found.",
+          message: "Verification session not found.",
         },
         {
           status: 404,
@@ -201,16 +163,12 @@ export async function POST(
 
     if (
       !verification.expiresAt ||
-      new Date() >
-        new Date(
-          verification.expiresAt,
-        )
+      new Date() > new Date(verification.expiresAt)
     ) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Verification session has expired.",
+          message: "Verification session has expired.",
         },
         {
           status: 410,
@@ -222,20 +180,13 @@ export async function POST(
     // Session Seller ID
     // =================================================
 
-    const sellerUserId = String(
-      verification.userId ?? "",
-    );
+    const sellerUserId = String(verification.userId ?? "");
 
-    if (
-      !ObjectId.isValid(
-        sellerUserId,
-      )
-    ) {
+    if (!ObjectId.isValid(sellerUserId)) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid verification session owner.",
+          message: "Invalid verification session owner.",
         },
         {
           status: 400,
@@ -250,10 +201,7 @@ export async function POST(
     // Mobile must be logged into the SAME account.
     // =================================================
 
-    if (
-      mobileUserId !==
-      sellerUserId
-    ) {
+    if (mobileUserId !== sellerUserId) {
       return NextResponse.json(
         {
           success: false,
@@ -270,15 +218,11 @@ export async function POST(
     // Prevent Completed Session
     // =================================================
 
-    if (
-      verification.status ===
-      "verified"
-    ) {
+    if (verification.status === "verified") {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "This verification session has already been completed.",
+          message: "This verification session has already been completed.",
         },
         {
           status: 400,
@@ -290,20 +234,15 @@ export async function POST(
     // Seller Exists
     // =================================================
 
-    const seller =
-      await users.findOne({
-        _id:
-          new ObjectId(
-            sellerUserId,
-          ),
-      });
+    const seller = await users.findOne({
+      _id: new ObjectId(sellerUserId),
+    });
 
     if (!seller) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Seller account not found.",
+          message: "Seller account not found.",
         },
         {
           status: 404,
@@ -315,8 +254,7 @@ export async function POST(
     // Timestamp
     // =================================================
 
-    const now =
-      new Date();
+    const now = new Date();
 
     // =================================================
     // Mobile Location
@@ -329,81 +267,59 @@ export async function POST(
 
       accuracy,
 
-      method:
-        "mobile-gps",
+      method: "mobile-gps",
 
-      capturedAt:
-        now,
+      capturedAt: now,
     };
 
     // =================================================
     // Selfie State
     // =================================================
 
-    const selfieAlreadyVerified =
-      verification.selfieVerified ===
-      true;
+    const selfieAlreadyVerified = verification.selfieVerified === true;
 
-    const finalStatus =
-      selfieAlreadyVerified
-        ? "verified"
-        : "pending";
+    const finalStatus = selfieAlreadyVerified ? "verified" : "pending";
 
     // =================================================
     // Update Verification Session
     // =================================================
 
-    const sessionResult =
-      await sessions.updateOne(
-        {
-          _id:
-            verification._id,
+    const sessionResult = await sessions.updateOne(
+      {
+        _id: verification._id,
 
-          userId:
-            sellerUserId,
+        userId: sellerUserId,
 
-          status:
-            "pending",
+        status: "pending",
 
-          locationVerified:
-            false,
+        locationVerified: false,
+      },
+      {
+        $set: {
+          mobileLocation,
+
+          locationVerified: true,
+
+          locationVerifiedAt: now,
+
+          updatedAt: now,
+
+          status: finalStatus,
+
+          ...(finalStatus === "verified"
+            ? {
+                verifiedAt: now,
+              }
+            : {}),
         },
-        {
-          $set: {
-            mobileLocation,
+      },
+    );
 
-            locationVerified:
-              true,
-
-            locationVerifiedAt:
-              now,
-
-            updatedAt:
-              now,
-
-            status:
-              finalStatus,
-
-            ...(finalStatus ===
-            "verified"
-              ? {
-                  verifiedAt:
-                    now,
-                }
-              : {}),
-          },
-        },
-      );
-
-    if (
-      sessionResult.modifiedCount ===
-      0
-    ) {
+    if (sessionResult.modifiedCount === 0) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Location verification session could not be completed.",
+          message: "Location verification session could not be completed.",
         },
         {
           status: 400,
@@ -417,38 +333,30 @@ export async function POST(
     // Admin still controls overall status.
     // =================================================
 
-    const sellerResult =
-      await users.updateOne(
-        {
-          _id:
-            new ObjectId(
-              sellerUserId,
-            ),
+    const sellerResult = await users.updateOne(
+      {
+        _id: new ObjectId(sellerUserId),
+      },
+      {
+        $set: {
+          "sellerVerification.locationVerified": true,
+
+          "sellerVerification.locationVerifiedAt": now,
+
+          "sellerVerification.locationVerificationMethod": "mobile-gps",
+
+          "sellerVerification.locationVerificationAccuracy": accuracy,
+
+          "sellerVerification.locationLatitude": latitude,
+
+          "sellerVerification.locationLongitude": longitude,
+
+          updatedAt: now,
         },
-        {
-          $set: {
-            "sellerVerification.locationVerified":
-              true,
+      },
+    );
 
-            "sellerVerification.locationVerifiedAt":
-              now,
-
-            "sellerVerification.locationVerificationMethod":
-              "mobile-gps",
-
-            "sellerVerification.locationVerificationAccuracy":
-              accuracy,
-
-            updatedAt:
-              now,
-          },
-        },
-      );
-
-    if (
-      sellerResult.matchedCount ===
-      0
-    ) {
+    if (sellerResult.matchedCount === 0) {
       return NextResponse.json(
         {
           success: false,
@@ -469,13 +377,11 @@ export async function POST(
       {
         success: true,
 
-        status:
-          finalStatus,
+        status: finalStatus,
 
-        message:
-          selfieAlreadyVerified
-            ? "Mobile location verified. Seller verification data is now complete."
-            : "Mobile location verified successfully.",
+        message: selfieAlreadyVerified
+          ? "Mobile location verified. Seller verification data is now complete."
+          : "Mobile location verified successfully.",
 
         location: {
           latitude,
@@ -486,14 +392,11 @@ export async function POST(
         },
 
         verification: {
-          selfieVerified:
-            selfieAlreadyVerified,
+          selfieVerified: selfieAlreadyVerified,
 
-          locationVerified:
-            true,
+          locationVerified: true,
 
-          status:
-            finalStatus,
+          status: finalStatus,
         },
       },
       {
@@ -501,17 +404,13 @@ export async function POST(
       },
     );
   } catch (error) {
-    console.error(
-      "MOBILE LOCATION VERIFICATION ERROR:",
-      error,
-    );
+    console.error("MOBILE LOCATION VERIFICATION ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
 
-        message:
-          "Mobile location verification failed.",
+        message: "Mobile location verification failed.",
       },
       {
         status: 500,
