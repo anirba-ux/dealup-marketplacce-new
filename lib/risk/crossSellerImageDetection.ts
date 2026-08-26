@@ -2,9 +2,32 @@ import { ObjectId } from "mongodb";
 
 import clientPromise from "@/lib/db/mongodb";
 
+import {
+  calculateProductSimilarity,
+  ProductSimilarityResult,
+} from "./productSimilarity";
+
 // =====================================================
 // Types
 // =====================================================
+
+export interface FirstSeenListing {
+  productId: string;
+
+  sellerId: string;
+
+  sellerName?: string;
+
+  title?: string;
+
+  imageHash: string;
+
+  imageUrl?: string;
+
+  price?: number;
+
+  firstSeenAt?: Date | string;
+}
 
 export interface CrossSellerMatchedProduct {
   productId: string;
@@ -16,10 +39,56 @@ export interface CrossSellerMatchedProduct {
   title?: string;
 
   imageUrl?: string;
+
+  imageHash?: string;
+
+  brand?: string;
+
+  model?: string;
+
+  category?: string;
+
+  subcategory?: string;
+
+  price?: number;
+
+  location?: {
+    city?: string | null;
+
+    district?: string | null;
+
+    state?: string | null;
+
+    coordinates?: {
+      lat?: number | null;
+
+      lng?: number | null;
+    } | null;
+  } | null;
+
+  similarity?: ProductSimilarityResult;
+
+  // ===================================================
+  // Price Pattern
+  // ===================================================
+
+  pricePattern?: {
+    firstSeenPrice?: number;
+
+    currentPrice?: number;
+
+    differencePercent?: number;
+
+    significantPriceDrop: boolean;
+
+    level: "none" | "high";
+  };
 }
 
 export interface CrossSellerDuplicateMatch {
   imageHash: string;
+
+  firstSeen?: FirstSeenListing;
 
   matchedProducts: CrossSellerMatchedProduct[];
 }
@@ -35,17 +104,18 @@ export interface CrossSellerDuplicateResult {
 //
 // Rules:
 //
-// 1. Only imageHash is used for exact image matching.
+// 1. Exact image matching uses imageHash.
 // 2. Current seller is excluded.
-// 3. Same seller's repeated image is NOT counted.
-// 4. Each matching imageHash is counted once.
-// 5. Old products without imageHash are ignored.
-// 6. Evidence includes:
-//    - product ID
-//    - seller ID
-//    - seller name
-//    - product title
-//    - matched image URL
+// 3. Same seller's own repeated image is ignored.
+// 4. Each imageHash is counted once.
+// 5. Evidence contains matched product information.
+// 6. Product similarity is calculated for every match.
+// 7. Similarity does NOT automatically punish seller.
+// 8. First Seen Listing is identified separately.
+// 9. First Seen does NOT automatically mean "Original Product".
+// 10. Price comparison uses First Seen price.
+// 11. Current price >=50% lower = High price pattern.
+// 12. Price pattern is evidence only.
 // =====================================================
 
 export async function findCrossSellerDuplicateImages(
@@ -60,6 +130,7 @@ export async function findCrossSellerDuplicateImages(
     if (!ObjectId.isValid(sellerId)) {
       return {
         count: 0,
+
         matches: [],
       };
     }
@@ -116,11 +187,11 @@ export async function findCrossSellerDuplicateImages(
     // =================================================
 
     if (
-      imageHashes.size ===
-      0
+      imageHashes.size === 0
     ) {
       return {
         count: 0,
+
         matches: [],
       };
     }
@@ -141,10 +212,7 @@ export async function findCrossSellerDuplicateImages(
       );
 
     // =================================================
-    // Find Products From OTHER Sellers
-    //
-    // Only products containing one of the
-    // current seller's image hashes are returned.
+    // Find Products From Other Sellers
     // =================================================
 
     const matchedProducts =
@@ -172,7 +240,21 @@ export async function findCrossSellerDuplicateImages(
 
               title: 1,
 
+              brand: 1,
+
+              model: 1,
+
+              category: 1,
+
+              subcategory: 1,
+
+              price: 1,
+
+              location: 1,
+
               images: 1,
+
+              createdAt: 1,
             },
           },
         )
@@ -189,6 +271,18 @@ export async function findCrossSellerDuplicateImages(
       >();
 
     // =================================================
+    // First Seen Map
+    //
+    // One First-Seen Listing per imageHash.
+    // =================================================
+
+    const firstSeenMap =
+      new Map<
+        string,
+        FirstSeenListing
+      >();
+
+    // =================================================
     // Process Matched Products
     // =================================================
 
@@ -201,9 +295,9 @@ export async function findCrossSellerDuplicateImages(
             "",
         );
 
-      // -----------------------------------------------
-      // Safety Check
-      // -----------------------------------------------
+      // =================================================
+      // Safety
+      // =================================================
 
       if (
         !productSellerId ||
@@ -221,9 +315,9 @@ export async function findCrossSellerDuplicateImages(
         continue;
       }
 
-      // -----------------------------------------------
-      // Find Matching Hashes Inside This Product
-      // -----------------------------------------------
+      // =================================================
+      // Find Matching Images
+      // =================================================
 
       const matchingImages =
         new Map<
@@ -263,10 +357,6 @@ export async function findCrossSellerDuplicateImages(
           continue;
         }
 
-        // ---------------------------------------------
-        // Prefer URL
-        // ---------------------------------------------
-
         const imageUrl =
           typeof image.url ===
             "string"
@@ -285,9 +375,9 @@ export async function findCrossSellerDuplicateImages(
         }
       }
 
-      // -----------------------------------------------
-      // Create Evidence
-      // -----------------------------------------------
+      // =================================================
+      // Build Evidence
+      // =================================================
 
       for (
         const [
@@ -295,9 +385,288 @@ export async function findCrossSellerDuplicateImages(
           imageUrl,
         ] of matchingImages
       ) {
+        // =================================================
+        // Find Current Seller Product
+        // =================================================
+
+        const currentProduct =
+          sellerProducts.find(
+            (
+              sellerProduct,
+            ) => {
+              if (
+                !Array.isArray(
+                  sellerProduct?.images,
+                )
+              ) {
+                return false;
+              }
+
+              return sellerProduct.images.some(
+                (
+                  image: any,
+                ) =>
+                  typeof image?.imageHash ===
+                    "string" &&
+                  image.imageHash
+                    .trim()
+                    .toLowerCase() ===
+                    hash,
+              );
+            },
+          );
+
+        // =================================================
+        // Calculate Product Similarity
+        // =================================================
+
+        const similarity =
+          currentProduct
+            ? calculateProductSimilarity(
+                {
+                  imageHash:
+                    hash,
+
+                  title:
+                    currentProduct.title,
+
+                  brand:
+                    currentProduct.brand,
+
+                  model:
+                    currentProduct.model,
+
+                  category:
+                    currentProduct.category,
+
+                  subcategory:
+                    currentProduct.subcategory,
+
+                  price:
+                    currentProduct.price,
+
+                  location:
+                    currentProduct.location,
+                },
+
+                {
+                  imageHash:
+                    hash,
+
+                  title:
+                    product.title,
+
+                  brand:
+                    product.brand,
+
+                  model:
+                    product.model,
+
+                  category:
+                    product.category,
+
+                  subcategory:
+                    product.subcategory,
+
+                  price:
+                    product.price,
+
+                  location:
+                    product.location,
+                },
+              )
+            : undefined;
+
+        // =================================================
+        // First Seen Listing
+        // =================================================
+
+        const productCreatedAt =
+          product.createdAt
+            ? new Date(
+                product.createdAt,
+              )
+            : undefined;
+
+        const existingFirstSeen =
+          firstSeenMap.get(
+            hash,
+          );
+
+        const currentFirstSeenTime =
+          productCreatedAt?.getTime();
+
+        const existingFirstSeenTime =
+          existingFirstSeen?.firstSeenAt
+            ? new Date(
+                existingFirstSeen.firstSeenAt,
+              ).getTime()
+            : undefined;
+
+        const shouldReplaceFirstSeen =
+          !existingFirstSeen ||
+          (
+            currentFirstSeenTime !==
+              undefined &&
+            (
+              existingFirstSeenTime ===
+                undefined ||
+              currentFirstSeenTime <
+                existingFirstSeenTime
+            )
+          );
+
+        if (
+          shouldReplaceFirstSeen
+        ) {
+          firstSeenMap.set(
+            hash,
+            {
+              productId:
+                String(
+                  product._id,
+                ),
+
+              sellerId:
+                productSellerId,
+
+              sellerName:
+                typeof product.sellerName ===
+                "string"
+                  ? product.sellerName
+                  : undefined,
+
+              title:
+                typeof product.title ===
+                "string"
+                  ? product.title
+                  : undefined,
+
+              imageHash:
+                hash,
+
+              imageUrl:
+                imageUrl ||
+                undefined,
+
+              // =========================================
+              // IMPORTANT:
+              // Save First Seen Product Price
+              // =========================================
+
+              price:
+                typeof product.price ===
+                "number"
+                  ? product.price
+                  : undefined,
+
+              firstSeenAt:
+                productCreatedAt,
+            },
+          );
+        }
+
+        // =================================================
+        // Get First Seen Listing
+        // =================================================
+
+        const firstSeen =
+          firstSeenMap.get(
+            hash,
+          );
+
+        // =================================================
+        // Price Pattern
+        //
+        // First Seen Price
+        //         ↓
+        // Current Seller Price
+        //
+        // If current price is 50% or more lower:
+        //
+        // level = "high"
+        //
+        // IMPORTANT:
+        // This is evidence only.
+        // It does NOT directly reduce Trust Score.
+        // =================================================
+
+        const firstSeenPrice =
+          typeof firstSeen?.price ===
+          "number"
+            ? firstSeen.price
+            : undefined;
+
+        const currentPrice =
+          typeof currentProduct?.price ===
+          "number"
+            ? currentProduct.price
+            : undefined;
+
+        let priceDifferencePercent:
+          | number
+          | undefined;
+
+        let significantPriceDrop =
+          false;
+
+        if (
+          firstSeenPrice !==
+            undefined &&
+          currentPrice !==
+            undefined &&
+          firstSeenPrice > 0 &&
+          currentPrice >= 0 &&
+          currentPrice <
+            firstSeenPrice
+        ) {
+          priceDifferencePercent =
+            Number(
+              (
+                (
+                  (
+                    firstSeenPrice -
+                    currentPrice
+                  ) /
+                  firstSeenPrice
+                ) *
+                100
+              ).toFixed(2),
+            );
+
+          significantPriceDrop =
+            priceDifferencePercent >=
+            50;
+        }
+
+        const pricePattern = {
+          firstSeenPrice,
+
+          currentPrice,
+
+          differencePercent:
+            priceDifferencePercent,
+
+          significantPriceDrop,
+
+          level:
+            significantPriceDrop
+              ? ("high" as const)
+              : ("none" as const),
+        };
+
+        // =================================================
+        // Existing Match List
+        // =================================================
+
         const existing =
-          matchMap.get(hash) ??
-          [];
+          matchMap.get(
+            hash,
+          ) ?? [];
+
+        // =================================================
+        // Add Matched Product
+        // =================================================
 
         existing.push({
           productId:
@@ -323,6 +692,51 @@ export async function findCrossSellerDuplicateImages(
           imageUrl:
             imageUrl ||
             undefined,
+
+          imageHash:
+            hash,
+
+          brand:
+            typeof product.brand ===
+            "string"
+              ? product.brand
+              : undefined,
+
+          model:
+            typeof product.model ===
+            "string"
+              ? product.model
+              : undefined,
+
+          category:
+            typeof product.category ===
+            "string"
+              ? product.category
+              : undefined,
+
+          subcategory:
+            typeof product.subcategory ===
+            "string"
+              ? product.subcategory
+              : undefined,
+
+          price:
+            typeof product.price ===
+            "number"
+              ? product.price
+              : undefined,
+
+          location:
+            product.location ??
+            null,
+
+          similarity,
+
+          // =============================================
+          // Price Evidence
+          // =============================================
+
+          pricePattern,
         });
 
         matchMap.set(
@@ -336,7 +750,8 @@ export async function findCrossSellerDuplicateImages(
     // Convert Map To Response
     // =================================================
 
-    const matches: CrossSellerDuplicateMatch[] =
+    const matches:
+      CrossSellerDuplicateMatch[] =
       Array.from(
         matchMap.entries(),
       ).map(
@@ -345,6 +760,11 @@ export async function findCrossSellerDuplicateImages(
           matchedProducts,
         ]) => ({
           imageHash,
+
+          firstSeen:
+            firstSeenMap.get(
+              imageHash,
+            ),
 
           matchedProducts:
             matchedProducts.filter(
@@ -361,16 +781,14 @@ export async function findCrossSellerDuplicateImages(
                       item.productId &&
                     other.sellerId ===
                       item.sellerId,
-                ) === index,
+                ) ===
+                index,
             ),
         }),
       );
 
     // =================================================
     // Return
-    //
-    // Count = unique image hashes
-    // NOT number of matched products.
     // =================================================
 
     return {

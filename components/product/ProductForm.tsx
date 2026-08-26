@@ -53,11 +53,77 @@ interface ProductFormProps {
   initialData?: ProductFormInitialData;
 }
 
+type OriginalLocation = {
+  state: string;
+  district: string;
+  city: string;
+  pincode: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+};
+
 // =====================================================
 // Constants
 // =====================================================
 
 const TOTAL_STEPS = 6;
+
+// =====================================================
+// Helpers
+// =====================================================
+
+function normalizeText(
+  value: unknown,
+): string {
+  return String(
+    value ?? "",
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function coordinatesAreValid(
+  latitude: number,
+  longitude: number,
+): boolean {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude !== 0 &&
+    longitude !== 0 &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
+function locationsAreEqual(
+  first: OriginalLocation,
+  second: OriginalLocation,
+): boolean {
+  return (
+    normalizeText(first.state) ===
+      normalizeText(second.state) &&
+    normalizeText(first.district) ===
+      normalizeText(second.district) &&
+    normalizeText(first.city) ===
+      normalizeText(second.city) &&
+    normalizeText(first.pincode) ===
+      normalizeText(second.pincode) &&
+    normalizeText(first.address) ===
+      normalizeText(second.address) &&
+    Math.abs(
+      Number(first.latitude) -
+        Number(second.latitude),
+    ) < 0.000001 &&
+    Math.abs(
+      Number(first.longitude) -
+        Number(second.longitude),
+    ) < 0.000001
+  );
+}
 
 // =====================================================
 // Component
@@ -71,10 +137,6 @@ export default function ProductForm({
 
   // ===================================================
   // Authentication
-  //
-  // Draft is now user-specific.
-  // This prevents User A's draft appearing
-  // for User B.
   // ===================================================
 
   const {
@@ -84,6 +146,10 @@ export default function ProductForm({
 
   const userId =
     session?.user?.id ?? null;
+
+  // ===================================================
+  // Draft Key
+  // ===================================================
 
   const draftKey = useMemo(() => {
     if (!userId) {
@@ -114,14 +180,14 @@ export default function ProductForm({
   // Product Images
   // ===================================================
 
- const [productImages, setProductImages] =
-  useState<
-    {
-      publicId: string;
-      url: string;
-      imageHash?: string;
-    }[]
-  >(initialData?.images ?? []);
+  const [productImages, setProductImages] =
+    useState<
+      {
+        publicId: string;
+        url: string;
+        imageHash?: string;
+      }[]
+    >(initialData?.images ?? []);
 
   const [thumbnailIndex, setThumbnailIndex] =
     useState(0);
@@ -132,13 +198,27 @@ export default function ProductForm({
   // ===================================================
   // Live Seller GPS
   //
-  // This is captured during the current product
-  // publishing flow. It is NOT permanent seller
-  // verification and is NOT saved in the draft.
+  // OPTIONAL.
+  //
+  // This is NOT permanent seller verification.
   // ===================================================
 
   const [sellerLiveLocation, setSellerLiveLocation] =
-    useState<LiveSellerLocation | null>(null);
+    useState<LiveSellerLocation | null>(
+      null,
+    );
+
+  // ===================================================
+  // Original Product Location
+  //
+  // Used only in edit mode to determine whether the
+  // product location was actually changed.
+  // ===================================================
+
+  const [originalLocation, setOriginalLocation] =
+    useState<OriginalLocation | null>(
+      null,
+    );
 
   // ===================================================
   // React Hook Form
@@ -165,39 +245,22 @@ export default function ProductForm({
 
     defaultValues: {
       title: "",
-
       description: "",
-
       category: "",
-
       subcategory: "",
-
       brand: "",
-
       model: "",
-
       price: 0,
-
       negotiable: false,
-
       condition: "used",
 
       state: "",
-
       district: "",
-
       city: "",
-
       pincode: "",
-
       address: "",
 
-      // IMPORTANT:
-      // No fake/default location.
-      // 0,0 means location has not
-      // been selected yet.
       latitude: 0,
-
       longitude: 0,
     },
   });
@@ -206,7 +269,65 @@ export default function ProductForm({
   // Form Values
   // ===================================================
 
-  const formValues = watch();
+  const formValues =
+    watch();
+
+  // ===================================================
+  // Detect Location Change
+  // ===================================================
+
+  const currentLocation =
+    useMemo<OriginalLocation>(
+      () => ({
+        state:
+          formValues.state ??
+          "",
+
+        district:
+          formValues.district ??
+          "",
+
+        city:
+          formValues.city ??
+          "",
+
+        pincode:
+          formValues.pincode ??
+          "",
+
+        address:
+          formValues.address ??
+          "",
+
+        latitude:
+          Number(
+            formValues.latitude,
+          ),
+
+        longitude:
+          Number(
+            formValues.longitude,
+          ),
+      }),
+      [
+        formValues.state,
+        formValues.district,
+        formValues.city,
+        formValues.pincode,
+        formValues.address,
+        formValues.latitude,
+        formValues.longitude,
+      ],
+    );
+
+  const locationChanged =
+    mode === "edit" &&
+    originalLocation !== null
+      ? !locationsAreEqual(
+          originalLocation,
+          currentLocation,
+        )
+      : false;
 
   // ===================================================
   // Auto Fill Edit Data
@@ -219,6 +340,37 @@ export default function ProductForm({
     ) {
       return;
     }
+
+    const existingLocation: OriginalLocation =
+      {
+        state:
+          initialData.location
+            .state,
+
+        district:
+          initialData.location
+            .district,
+
+        city:
+          initialData.location
+            .city,
+
+        pincode:
+          initialData.location
+            .pincode,
+
+        address:
+          initialData.location
+            .address ?? "",
+
+        latitude:
+          initialData.location
+            .coordinates.lat,
+
+        longitude:
+          initialData.location
+            .coordinates.lng,
+      };
 
     reset({
       title:
@@ -252,17 +404,19 @@ export default function ProductForm({
         initialData.location.state,
 
       district:
-        initialData.location.district,
+        initialData.location
+          .district,
 
       city:
         initialData.location.city,
 
       pincode:
-        initialData.location.pincode,
+        initialData.location
+          .pincode,
 
       address:
-        initialData.location.address ??
-        "",
+        initialData.location
+          .address ?? "",
 
       latitude:
         initialData.location
@@ -273,17 +427,18 @@ export default function ProductForm({
           .coordinates.lng,
     });
 
-    // Existing images
+    setOriginalLocation(
+      existingLocation,
+    );
+
+    setSellerLiveLocation(
+      null,
+    );
+
     setProductImages(
       initialData.images ?? [],
     );
 
-    // A new live GPS capture is required only when
-    // publishing/updating from the current device.
-    // Never reuse an old live GPS snapshot.
-    setSellerLiveLocation(null);
-
-    // Existing thumbnail
     if (
       initialData.images?.length
     ) {
@@ -308,14 +463,6 @@ export default function ProductForm({
 
   // ===================================================
   // Submit Product
-  //
-  // Product location and live seller GPS are kept
-  // as two separate pieces of information.
-  //
-  // Product coordinates = where the product is.
-  // sellerLocation = seller/device GPS captured now.
-  //
-  // Permanent seller verification remains separate.
   // ===================================================
 
   async function onSubmit(
@@ -323,7 +470,7 @@ export default function ProductForm({
   ) {
     try {
       // =================================================
-      // Authentication Ready Check
+      // Authentication
       // =================================================
 
       if (
@@ -342,25 +489,56 @@ export default function ProductForm({
       }
 
       // =================================================
-      // STEP 1
-      // Validate Product Coordinates
+      // Product Coordinates
       // =================================================
 
       const productLatitude =
-        Number(data.latitude);
+        Number(
+          data.latitude,
+        );
 
       const productLongitude =
-        Number(data.longitude);
+        Number(
+          data.longitude,
+        );
+
+      const coordinatesValid =
+        coordinatesAreValid(
+          productLatitude,
+          productLongitude,
+        );
+
+      // =================================================
+      // EDIT MODE
+      //
+      // Existing location is allowed.
+      //
+      // If the user has NOT changed the location,
+      // do not require any new GPS.
+      // =================================================
 
       if (
-        !Number.isFinite(
-          productLatitude,
-        ) ||
-        !Number.isFinite(
-          productLongitude,
-        ) ||
-        productLatitude === 0 ||
-        productLongitude === 0
+        mode === "edit" &&
+        !locationChanged
+      ) {
+        if (
+          !coordinatesValid
+        ) {
+          throw new Error(
+            "The existing product location is invalid. Please select the product location again.",
+          );
+        }
+      }
+
+      // =================================================
+      // CREATE MODE
+      //
+      // New product must always have a valid location.
+      // =================================================
+
+      if (
+        mode === "create" &&
+        !coordinatesValid
       ) {
         throw new Error(
           "Please select a valid product location on the map.",
@@ -368,24 +546,45 @@ export default function ProductForm({
       }
 
       // =================================================
-      // STEP 2
-      // Validate Product Address
+      // EDIT MODE + LOCATION CHANGED
+      //
+      // New manual/map location is allowed.
+      // No live GPS is mandatory.
+      // =================================================
+
+      if (
+        mode === "edit" &&
+        locationChanged &&
+        !coordinatesValid
+      ) {
+        throw new Error(
+          "Please select a valid product location on the map.",
+        );
+      }
+
+      // =================================================
+      // Product Address
       // =================================================
 
       const state =
-        data.state?.trim() ?? "";
+        data.state?.trim() ??
+        "";
 
       const district =
-        data.district?.trim() ?? "";
+        data.district?.trim() ??
+        "";
 
       const city =
-        data.city?.trim() ?? "";
+        data.city?.trim() ??
+        "";
 
       const pincode =
-        data.pincode?.trim() ?? "";
+        data.pincode?.trim() ??
+        "";
 
       const address =
-        data.address?.trim() ?? "";
+        data.address?.trim() ??
+        "";
 
       if (
         !state ||
@@ -394,48 +593,47 @@ export default function ProductForm({
         !pincode
       ) {
         throw new Error(
-          "Please complete the product location details before publishing.",
+          "Please complete the product location details before saving.",
         );
       }
 
       // =================================================
-      // STEP 3
-      // Validate Live Seller GPS
+      // Validate Optional Live GPS
+      //
+      // NEVER block update/publish because GPS is absent.
       // =================================================
 
-      if (mode === "create") {
-        if (
-          !sellerLiveLocation ||
-          !Number.isFinite(sellerLiveLocation.latitude) ||
-          !Number.isFinite(sellerLiveLocation.longitude) ||
-          !Number.isFinite(sellerLiveLocation.accuracy) ||
-          sellerLiveLocation.accuracy <= 0
-        ) {
-          throw new Error(
-            "Please capture your current location using GPS before publishing this product.",
-          );
-        }
-
-        if (sellerLiveLocation.accuracy > 200) {
-          throw new Error(
-            "Your GPS accuracy is too low. Please enable precise location and try again.",
-          );
-        }
-      }
+      const validSellerLiveLocation =
+        sellerLiveLocation &&
+        Number.isFinite(
+          sellerLiveLocation.latitude,
+        ) &&
+        Number.isFinite(
+          sellerLiveLocation.longitude,
+        ) &&
+        Number.isFinite(
+          sellerLiveLocation.accuracy,
+        ) &&
+        sellerLiveLocation.accuracy >
+          0 &&
+        sellerLiveLocation.accuracy <=
+          200
+          ? sellerLiveLocation
+          : null;
 
       // =================================================
-      // STEP 4
-      // Prepare Product Payload
+      // Payload
       // =================================================
 
-      const payload = {
+      const payload: Record<
+        string,
+        unknown
+      > = {
         ...data,
 
-        // Product Images
         images:
           productImages,
 
-        // Thumbnail
         thumbnail:
           productImages[
             thumbnailIndex
@@ -443,7 +641,6 @@ export default function ProductForm({
           productImages[0]?.url ??
           "",
 
-        // Product Location
         state,
 
         district,
@@ -459,20 +656,62 @@ export default function ProductForm({
 
         longitude:
           productLongitude,
-
-        // Live seller/device GPS snapshot.
-        // Permanent seller verification remains separate.
-        ...(sellerLiveLocation
-          ? {
-              sellerLocation: {
-                latitude: sellerLiveLocation.latitude,
-                longitude: sellerLiveLocation.longitude,
-                accuracy: sellerLiveLocation.accuracy,
-                capturedAt: sellerLiveLocation.capturedAt,
-              },
-            }
-          : {}),
       };
+
+      // =================================================
+      // Optional Live Seller GPS
+      //
+      // Only send when actually available.
+      // =================================================
+
+      if (
+        validSellerLiveLocation
+      ) {
+        payload.sellerLocation =
+          {
+            latitude:
+              validSellerLiveLocation.latitude,
+
+            longitude:
+              validSellerLiveLocation.longitude,
+
+            accuracy:
+              validSellerLiveLocation.accuracy,
+
+            capturedAt:
+              validSellerLiveLocation.capturedAt,
+          };
+      }
+
+      // =================================================
+      // Important Edit Flag
+      //
+      // This allows the API to distinguish:
+      //
+      // 1. Normal edit
+      // 2. Actual location change
+      // =================================================
+
+      if (
+        mode === "edit"
+      ) {
+        payload.locationChanged =
+          locationChanged;
+      }
+
+      // =================================================
+      // Debug
+      // =================================================
+
+      console.log(
+        "PRODUCT SUBMIT MODE:",
+        mode,
+      );
+
+      console.log(
+        "PRODUCT LOCATION CHANGED:",
+        locationChanged,
+      );
 
       console.log(
         "PRODUCT SUBMIT PAYLOAD:",
@@ -480,8 +719,7 @@ export default function ProductForm({
       );
 
       // =================================================
-      // STEP 4
-      // API URL
+      // API
       // =================================================
 
       const url =
@@ -489,39 +727,35 @@ export default function ProductForm({
           ? `/api/products/${initialData?._id}`
           : "/api/products";
 
-      // =================================================
-      // STEP 5
-      // HTTP Method
-      // =================================================
-
       const method =
         mode === "edit"
           ? "PUT"
           : "POST";
 
       // =================================================
-      // STEP 6
-      // API Request
+      // Request
       // =================================================
 
       const response =
-        await fetch(url, {
-          method,
+        await fetch(
+          url,
+          {
+            method,
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify(
+                payload,
+              ),
           },
-
-          body:
-            JSON.stringify(
-              payload,
-            ),
-        });
+        );
 
       // =================================================
-      // STEP 7
-      // API Response
+      // Response
       // =================================================
 
       let result:
@@ -541,11 +775,12 @@ export default function ProductForm({
       );
 
       // =================================================
-      // STEP 8
       // API Error
       // =================================================
 
-      if (!response.ok) {
+      if (
+        !response.ok
+      ) {
         throw new Error(
           result?.message ??
             (mode === "edit"
@@ -555,8 +790,7 @@ export default function ProductForm({
       }
 
       // =================================================
-      // STEP 9
-      // Location Information
+      // Location Verification
       // =================================================
 
       if (
@@ -568,6 +802,10 @@ export default function ProductForm({
         );
       }
 
+      // =================================================
+      // Seller → Product Distance
+      // =================================================
+
       if (
         result?.sellerProductDistance
       ) {
@@ -578,19 +816,20 @@ export default function ProductForm({
       }
 
       // =================================================
-      // STEP 10
-      // Clear ONLY current user's draft
+      // Clear Draft
       // =================================================
 
-      if (draftKey) {
+      if (
+        draftKey &&
+        mode === "create"
+      ) {
         localStorage.removeItem(
           draftKey,
         );
       }
 
       // =================================================
-      // STEP 11
-      // Success Message
+      // Success
       // =================================================
 
       setSuccessMessage(
@@ -628,16 +867,17 @@ export default function ProductForm({
       return;
     }
 
-    let isValid = false;
+    let isValid =
+      false;
 
     // =================================================
     // Validate Current Step
     // =================================================
 
     switch (step) {
-      // -----------------------------------------------
-      // Step 1 — Basic Information
-      // -----------------------------------------------
+      // ===============================================
+      // Step 1
+      // ===============================================
 
       case 0:
         isValid =
@@ -648,9 +888,9 @@ export default function ProductForm({
 
         break;
 
-      // -----------------------------------------------
-      // Step 2 — Category
-      // -----------------------------------------------
+      // ===============================================
+      // Step 2
+      // ===============================================
 
       case 1:
         isValid =
@@ -661,9 +901,9 @@ export default function ProductForm({
 
         break;
 
-      // -----------------------------------------------
-      // Step 3 — Pricing
-      // -----------------------------------------------
+      // ===============================================
+      // Step 3
+      // ===============================================
 
       case 2:
         isValid =
@@ -674,9 +914,9 @@ export default function ProductForm({
 
         break;
 
-      // -----------------------------------------------
-      // Step 4 — Images
-      // -----------------------------------------------
+      // ===============================================
+      // Step 4
+      // ===============================================
 
       case 3:
         if (
@@ -696,9 +936,10 @@ export default function ProductForm({
 
         break;
 
-      // -----------------------------------------------
-      // Step 5 — Product Location
-      // -----------------------------------------------
+      // ===============================================
+      // Step 5
+      // Product Location
+      // ===============================================
 
       case 4:
         isValid =
@@ -713,7 +954,7 @@ export default function ProductForm({
           ]);
 
         // ---------------------------------------------
-        // Coordinate validation
+        // Coordinates
         // ---------------------------------------------
 
         if (isValid) {
@@ -732,14 +973,10 @@ export default function ProductForm({
             );
 
           if (
-            !Number.isFinite(
+            !coordinatesAreValid(
               latitude,
-            ) ||
-            !Number.isFinite(
               longitude,
-            ) ||
-            latitude === 0 ||
-            longitude === 0
+            )
           ) {
             isValid = false;
 
@@ -764,10 +1001,6 @@ export default function ProductForm({
         errors as FieldErrors<ProductFormData>;
 
       switch (step) {
-        // ---------------------------------------------
-        // Basic Information
-        // ---------------------------------------------
-
         case 0:
           setFocus(
             formErrors.title
@@ -776,10 +1009,6 @@ export default function ProductForm({
           );
 
           break;
-
-        // ---------------------------------------------
-        // Category
-        // ---------------------------------------------
 
         case 1:
           setFocus(
@@ -790,10 +1019,6 @@ export default function ProductForm({
 
           break;
 
-        // ---------------------------------------------
-        // Pricing
-        // ---------------------------------------------
-
         case 2:
           setFocus(
             formErrors.price
@@ -802,10 +1027,6 @@ export default function ProductForm({
           );
 
           break;
-
-        // ---------------------------------------------
-        // Location
-        // ---------------------------------------------
 
         case 4:
           if (
@@ -855,7 +1076,7 @@ export default function ProductForm({
     }
 
     // =================================================
-    // Move To Next Step
+    // Next
     // =================================================
 
     setStep(
@@ -865,7 +1086,7 @@ export default function ProductForm({
   }
 
   // ===================================================
-  // Previous Step
+  // Previous
   // ===================================================
 
   function previousStep() {
@@ -884,17 +1105,18 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    const handleBeforeUnload = (
-      event: BeforeUnloadEvent,
-    ) => {
-      if (!isDirty) {
-        return;
-      }
+    const handleBeforeUnload =
+      (
+        event: BeforeUnloadEvent,
+      ) => {
+        if (!isDirty) {
+          return;
+        }
 
-      event.preventDefault();
+        event.preventDefault();
 
-      event.returnValue = "";
-    };
+        event.returnValue = "";
+      };
 
     window.addEventListener(
       "beforeunload",
@@ -912,16 +1134,13 @@ export default function ProductForm({
   // ===================================================
   // Load Draft
   //
-  // IMPORTANT:
-  //
-  // Never load draft until authentication
-  // has finished.
-  //
   // Never load draft in edit mode.
   // ===================================================
 
   useEffect(() => {
-    if (mode === "edit") {
+    if (
+      mode === "edit"
+    ) {
       return;
     }
 
@@ -949,10 +1168,6 @@ export default function ProductForm({
       const parsed =
         JSON.parse(draft);
 
-      // -----------------------------------------------
-      // Form values
-      // -----------------------------------------------
-
       if (
         parsed.values
       ) {
@@ -961,26 +1176,14 @@ export default function ProductForm({
         );
       }
 
-      // -----------------------------------------------
-      // Step
-      // -----------------------------------------------
-
       setStep(
         parsed.step ?? 0,
       );
-
-      // -----------------------------------------------
-      // Images
-      // -----------------------------------------------
 
       setProductImages(
         parsed.productImages ??
           [],
       );
-
-      // -----------------------------------------------
-      // Thumbnail
-      // -----------------------------------------------
 
       setThumbnailIndex(
         parsed.thumbnailIndex ??
@@ -992,8 +1195,6 @@ export default function ProductForm({
         error,
       );
 
-      // Remove corrupted draft
-      // for this user only.
       localStorage.removeItem(
         draftKey,
       );
@@ -1008,11 +1209,13 @@ export default function ProductForm({
   // ===================================================
   // Save Draft
   //
-  // Each logged-in user gets a separate draft.
+  // Create mode only.
   // ===================================================
 
   useEffect(() => {
-    if (mode === "edit") {
+    if (
+      mode === "edit"
+    ) {
       return;
     }
 
@@ -1040,9 +1243,6 @@ export default function ProductForm({
       productImages,
 
       thumbnailIndex,
-
-      // Do NOT store sellerLiveLocation in localStorage.
-      // GPS must be freshly captured for publishing.
     };
 
     try {
@@ -1074,11 +1274,15 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    if (!successMessage) {
+    if (
+      !successMessage
+    ) {
       return;
     }
 
-    if (countdown === 0) {
+    if (
+      countdown === 0
+    ) {
       router.push(
         "/dashboard",
       );
@@ -1109,38 +1313,32 @@ export default function ProductForm({
   // Success Screen
   // ===================================================
 
-  if (successMessage) {
+  if (
+    successMessage
+  ) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
         <div className="w-full max-w-xl rounded-3xl border border-green-200 bg-white p-10 text-center shadow-2xl dark:bg-slate-900">
-          {/* Success Icon */}
-
           <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-green-100 text-5xl">
             ✅
           </div>
-
-          {/* Success Title */}
 
           <h2 className="text-3xl font-bold text-slate-900 dark:text-white">
             {successMessage}
           </h2>
 
-          {/* Description */}
-
           <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-            Your changes have been
-            saved successfully.
+            Your changes have
+            been saved
+            successfully.
           </p>
 
-          {/* Location Note */}
-
-          <p className="mt-3 text-sm text-slate-500 dark:text-slate-500">
-            Product location has
-            been saved separately
-            from seller verification.
+          <p className="mt-3 text-sm text-slate-500">
+            Product location is
+            handled separately
+            from permanent seller
+            verification.
           </p>
-
-          {/* Countdown */}
 
           <p className="mt-6 text-xl font-semibold text-[#1565d8]">
             Redirecting in{" "}
@@ -1150,8 +1348,6 @@ export default function ProductForm({
               : ""}
             ...
           </p>
-
-          {/* Dashboard Button */}
 
           <button
             type="button"
@@ -1196,7 +1392,7 @@ export default function ProductForm({
 
       <div className="mt-10">
         {/* ===============================================
-            STEP 1 — Basic Information
+            STEP 1
         =============================================== */}
 
         <div
@@ -1213,7 +1409,7 @@ export default function ProductForm({
         </div>
 
         {/* ===============================================
-            STEP 2 — Category
+            STEP 2
         =============================================== */}
 
         <div
@@ -1232,7 +1428,7 @@ export default function ProductForm({
         </div>
 
         {/* ===============================================
-            STEP 3 — Pricing
+            STEP 3
         =============================================== */}
 
         <div
@@ -1249,7 +1445,7 @@ export default function ProductForm({
         </div>
 
         {/* ===============================================
-            STEP 4 — Images
+            STEP 4
         =============================================== */}
 
         <div
@@ -1286,8 +1482,6 @@ export default function ProductForm({
             }
           />
 
-          {/* Image Error */}
-
           {imageError && (
             <p className="mt-3 text-sm font-medium text-red-500">
               {imageError}
@@ -1296,7 +1490,7 @@ export default function ProductForm({
         </div>
 
         {/* ===============================================
-            STEP 5 — Product Location
+            STEP 5
         =============================================== */}
 
         <div
@@ -1322,7 +1516,7 @@ export default function ProductForm({
         </div>
 
         {/* ===============================================
-            STEP 6 — Preview
+            STEP 6
         =============================================== */}
 
         <div
@@ -1344,12 +1538,12 @@ export default function ProductForm({
       </div>
 
       {/* =================================================
-          Footer Navigation
+          Footer
       ================================================= */}
 
       <div className="mt-12 flex items-center justify-between border-t border-slate-200 pt-8 dark:border-slate-700">
         {/* ===============================================
-            Previous Button
+            Previous
         =============================================== */}
 
         <button
@@ -1383,7 +1577,7 @@ export default function ProductForm({
         </button>
 
         {/* ===============================================
-            Final Submit / Continue
+            Submit / Continue
         =============================================== */}
 
         {step ===

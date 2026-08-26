@@ -4,6 +4,10 @@ import { ObjectId } from "mongodb";
 import { auth } from "@/auth";
 import clientPromise from "@/lib/db/mongodb";
 
+// =====================================================
+// Report Status
+// =====================================================
+
 type ReportStatus =
   | "pending"
   | "reviewing"
@@ -23,14 +27,18 @@ const allowedStatuses: ReportStatus[] = [
   "rejected",
 ];
 
+// =====================================================
+// PATCH — Admin Update Report Status
+// =====================================================
+
 export async function PATCH(
   request: NextRequest,
   context: RouteContext,
 ) {
   try {
-    // ================================================
-    // Authentication
-    // ================================================
+    // =================================================
+    // 1. Authentication
+    // =================================================
 
     const session = await auth();
 
@@ -46,9 +54,9 @@ export async function PATCH(
       );
     }
 
-    // ================================================
-    // Admin Authorization
-    // ================================================
+    // =================================================
+    // 2. Admin Authorization
+    // =================================================
 
     if (session.user.role !== "admin") {
       return NextResponse.json(
@@ -62,11 +70,12 @@ export async function PATCH(
       );
     }
 
-    // ================================================
-    // Params
-    // ================================================
+    // =================================================
+    // 3. Report ID
+    // =================================================
 
-    const { reportId } = await context.params;
+    const { reportId } =
+      await context.params;
 
     if (!ObjectId.isValid(reportId)) {
       return NextResponse.json(
@@ -80,20 +89,31 @@ export async function PATCH(
       );
     }
 
-    // ================================================
-    // Request Body
-    // ================================================
+    // =================================================
+    // 4. Request Body
+    // =================================================
 
     const body = await request.json();
 
     const newStatus =
-      String(body?.status ?? "") as ReportStatus;
+      String(
+        body?.status ?? "",
+      ) as ReportStatus;
 
-    // ================================================
-    // Validate Status
-    // ================================================
+    const adminNote =
+      String(
+        body?.adminNote ?? "",
+      ).trim();
 
-    if (!allowedStatuses.includes(newStatus)) {
+    // =================================================
+    // 5. Validate Status
+    // =================================================
+
+    if (
+      !allowedStatuses.includes(
+        newStatus,
+      )
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -105,24 +125,44 @@ export async function PATCH(
       );
     }
 
-    // ================================================
-    // Database
-    // ================================================
+    // =================================================
+    // 6. Validate Admin Note
+    // =================================================
 
-    const client = await clientPromise;
+    if (adminNote.length > 1000) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Admin note cannot exceed 1000 characters.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
 
-    const db = client.db("dealup");
+    // =================================================
+    // 7. Database
+    // =================================================
+
+    const client =
+      await clientPromise;
+
+    const db =
+      client.db("dealup");
 
     const reportsCollection =
       db.collection("reports");
 
-    // ================================================
-    // Find Report
-    // ================================================
+    // =================================================
+    // 8. Find Report
+    // =================================================
 
     const report =
       await reportsCollection.findOne({
-        _id: new ObjectId(reportId),
+        _id:
+          new ObjectId(reportId),
       });
 
     if (!report) {
@@ -137,47 +177,110 @@ export async function PATCH(
       );
     }
 
-    // ================================================
-    // Already Same Status
-    // ================================================
+    // =================================================
+    // 9. Already Same Status
+    // =================================================
 
-    if (report.status === newStatus) {
+    if (
+      report.status ===
+        newStatus &&
+      !adminNote
+    ) {
       return NextResponse.json({
         success: true,
+
         message:
           "Report already has this status.",
-        status: newStatus,
+
+        reportId,
+
+        status:
+          newStatus,
       });
     }
 
-    // ================================================
-    // Update
-    // ================================================
+    // =================================================
+    // 10. Update Metadata
+    // =================================================
 
-    const now = new Date();
+    const now =
+      new Date();
+
+    const updateData: Record<
+      string,
+      unknown
+    > = {
+      status:
+        newStatus,
+
+      updatedAt:
+        now,
+
+      reviewedBy:
+        String(
+          session.user.id,
+        ),
+
+      reviewedAt:
+        now,
+    };
+
+    // =================================================
+    // 11. Admin Note
+    //
+    // Only save when supplied.
+    // Existing note is not accidentally
+    // overwritten with an empty string.
+    // =================================================
+
+    if (adminNote) {
+      updateData.adminNote =
+        adminNote;
+    }
+
+    // =================================================
+    // 12. Update Report
+    // =================================================
 
     await reportsCollection.updateOne(
       {
-        _id: new ObjectId(reportId),
+        _id:
+          new ObjectId(reportId),
       },
       {
-        $set: {
-          status: newStatus,
-          updatedAt: now,
-        },
+        $set:
+          updateData,
       },
     );
 
-    // ================================================
-    // Response
-    // ================================================
+    // =================================================
+    // 13. Response
+    // =================================================
 
     return NextResponse.json({
       success: true,
+
       message:
         "Report status updated successfully.",
+
       reportId,
-      status: newStatus,
+
+      status:
+        newStatus,
+
+      reviewedBy:
+        String(
+          session.user.id,
+        ),
+
+      reviewedAt:
+        now,
+
+      ...(adminNote
+        ? {
+            adminNote,
+          }
+        : {}),
     });
   } catch (error) {
     console.error(
@@ -188,6 +291,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
+
         message:
           "Unable to update report status.",
       },

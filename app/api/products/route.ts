@@ -15,6 +15,10 @@ import { Product } from "@/lib/models/product";
 
 import { calculateDistance } from "@/lib/utils/distance";
 
+import {
+  generateUniqueProductSlug,
+} from "@/lib/utils/productSlug";
+
 // =====================================================
 // Location Status
 // =====================================================
@@ -48,7 +52,10 @@ function isValidCoordinate(
     latitude <= 90 &&
     longitude >= -180 &&
     longitude <= 180 &&
-    !(latitude === 0 && longitude === 0)
+    !(
+      latitude === 0 &&
+      longitude === 0
+    )
   );
 }
 
@@ -56,19 +63,23 @@ function isValidCoordinate(
 // POST — Create Product
 // =====================================================
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+) {
   try {
     // =================================================
     // Authentication
     // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized.",
+          message:
+            "Unauthorized.",
         },
         {
           status: 401,
@@ -76,17 +87,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const sellerId = String(session.user.id);
+    const sellerId =
+      String(
+        session.user.id,
+      );
 
     // =================================================
     // Validate Seller ObjectId
     // =================================================
 
-    if (!ObjectId.isValid(sellerId)) {
+    if (
+      !ObjectId.isValid(
+        sellerId,
+      )
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid seller account.",
+          message:
+            "Invalid seller account.",
         },
         {
           status: 400,
@@ -98,7 +117,8 @@ export async function POST(request: Request) {
     // Request Body
     // =================================================
 
-    const body = await request.json();
+    const body =
+      await request.json();
 
     // =================================================
     // Basic Validation
@@ -113,7 +133,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Please fill all required fields.",
+          message:
+            "Please fill all required fields.",
         },
         {
           status: 400,
@@ -128,13 +149,15 @@ export async function POST(request: Request) {
     // of the product selected on the map.
     // =================================================
 
-    const productLatitude = Number(
-      body.latitude,
-    );
+    const productLatitude =
+      Number(
+        body.latitude,
+      );
 
-    const productLongitude = Number(
-      body.longitude,
-    );
+    const productLongitude =
+      Number(
+        body.longitude,
+      );
 
     if (
       !isValidCoordinate(
@@ -157,25 +180,28 @@ export async function POST(request: Request) {
     // =================================================
     // Seller Live GPS
     //
-    // IMPORTANT:
+    // CREATE PRODUCT:
     //
-    // This is the seller's CURRENT device location.
+    // Current product flow requires seller live GPS.
     //
-    // We do NOT require the seller to have a previously
-    // verified location in sellerVerification.
+    // Mobile QR / desktop GPS should provide
+    // sellerLocation before this API is called.
     // =================================================
 
-    const sellerLatitude = Number(
-      body.sellerLocation?.latitude,
-    );
+    const sellerLatitude =
+      Number(
+        body.sellerLocation?.latitude,
+      );
 
-    const sellerLongitude = Number(
-      body.sellerLocation?.longitude,
-    );
+    const sellerLongitude =
+      Number(
+        body.sellerLocation?.longitude,
+      );
 
-    const sellerAccuracy = Number(
-      body.sellerLocation?.accuracy,
-    );
+    const sellerAccuracy =
+      Number(
+        body.sellerLocation?.accuracy,
+      );
 
     // =================================================
     // Validate Seller Live GPS
@@ -204,7 +230,9 @@ export async function POST(request: Request) {
     // =================================================
 
     if (
-      !Number.isFinite(sellerAccuracy) ||
+      !Number.isFinite(
+        sellerAccuracy,
+      ) ||
       sellerAccuracy <= 0
     ) {
       return NextResponse.json(
@@ -223,34 +251,46 @@ export async function POST(request: Request) {
     // DATABASE
     // =================================================
 
-    const client = await clientPromise;
+    const client =
+      await clientPromise;
 
-    const db = client.db("dealup");
+    const db =
+      client.db(
+        "dealup",
+      );
 
-    const users = db.collection("users");
+    const users =
+      db.collection(
+        "users",
+      );
 
     // =================================================
     // Get Seller
     // =================================================
 
-    const seller = await users.findOne(
-      {
-        _id: new ObjectId(sellerId),
-      },
-      {
-        projection: {
-          name: 1,
-          isPhoneVerified: 1,
-          sellerVerification: 1,
+    const seller =
+      await users.findOne(
+        {
+          _id:
+            new ObjectId(
+              sellerId,
+            ),
         },
-      },
-    );
+        {
+          projection: {
+            name: 1,
+            isPhoneVerified: 1,
+            sellerVerification: 1,
+          },
+        },
+      );
 
     if (!seller) {
       return NextResponse.json(
         {
           success: false,
-          message: "Seller account not found.",
+          message:
+            "Seller account not found.",
         },
         {
           status: 404,
@@ -260,71 +300,78 @@ export async function POST(request: Request) {
 
     // =================================================
     // SERVER-SIDE DISTANCE CALCULATION
-    //
-    // Current Seller GPS
-    //          ↓
-    //       distance
-    //          ↑
-    // Product Location
     // =================================================
 
-    const distanceKm = calculateDistance(
-      sellerLatitude,
-      sellerLongitude,
-      productLatitude,
-      productLongitude,
-    );
+    const distanceKm =
+      calculateDistance(
+        sellerLatitude,
+        sellerLongitude,
+        productLatitude,
+        productLongitude,
+      );
 
     // =================================================
     // Location Status
     // =================================================
 
     const locationStatus =
-      getLocationStatus(distanceKm);
+      getLocationStatus(
+        distanceKm,
+      );
 
     // =================================================
-    // Slug
+    // UNIQUE SLUG
+    //
+    // Example:
+    //
+    // Pulsar 220
+    // → pulsar-220
+    //
+    // If already exists:
+    // → pulsar-220-2
+    //
+    // Again:
+    // → pulsar-220-3
     // =================================================
 
     const slug =
-      body.title
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
+      await generateUniqueProductSlug(
+        body.title,
+      );
 
     // =================================================
     // Timestamp
     // =================================================
 
-    const now = new Date();
+    const now =
+      new Date();
 
     // =================================================
     // Product Location Verification
-    //
-    // This records the seller's CURRENT GPS and
-    // the distance from seller to product location.
-    //
-    // It does NOT automatically make the seller
-    // a Verified Seller.
     // =================================================
 
     const locationVerification = {
       sellerLatitude,
+
       sellerLongitude,
 
       productLatitude,
+
       productLongitude,
 
       distanceKm,
 
-      accuracy: sellerAccuracy,
+      accuracy:
+        sellerAccuracy,
 
-      status: locationStatus,
+      status:
+        locationStatus,
 
-      method: "device-gps" as const,
+      method:
+        "device-gps" as const,
 
-      capturedAt: now,
+      capturedAt:
+        now,
     };
 
     // =================================================
@@ -332,29 +379,47 @@ export async function POST(request: Request) {
     // =================================================
 
     const product: Product = {
-      title: body.title,
+      title:
+        body.title,
 
       slug,
 
-      description: body.description,
+      description:
+        body.description,
 
-      price: Number(body.price),
+      price:
+        Number(
+          body.price,
+        ),
 
-      currency: "INR",
+      currency:
+        "INR",
 
-      negotiable: body.negotiable ?? false,
+      negotiable:
+        body.negotiable ??
+        false,
 
-      category: body.category,
+      category:
+        body.category,
 
-      subcategory: body.subcategory ?? "",
+      subcategory:
+        body.subcategory ??
+        "",
 
-      brand: body.brand ?? "",
+      brand:
+        body.brand ??
+        "",
 
-      model: body.model ?? "",
+      model:
+        body.model ??
+        "",
 
-      condition: body.condition,
+      condition:
+        body.condition,
 
-      images: body.images ?? [],
+      images:
+        body.images ??
+        [],
 
       thumbnail:
         body.images?.length > 0
@@ -368,7 +433,8 @@ export async function POST(request: Request) {
         session.user.name ??
         "Unknown Seller",
 
-      sellerPhone: "",
+      sellerPhone:
+        "",
 
       // =================================================
       // Product Location
@@ -376,27 +442,35 @@ export async function POST(request: Request) {
 
       location: {
         country:
-          body.country ?? "India",
+          body.country ??
+          "India",
 
         state:
-          body.state ?? "",
+          body.state ??
+          "",
 
         district:
-          body.district ?? "",
+          body.district ??
+          "",
 
         city:
-          body.city ?? "",
+          body.city ??
+          "",
 
         pincode:
-          body.pincode ?? "",
+          body.pincode ??
+          "",
 
         address:
-          body.address ?? "",
+          body.address ??
+          "",
 
         coordinates: {
-          lat: productLatitude,
+          lat:
+            productLatitude,
 
-          lng: productLongitude,
+          lng:
+            productLongitude,
         },
       },
 
@@ -410,31 +484,40 @@ export async function POST(request: Request) {
       // Status
       // =================================================
 
-      status: "active",
+      status:
+        "active",
 
-      views: 0,
+      views:
+        0,
 
-      favorites: 0,
+      favorites:
+        0,
 
       // =================================================
       // Premium / Promotion
       // =================================================
 
-      isFeatured: false,
+      isFeatured:
+        false,
 
-      isPremium: false,
+      isPremium:
+        false,
 
-      isBoosted: false,
+      isBoosted:
+        false,
 
-      boostedUntil: undefined,
+      boostedUntil:
+        undefined,
 
       // =================================================
       // Timestamps
       // =================================================
 
-      createdAt: now,
+      createdAt:
+        now,
 
-      updatedAt: now,
+      updatedAt:
+        now,
     };
 
     // =================================================
@@ -442,7 +525,9 @@ export async function POST(request: Request) {
     // =================================================
 
     const result =
-      await createProduct(product);
+      await createProduct(
+        product,
+      );
 
     // =================================================
     // Success
@@ -458,10 +543,14 @@ export async function POST(request: Request) {
         insertedId:
           result.insertedId,
 
+        slug,
+
         locationVerification: {
           distanceKm:
             Number(
-              distanceKm.toFixed(2),
+              distanceKm.toFixed(
+                2,
+              ),
             ),
 
           status:
@@ -486,7 +575,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         success: false,
-        message: "Internal Server Error",
+        message:
+          "Internal Server Error",
       },
       {
         status: 500,
@@ -502,7 +592,9 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const products =
-      await findLatestProducts(20);
+      await findLatestProducts(
+        20,
+      );
 
     return NextResponse.json(
       {

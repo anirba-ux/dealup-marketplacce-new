@@ -99,12 +99,13 @@ export interface ProductLocationVerification {
 
   accuracy: number;
 
-  status:
-    | "nearby"
-    | "different"
-    | "far";
+    status: string;
 
-  method: "device-gps";
+
+ method:
+  | "device-gps"
+  | "mobile-qr"
+  | "seller-profile";
 
   capturedAt: Date;
 }

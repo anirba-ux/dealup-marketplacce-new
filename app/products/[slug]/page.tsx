@@ -54,6 +54,7 @@ export default async function ProductDetailsPage({
 
   let product =
     await findProductBySlug(slug);
+    
 
   if (!product) {
     notFound();

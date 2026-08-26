@@ -1,4 +1,10 @@
-import { NextResponse } from "next/server";
+import {
+  NextResponse,
+} from "next/server";
+
+import {
+  revalidatePath,
+} from "next/cache";
 
 import { auth } from "@/auth";
 
@@ -9,7 +15,13 @@ import {
   markProductSold,
 } from "@/lib/repositories/product.repository";
 
-import { calculateDistance } from "@/lib/utils/distance";
+import {
+  calculateDistance,
+} from "@/lib/utils/distance";
+
+import {
+  generateUniqueProductSlug,
+} from "@/lib/utils/productSlug";
 
 // =====================================================
 // Location Verification Helper
@@ -30,6 +42,32 @@ function getLocationStatus(
 }
 
 // =====================================================
+// Coordinate Validation
+// =====================================================
+
+function isValidCoordinate(
+  latitude: number,
+  longitude: number,
+) {
+  return (
+    Number.isFinite(
+      latitude,
+    ) &&
+    Number.isFinite(
+      longitude,
+    ) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    !(
+      latitude === 0 &&
+      longitude === 0
+    )
+  );
+}
+
+// =====================================================
 // GET Product By ID
 // =====================================================
 
@@ -44,10 +82,13 @@ export async function GET(
   },
 ) {
   try {
-    const { id } = await params;
+    const { id } =
+      await params;
 
     const product =
-      await findProductById(id);
+      await findProductById(
+        id,
+      );
 
     if (!product) {
       return NextResponse.json(
@@ -62,10 +103,15 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      product,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        product,
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
       "GET PRODUCT ERROR:",
@@ -104,13 +150,15 @@ export async function PUT(
     // Authentication
     // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized",
+          message:
+            "Unauthorized",
         },
         {
           status: 401,
@@ -122,14 +170,17 @@ export async function PUT(
     // Product ID
     // =================================================
 
-    const { id } = await params;
+    const { id } =
+      await params;
 
     // =================================================
     // Existing Product
     // =================================================
 
     const product =
-      await findProductById(id);
+      await findProductById(
+        id,
+      );
 
     if (!product) {
       return NextResponse.json(
@@ -172,22 +223,58 @@ export async function PUT(
       await request.json();
 
     // =================================================
-    // Product Coordinates
+    // Existing Product Coordinates
+    // =================================================
+
+    const existingLatitude =
+      Number(
+        product.location
+          ?.coordinates?.lat,
+      );
+
+    const existingLongitude =
+      Number(
+        product.location
+          ?.coordinates?.lng,
+      );
+
+    // =================================================
+    // Product Coordinates From Request
+    //
+    // If frontend sends new coordinates,
+    // use them.
+    //
+    // Otherwise preserve existing coordinates.
     // =================================================
 
     const productLatitude =
-      Number(body.latitude);
+      body.latitude !==
+      undefined
+        ? Number(
+            body.latitude,
+          )
+        : existingLatitude;
 
     const productLongitude =
-      Number(body.longitude);
+      body.longitude !==
+      undefined
+        ? Number(
+            body.longitude,
+          )
+        : existingLongitude;
+
+    // =================================================
+    // Product Coordinate Validation
+    // =================================================
+
+    const validProductCoordinates =
+      isValidCoordinate(
+        productLatitude,
+        productLongitude,
+      );
 
     if (
-      !Number.isFinite(
-        productLatitude,
-      ) ||
-      !Number.isFinite(
-        productLongitude,
-      )
+      !validProductCoordinates
     ) {
       return NextResponse.json(
         {
@@ -203,36 +290,90 @@ export async function PUT(
 
     // =================================================
     // Seller Live GPS
+    //
+    // GPS is OPTIONAL during product update.
+    //
+    // If available:
+    //   calculate distance
+    //   verify accuracy
+    //   save locationVerification
+    //
+    // If unavailable:
+    //   normal update continues
+    // =================================================
+
+    const sellerLocation =
+      body.sellerLocation;
+
+    const hasSellerLocation =
+      sellerLocation &&
+      typeof sellerLocation ===
+        "object";
+
+    const hasLatitude =
+      hasSellerLocation &&
+      sellerLocation.latitude !==
+        undefined;
+
+    const hasLongitude =
+      hasSellerLocation &&
+      sellerLocation.longitude !==
+        undefined;
+
+    const hasAccuracy =
+      hasSellerLocation &&
+      sellerLocation.accuracy !==
+        undefined;
+
+    // =================================================
+    // Seller GPS Values
     // =================================================
 
     const sellerLatitude =
-      Number(
-        body.sellerLocation?.latitude,
-      );
+      hasLatitude
+        ? Number(
+            sellerLocation.latitude,
+          )
+        : NaN;
 
     const sellerLongitude =
-      Number(
-        body.sellerLocation?.longitude,
-      );
+      hasLongitude
+        ? Number(
+            sellerLocation.longitude,
+          )
+        : NaN;
 
     const sellerAccuracy =
-      Number(
-        body.sellerLocation?.accuracy,
+      hasAccuracy
+        ? Number(
+            sellerLocation.accuracy,
+          )
+        : NaN;
+
+    // =================================================
+    // Detect Partial GPS
+    // =================================================
+
+    const hasPartialGps =
+      (hasLatitude ||
+        hasLongitude) &&
+      !(
+        Number.isFinite(
+          sellerLatitude,
+        ) &&
+        Number.isFinite(
+          sellerLongitude,
+        )
       );
 
     if (
-      !Number.isFinite(
-        sellerLatitude,
-      ) ||
-      !Number.isFinite(
-        sellerLongitude,
-      )
+      hasPartialGps
     ) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Your live device location is required before updating this product.",
+            "Both seller latitude and longitude are required when using live GPS.",
         },
         {
           status: 400,
@@ -241,108 +382,210 @@ export async function PUT(
     }
 
     // =================================================
-    // GPS Accuracy Validation
+    // Does Valid Seller GPS Exist?
     // =================================================
 
-    if (
-      !Number.isFinite(
-        sellerAccuracy,
-      ) ||
-      sellerAccuracy <= 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Unable to verify your GPS accuracy. Please try again.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    // =================================================
-    // Server-Side Distance Calculation
-    // =================================================
-
-    const distanceKm =
-      calculateDistance(
+    const hasValidSellerGps =
+      Number.isFinite(
         sellerLatitude,
+      ) &&
+      Number.isFinite(
         sellerLongitude,
-        productLatitude,
-        productLongitude,
       );
-
-    // =================================================
-    // Location Status
-    // =================================================
-
-    const locationStatus =
-      getLocationStatus(
-        distanceKm,
-      );
-
-    // =================================================
-    // Timestamp
-    // =================================================
-
-    const now = new Date();
 
     // =================================================
     // Location Verification
     // =================================================
 
-    const locationVerification = {
-      sellerLatitude,
+    let locationVerification:
+      | {
+          sellerLatitude: number;
 
-      sellerLongitude,
+          sellerLongitude: number;
 
-      productLatitude,
+          productLatitude: number;
 
-      productLongitude,
+          productLongitude: number;
 
-      distanceKm,
+          distanceKm: number;
 
-      accuracy:
-        sellerAccuracy,
+          accuracy: number;
 
-      status:
-        locationStatus,
+          status:
+            | "nearby"
+            | "different"
+            | "far";
 
-      method:
-        "device-gps" as const,
+          method:
+            | "device-gps";
 
-      capturedAt:
-        now,
-    };
+          capturedAt: Date;
+        }
+      | null = null;
+
+    // =================================================
+    // Perform GPS Verification Only When GPS Exists
+    // =================================================
+
+    if (
+      hasValidSellerGps
+    ) {
+      // =================================================
+      // GPS Accuracy Validation
+      // =================================================
+
+      if (
+        !Number.isFinite(
+          sellerAccuracy,
+        ) ||
+        sellerAccuracy <= 0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Unable to verify your GPS accuracy. Please try again.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // =================================================
+      // Server-Side Distance Calculation
+      // =================================================
+
+      const distanceKm =
+        calculateDistance(
+          sellerLatitude,
+          sellerLongitude,
+          productLatitude,
+          productLongitude,
+        );
+
+      // =================================================
+      // Location Status
+      // =================================================
+
+      const locationStatus =
+        getLocationStatus(
+          distanceKm,
+        );
+
+      // =================================================
+      // Location Verification
+      // =================================================
+
+      locationVerification = {
+        sellerLatitude,
+
+        sellerLongitude,
+
+        productLatitude,
+
+        productLongitude,
+
+        distanceKm,
+
+        accuracy:
+          sellerAccuracy,
+
+        status:
+          locationStatus,
+
+        method:
+          "device-gps",
+
+        capturedAt:
+          new Date(),
+      };
+    }
+
+    // =================================================
+    // Current Time
+    // =================================================
+
+    const now =
+      new Date();
+
+    // =================================================
+    // Detect Product Location Change
+    // =================================================
+
+    const oldLatitude =
+      Number(
+        product.location
+          ?.coordinates?.lat,
+      );
+
+    const oldLongitude =
+      Number(
+        product.location
+          ?.coordinates?.lng,
+      );
+
+    const locationChanged =
+      oldLatitude !==
+        productLatitude ||
+      oldLongitude !==
+        productLongitude;
+
+    // =================================================
+    // Detect Title Change
+    // =================================================
+
+    const newTitle =
+      String(
+        body.title ??
+          product.title ??
+          "",
+      ).trim();
+
+    const titleChanged =
+      newTitle !==
+      String(
+        product.title ??
+          "",
+      ).trim();
+
+    // =================================================
+    // SLUG
+    //
+    // IMPORTANT:
+    //
+    // If title did NOT change:
+    // keep the existing slug.
+    //
+    // If title changed:
+    // generate a unique slug.
+    // =================================================
+
+    const slug =
+      titleChanged
+        ? await generateUniqueProductSlug(
+            newTitle,
+            id,
+          )
+        : product.slug;
 
     // =================================================
     // Safe Update Object
     // =================================================
 
-    const updateData = {
+    const updateData: any = {
       title:
-        body.title,
+        newTitle,
 
-      slug:
-        body.title
-          ?.toLowerCase()
-          .trim()
-          .replace(
-            /[^a-z0-9]+/g,
-            "-",
-          )
-          .replace(
-            /^-|-$/g,
-            "",
-          ),
+      slug,
 
       description:
         body.description,
 
       price:
-        Number(body.price),
+        Number(
+          body.price,
+        ),
 
       currency:
         "INR" as const,
@@ -359,40 +602,52 @@ export async function PUT(
         "",
 
       brand:
-        body.brand ?? "",
+        body.brand ??
+        "",
 
       model:
-        body.model ?? "",
+        body.model ??
+        "",
 
       condition:
         body.condition,
 
       images:
-        body.images ?? [],
+        body.images ??
+        [],
 
       thumbnail:
         body.thumbnail ??
         body.images?.[0]?.url ??
         "",
 
+      // =================================================
+      // Product Location
+      // =================================================
+
       location: {
         country:
           "India",
 
         state:
-          body.state,
+          body.state ??
+          "",
 
         district:
-          body.district,
+          body.district ??
+          "",
 
         city:
-          body.city,
+          body.city ??
+          "",
 
         pincode:
-          body.pincode,
+          body.pincode ??
+          "",
 
         address:
-          body.address,
+          body.address ??
+          "",
 
         coordinates: {
           lat:
@@ -403,11 +658,34 @@ export async function PUT(
         },
       },
 
-      locationVerification,
-
       updatedAt:
         now,
     };
+
+    // =================================================
+    // Location Verification Handling
+    //
+    // 1. Fresh GPS exists:
+    //    Save fresh verification.
+    //
+    // 2. No GPS + location unchanged:
+    //    updateData does not touch verification.
+    //
+    // 3. No GPS + location changed:
+    //    Remove old verification.
+    // =================================================
+
+    if (
+      locationVerification
+    ) {
+      updateData.locationVerification =
+        locationVerification;
+    } else if (
+      locationChanged
+    ) {
+      updateData.locationVerification =
+        null;
+    }
 
     // =================================================
     // Update Database
@@ -419,7 +697,50 @@ export async function PUT(
     );
 
     // =================================================
-    // Success
+    // Revalidate Product Pages
+    //
+    // Old slug:
+    // necessary when title changed.
+    //
+    // New slug:
+    // always refresh.
+    // =================================================
+
+    if (
+      product.slug
+    ) {
+      revalidatePath(
+        `/products/${product.slug}`,
+      );
+    }
+
+    if (
+      slug &&
+      slug !== product.slug
+    ) {
+      revalidatePath(
+        `/products/${slug}`,
+      );
+    }
+
+    // =================================================
+    // Revalidate Main Listing Pages
+    // =================================================
+
+    revalidatePath(
+      "/",
+    );
+
+    revalidatePath(
+      "/search",
+    );
+
+    revalidatePath(
+      "/dashboard/my-ads",
+    );
+
+    // =================================================
+    // Success Response
     // =================================================
 
     return NextResponse.json(
@@ -429,20 +750,38 @@ export async function PUT(
         message:
           "Product updated successfully.",
 
-        locationVerification: {
-          distanceKm:
-            Number(
-              distanceKm.toFixed(2),
-            ),
+        productId:
+          id,
 
-          status:
-            locationStatus,
+        slug,
 
-          accuracy:
-            Math.round(
-              sellerAccuracy,
-            ),
-        },
+        gpsUsed:
+          Boolean(
+            locationVerification,
+          ),
+
+        locationVerification:
+          locationVerification
+            ? {
+                distanceKm:
+                  Number(
+                    locationVerification
+                      .distanceKm
+                      .toFixed(
+                        2,
+                      ),
+                  ),
+
+                status:
+                  locationVerification.status,
+
+                accuracy:
+                  Math.round(
+                    locationVerification
+                      .accuracy,
+                  ),
+              }
+            : null,
       },
       {
         status: 200,
@@ -482,7 +821,12 @@ export async function DELETE(
   },
 ) {
   try {
-    const session = await auth();
+    // =================================================
+    // Authentication
+    // =================================================
+
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -497,7 +841,16 @@ export async function DELETE(
       );
     }
 
-    const { id } = await params;
+    // =================================================
+    // Product ID
+    // =================================================
+
+    const { id } =
+      await params;
+
+    // =================================================
+    // Delete Product
+    // =================================================
 
     const result =
       await deleteProductByOwner(
@@ -505,7 +858,13 @@ export async function DELETE(
         session.user.id,
       );
 
-    if (!result.deletedCount) {
+    // =================================================
+    // Product Not Found
+    // =================================================
+
+    if (
+      !result.deletedCount
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -518,11 +877,20 @@ export async function DELETE(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message:
-        "Product deleted successfully.",
-    });
+    // =================================================
+    // Success
+    // =================================================
+
+    return NextResponse.json(
+      {
+        success: true,
+        message:
+          "Product deleted successfully.",
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
       "DELETE PRODUCT ERROR:",
@@ -557,7 +925,12 @@ export async function PATCH(
   },
 ) {
   try {
-    const session = await auth();
+    // =================================================
+    // Authentication
+    // =================================================
+
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -572,10 +945,21 @@ export async function PATCH(
       );
     }
 
-    const { id } = await params;
+    // =================================================
+    // Product ID
+    // =================================================
+
+    const { id } =
+      await params;
+
+    // =================================================
+    // Existing Product
+    // =================================================
 
     const product =
-      await findProductById(id);
+      await findProductById(
+        id,
+      );
 
     if (!product) {
       return NextResponse.json(
@@ -589,6 +973,10 @@ export async function PATCH(
         },
       );
     }
+
+    // =================================================
+    // Owner Check
+    // =================================================
 
     if (
       product.sellerId !==
@@ -605,6 +993,10 @@ export async function PATCH(
         },
       );
     }
+
+    // =================================================
+    // Mark Product Sold
+    // =================================================
 
     const success =
       await markProductSold(
@@ -625,11 +1017,20 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      message:
-        "Product marked as sold successfully.",
-    });
+    // =================================================
+    // Success
+    // =================================================
+
+    return NextResponse.json(
+      {
+        success: true,
+        message:
+          "Product marked as sold successfully.",
+      },
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error(
       "MARK SOLD ERROR:",

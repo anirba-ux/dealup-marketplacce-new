@@ -14,6 +14,7 @@ import L from "leaflet";
 import {
   useEffect,
   useMemo,
+  useRef,
 } from "react";
 
 import {
@@ -59,6 +60,7 @@ const productIcon =
           justify-content:center;
           color:white;
           font-size:21px;
+          line-height:1;
         "
       >
         📦
@@ -82,6 +84,211 @@ const productIcon =
   });
 
 // =====================================================
+// Map Resize Controller
+//
+// Leaflet needs invalidateSize() when its parent
+// container changes size after initial render.
+//
+// This is especially important when the map is inside:
+// - responsive layouts
+// - hidden/visible sections
+// - forms
+// - dialogs
+// - grid/flex containers
+// =====================================================
+
+function MapResizeController() {
+  const map = useMap();
+
+  useEffect(() => {
+    let frameId: number | null =
+      null;
+
+    const invalidateMapSize =
+      () => {
+        if (frameId !== null) {
+          cancelAnimationFrame(
+            frameId,
+          );
+        }
+
+        frameId =
+          requestAnimationFrame(
+            () => {
+              map.invalidateSize(
+                false,
+              );
+            },
+          );
+      };
+
+    // Initial correction
+    invalidateMapSize();
+
+    // Give the browser a chance to finish
+    // layout calculations.
+    const timeout1 =
+      window.setTimeout(
+        invalidateMapSize,
+        50,
+      );
+
+    const timeout2 =
+      window.setTimeout(
+        invalidateMapSize,
+        150,
+      );
+
+    const timeout3 =
+      window.setTimeout(
+        invalidateMapSize,
+        400,
+      );
+
+    const timeout4 =
+      window.setTimeout(
+        invalidateMapSize,
+        800,
+      );
+
+    // -------------------------------------------------
+    // ResizeObserver
+    // -------------------------------------------------
+
+    const container =
+      map.getContainer();
+
+    let observer:
+      | ResizeObserver
+      | null = null;
+
+    if (
+      typeof ResizeObserver !==
+      "undefined"
+    ) {
+      observer =
+        new ResizeObserver(() => {
+          invalidateMapSize();
+        });
+
+      observer.observe(
+        container,
+      );
+
+      if (
+        container.parentElement
+      ) {
+        observer.observe(
+          container.parentElement,
+        );
+      }
+
+      if (
+        container.parentElement
+          ?.parentElement
+      ) {
+        observer.observe(
+          container.parentElement
+            .parentElement,
+        );
+      }
+    }
+
+    // -------------------------------------------------
+    // Window resize
+    // -------------------------------------------------
+
+    window.addEventListener(
+      "resize",
+      invalidateMapSize,
+    );
+
+    return () => {
+      if (
+        frameId !== null
+      ) {
+        cancelAnimationFrame(
+          frameId,
+        );
+      }
+
+      window.clearTimeout(
+        timeout1,
+      );
+
+      window.clearTimeout(
+        timeout2,
+      );
+
+      window.clearTimeout(
+        timeout3,
+      );
+
+      window.clearTimeout(
+        timeout4,
+      );
+
+      window.removeEventListener(
+        "resize",
+        invalidateMapSize,
+      );
+
+      observer?.disconnect();
+    };
+  }, [map]);
+
+  return null;
+}
+
+// =====================================================
+// Fullscreen Resize Controller
+//
+// When fullscreen starts/stops, Leaflet must recalculate
+// its dimensions.
+// =====================================================
+
+function FullscreenResizeController() {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleFullscreenChange =
+      () => {
+        window.setTimeout(
+          () => {
+            map.invalidateSize(
+              false,
+            );
+          },
+          50,
+        );
+
+        window.setTimeout(
+          () => {
+            map.invalidateSize(
+              false,
+            );
+          },
+          250,
+        );
+      };
+
+    document.addEventListener(
+      "fullscreenchange",
+      handleFullscreenChange,
+    );
+
+    return () => {
+      document.removeEventListener(
+        "fullscreenchange",
+        handleFullscreenChange,
+      );
+    };
+  }, [map]);
+
+  return null;
+}
+
+// =====================================================
 // Map Center Controller
 // =====================================================
 
@@ -97,6 +304,11 @@ function MapCenterController({
 }: MapCenterControllerProps) {
   const map = useMap();
 
+  const previousPosition =
+    useRef<
+      [number, number] | null
+    >(null);
+
   useEffect(() => {
     if (
       !Number.isFinite(
@@ -109,18 +321,47 @@ function MapCenterController({
       return;
     }
 
-    map.setView(
-      [
-        latitude,
-        longitude,
-      ],
-      map.getZoom() < 10
-        ? 15
-        : map.getZoom(),
-      {
-        animate: true,
-      },
+    const nextPosition:
+      [number, number] = [
+      latitude,
+      longitude,
+    ];
+
+    const previous =
+      previousPosition.current;
+
+    const positionChanged =
+      !previous ||
+      previous[0] !==
+        latitude ||
+      previous[1] !==
+        longitude;
+
+    // -------------------------------------------------
+    // Always make sure Leaflet knows the actual size
+    // before moving the map.
+    // -------------------------------------------------
+
+    map.invalidateSize(
+      false,
     );
+
+    if (
+      positionChanged
+    ) {
+      map.setView(
+        nextPosition,
+        map.getZoom() < 10
+          ? 15
+          : map.getZoom(),
+        {
+          animate: true,
+        },
+      );
+
+      previousPosition.current =
+        nextPosition;
+    }
   }, [
     latitude,
     longitude,
@@ -246,7 +487,16 @@ export default function LocationPicker({
   return (
     <div
       id="dealup-location-map"
-      className="relative h-full w-full"
+      className="
+        relative
+        block
+        h-full
+        min-h-[420px]
+        w-full
+        min-w-0
+        overflow-hidden
+        rounded-2xl
+      "
     >
       {/* =================================================
           MAP
@@ -258,7 +508,24 @@ export default function LocationPicker({
         }
         zoom={15}
         scrollWheelZoom={true}
-        className="h-full w-full"
+        className="
+          !relative
+          !z-0
+          !block
+          !h-full
+          !min-h-[420px]
+          !w-full
+          !min-w-0
+          overflow-hidden
+          rounded-2xl
+        "
+        style={{
+          width: "100%",
+          height: "100%",
+          minHeight:
+            "420px",
+          minWidth: 0,
+        }}
       >
         {/* =================================================
             OpenStreetMap
@@ -268,6 +535,18 @@ export default function LocationPicker({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+
+        {/* =================================================
+            Resize Controller
+        ================================================= */}
+
+        <MapResizeController />
+
+        {/* =================================================
+            Fullscreen Resize Controller
+        ================================================= */}
+
+        <FullscreenResizeController />
 
         {/* =================================================
             Map Center
@@ -340,11 +619,11 @@ export default function LocationPicker({
               </p>
 
               <p className="mt-3 text-xs leading-5 text-slate-600">
-                Drag the marker or click
-                anywhere on the map to
-                choose the exact place
-                where the product is
-                located.
+                Drag the marker or
+                click anywhere on
+                the map to choose the
+                exact place where the
+                product is located.
               </p>
             </div>
           </Popup>
@@ -425,7 +704,7 @@ export default function LocationPicker({
           Map Instruction
       ================================================= */}
 
-      <div className="absolute bottom-4 left-4 z-[1000] max-w-[290px]">
+      <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] max-w-[290px]">
         <div className="rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-xl backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
           <p className="text-xs font-semibold text-slate-900 dark:text-white">
             📍 Select Product Location
