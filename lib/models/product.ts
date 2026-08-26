@@ -27,8 +27,16 @@ export type ProductStatus =
 export interface ProductImage {
   publicId: string;
   url: string;
-}
 
+  /**
+   * Exact SHA-256 fingerprint of the
+   * originally uploaded image file.
+   *
+   * Optional for backward compatibility
+   * with existing products.
+   */
+  imageHash?: string;
+}
 // =====================================
 // Product Location
 // =====================================

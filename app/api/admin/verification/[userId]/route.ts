@@ -15,7 +15,17 @@ import clientPromise from "@/lib/db/mongodb";
 type VerificationAction =
   | "approve"
   | "reject"
-  | "suspend";
+  | "suspend"
+  | "request_correction";
+
+type CorrectionType =
+  | "selfie_missing"
+  | "selfie_unclear"
+  | "location_incorrect"
+  | "location_unavailable"
+  | "identity_issue"
+  | "phone_issue"
+  | "other";
 
 interface RouteContext {
   params: Promise<{
@@ -24,19 +34,409 @@ interface RouteContext {
 }
 
 // =====================================================
+// GET
+//
+// Admin Verification Details
+//
+// Returns:
+// - Seller information
+// - Phone verification
+// - Identity verification
+// - Live selfie
+// - Location verification
+// - Overall verification status
+// - Correction request details
+// =====================================================
+
+export async function GET(
+  request: NextRequest,
+  context: RouteContext,
+) {
+  try {
+    // =================================================
+    // Authentication
+    // =================================================
+
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unauthorized.",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    // =================================================
+    // Admin Authorization
+    // =================================================
+
+    if (session.user.role !== "admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Admin access required.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =================================================
+    // Params
+    // =================================================
+
+    const { userId } = await context.params;
+
+    if (!ObjectId.isValid(userId)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid seller ID.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =================================================
+    // Database
+    // =================================================
+
+    const client = await clientPromise;
+
+    const db = client.db("dealup");
+
+    const usersCollection =
+      db.collection("users");
+
+    // =================================================
+    // Find Seller
+    // =================================================
+
+    const seller =
+      await usersCollection.findOne({
+        _id: new ObjectId(userId),
+      });
+
+    if (!seller) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Seller not found.",
+        },
+        {
+          status: 404,
+        },
+      );
+    }
+
+    // =================================================
+    // Seller Verification
+    // =================================================
+
+    const verification =
+      seller.sellerVerification ?? {};
+
+    // =================================================
+    // Verification Checks
+    //
+    // FOUR required checks:
+    //
+    // 1. Phone
+    // 2. Identity
+    // 3. Live Selfie
+    // 4. Location
+    // =================================================
+
+    const phoneVerified =
+      Boolean(
+        verification.phoneVerified ??
+          seller.isPhoneVerified ??
+          false,
+      );
+
+    const identityVerified =
+      Boolean(
+        verification.identityVerified ??
+          false,
+      );
+
+    const selfieVerified =
+      Boolean(
+        verification.selfieVerified ??
+          false,
+      );
+
+    const locationVerified =
+      Boolean(
+        verification.locationVerified ??
+          false,
+      );
+
+    // =================================================
+    // Completed Checks
+    // =================================================
+
+    const completedChecks = [
+      phoneVerified,
+      identityVerified,
+      selfieVerified,
+      locationVerified,
+    ].filter(Boolean).length;
+
+    const totalChecks = 4;
+
+    const progress =
+      Math.round(
+        (completedChecks /
+          totalChecks) *
+          100,
+      );
+
+    // =================================================
+    // Selfie Details
+    // =================================================
+
+    const selfieUrl =
+      verification.selfieUrl ??
+      null;
+
+    const selfiePublicId =
+      verification.selfiePublicId ??
+      null;
+
+    const selfieVerifiedAt =
+      verification.selfieVerifiedAt ??
+      null;
+
+    // =================================================
+    // Location Details
+    // =================================================
+
+    const locationLatitude =
+      verification.locationLatitude ??
+      null;
+
+    const locationLongitude =
+      verification.locationLongitude ??
+      null;
+
+    const locationAccuracy =
+      verification.locationVerificationAccuracy ??
+      null;
+
+    const locationMethod =
+      verification.locationVerificationMethod ??
+      null;
+
+    const locationVerifiedAt =
+      verification.locationVerifiedAt ??
+      null;
+
+    // =================================================
+    // Correction Details
+    // =================================================
+
+    const correctionRequired =
+      verification.correctionRequired ===
+      true;
+
+    const correctionType =
+      verification.correctionType ??
+      null;
+
+    const correctionReason =
+      verification.correctionReason ??
+      null;
+
+    const correctionMessage =
+      verification.correctionMessage ??
+      null;
+
+    const correctionRequestedAt =
+      verification.correctionRequestedAt ??
+      null;
+
+    const correctionRequestedBy =
+      verification.correctionRequestedBy ??
+      null;
+
+    const correctionResolvedAt =
+      verification.correctionResolvedAt ??
+      null;
+
+    // =================================================
+    // Response
+    // =================================================
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        seller: {
+          id: seller._id.toString(),
+
+          name: seller.name ?? "",
+
+          email: seller.email ?? "",
+
+          phone: seller.phone ?? "",
+
+          image: seller.image ?? null,
+        },
+
+        verification: {
+          // -------------------------------------------
+          // Overall Status
+          // -------------------------------------------
+
+          status:
+            verification.status ??
+            "unverified",
+
+          verifiedAt:
+            verification.verifiedAt ??
+            null,
+
+          rejectionReason:
+            verification.rejectionReason ??
+            null,
+
+          suspendedAt:
+            verification.suspendedAt ??
+            null,
+
+          suspensionReason:
+            verification.suspensionReason ??
+            null,
+
+          // -------------------------------------------
+          // Four Verification Checks
+          // -------------------------------------------
+
+          phoneVerified,
+
+          identityVerified,
+
+          selfieVerified,
+
+          locationVerified,
+
+          completedChecks,
+
+          totalChecks,
+
+          progress,
+
+          // -------------------------------------------
+          // Live Selfie
+          // -------------------------------------------
+
+          selfie: {
+            verified:
+              selfieVerified,
+
+            url:
+              selfieUrl,
+
+            publicId:
+              selfiePublicId,
+
+            verifiedAt:
+              selfieVerifiedAt,
+          },
+
+          // -------------------------------------------
+          // Location
+          // -------------------------------------------
+
+          location: {
+            verified:
+              locationVerified,
+
+            latitude:
+              locationLatitude,
+
+            longitude:
+              locationLongitude,
+
+            accuracy:
+              locationAccuracy,
+
+            method:
+              locationMethod,
+
+            verifiedAt:
+              locationVerifiedAt,
+          },
+
+          // -------------------------------------------
+          // Correction
+          // -------------------------------------------
+
+          correction: {
+            required:
+              correctionRequired,
+
+            type:
+              correctionType,
+
+            reason:
+              correctionReason,
+
+            message:
+              correctionMessage,
+
+            requestedAt:
+              correctionRequestedAt,
+
+            requestedBy:
+              correctionRequestedBy,
+
+            resolvedAt:
+              correctionResolvedAt,
+          },
+        },
+      },
+      {
+        status: 200,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "ADMIN SELLER VERIFICATION GET ERROR:",
+      error,
+    );
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          "Unable to load seller verification details.",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+
+// =====================================================
 // PATCH
 //
-// Final Seller Verification
+// Actions:
 //
-// APPROVE:
-// Phone + Identity + Live Selfie + Location
-// must ALL be verified.
-//
-// REJECT:
-// Seller verification rejected.
-//
-// SUSPEND:
-// Seller verification suspended.
+// approve
+// reject
+// suspend
+// request_correction
 // =====================================================
 
 export async function PATCH(
@@ -66,10 +466,7 @@ export async function PATCH(
     // Admin Authorization
     // =================================================
 
-    if (
-      session.user.role !==
-      "admin"
-    ) {
+    if (session.user.role !== "admin") {
       return NextResponse.json(
         {
           success: false,
@@ -86,12 +483,9 @@ export async function PATCH(
     // Params
     // =================================================
 
-    const { userId } =
-      await context.params;
+    const { userId } = await context.params;
 
-    if (
-      !ObjectId.isValid(userId)
-    ) {
+    if (!ObjectId.isValid(userId)) {
       return NextResponse.json(
         {
           success: false,
@@ -108,11 +502,10 @@ export async function PATCH(
     // Request Body
     // =================================================
 
-    let body: any = {};
+    let body: unknown = {};
 
     try {
-      body =
-        await request.json();
+      body = await request.json();
     } catch {
       return NextResponse.json(
         {
@@ -126,26 +519,68 @@ export async function PATCH(
       );
     }
 
+    // =================================================
+    // Safe Body
+    // =================================================
+
+    const data =
+      typeof body === "object" &&
+      body !== null
+        ? body as Record<
+            string,
+            unknown
+          >
+        : {};
+
+    // =================================================
+    // Action
+    // =================================================
+
     const action =
       String(
-        body?.action ?? "",
+        data.action ?? "",
       ) as VerificationAction;
 
+    // =================================================
+    // Reason
+    // =================================================
+
     const reason =
-      typeof body?.reason ===
+      typeof data.reason ===
       "string"
-        ? body.reason.trim()
+        ? data.reason.trim()
         : "";
 
     // =================================================
-    // Validate Action
+    // Message
     // =================================================
 
-    const allowedActions: VerificationAction[] =
-      [
+    const correctionMessage =
+      typeof data.message ===
+      "string"
+        ? data.message.trim()
+        : "";
+
+    // =================================================
+    // Correction Type
+    // =================================================
+
+    const correctionType =
+      typeof data.correctionType ===
+      "string"
+        ? data.correctionType.trim()
+        : "";
+
+    // =================================================
+    // Allowed Actions
+    // =================================================
+
+    const allowedActions:
+      VerificationAction[] = [
         "approve",
         "reject",
         "suspend",
+        "request_correction",
       ];
 
     if (
@@ -166,12 +601,14 @@ export async function PATCH(
     }
 
     // =================================================
-    // Validate Reason
+    // Validate Reject / Suspend Reason
     // =================================================
 
     if (
-      (action === "reject" ||
-        action === "suspend") &&
+      (
+        action === "reject" ||
+        action === "suspend"
+      ) &&
       !reason
     ) {
       return NextResponse.json(
@@ -184,6 +621,121 @@ export async function PATCH(
           status: 400,
         },
       );
+    }
+
+    // =================================================
+    // Validate Correction Request
+    // =================================================
+
+    if (
+      action ===
+      "request_correction"
+    ) {
+      if (!correctionType) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Correction type is required.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (!reason) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "A correction reason is required.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (!correctionMessage) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "A correction message is required.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // -----------------------------------------------
+      // Allowed Correction Types
+      // -----------------------------------------------
+
+      const allowedCorrectionTypes:
+        CorrectionType[] = [
+          "selfie_missing",
+          "selfie_unclear",
+          "location_incorrect",
+          "location_unavailable",
+          "identity_issue",
+          "phone_issue",
+          "other",
+        ];
+
+      if (
+        !allowedCorrectionTypes.includes(
+          correctionType as CorrectionType,
+        )
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Invalid correction type.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // -----------------------------------------------
+      // Length Protection
+      // -----------------------------------------------
+
+      if (
+        reason.length > 300
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Correction reason cannot exceed 300 characters.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      if (
+        correctionMessage.length >
+        1000
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Correction message cannot exceed 1000 characters.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
     }
 
     // =================================================
@@ -204,14 +756,10 @@ export async function PATCH(
     // =================================================
 
     const seller =
-      await usersCollection.findOne(
-        {
-          _id:
-            new ObjectId(
-              userId,
-            ),
-        },
-      );
+      await usersCollection.findOne({
+        _id:
+          new ObjectId(userId),
+      });
 
     if (!seller) {
       return NextResponse.json(
@@ -274,10 +822,7 @@ export async function PATCH(
     // =================================================
     // Verification Checks
     //
-    // IMPORTANT:
-    //
-    // These are the FOUR required checks
-    // for final Verified Seller status.
+    // FOUR required checks:
     //
     // 1. Phone
     // 2. Identity
@@ -314,13 +859,12 @@ export async function PATCH(
     // Completed Checks
     // =================================================
 
-    const completedChecks =
-      [
-        phoneVerified,
-        identityVerified,
-        selfieVerified,
-        locationVerified,
-      ].filter(Boolean).length;
+    const completedChecks = [
+      phoneVerified,
+      identityVerified,
+      selfieVerified,
+      locationVerified,
+    ].filter(Boolean).length;
 
     const totalChecks = 4;
 
@@ -332,8 +876,209 @@ export async function PATCH(
     // Current Time
     // =================================================
 
-    const now =
-      new Date();
+    const now = new Date();
+
+    // =================================================
+    // REQUEST CORRECTION
+    // =================================================
+
+    if (
+      action ===
+      "request_correction"
+    ) {
+      // -----------------------------------------------
+      // Reset the affected verification check
+      //
+      // This is important.
+      //
+      // Example:
+      // Admin says selfie is unclear.
+      //
+      // The old selfie must NOT remain verified.
+      // Otherwise seller could immediately become
+      // approved without submitting a new selfie.
+      // -----------------------------------------------
+
+      const correctionReset: Record<
+        string,
+        unknown
+      > = {};
+
+      if (
+        correctionType ===
+          "selfie_missing" ||
+        correctionType ===
+          "selfie_unclear"
+      ) {
+        correctionReset[
+          "sellerVerification.selfieVerified"
+        ] = false;
+      }
+
+      if (
+        correctionType ===
+          "location_incorrect" ||
+        correctionType ===
+          "location_unavailable"
+      ) {
+        correctionReset[
+          "sellerVerification.locationVerified"
+        ] = false;
+      }
+
+      if (
+        correctionType ===
+        "identity_issue"
+      ) {
+        correctionReset[
+          "sellerVerification.identityVerified"
+        ] = false;
+      }
+
+      if (
+        correctionType ===
+        "phone_issue"
+      ) {
+        correctionReset[
+          "sellerVerification.phoneVerified"
+        ] = false;
+      }
+
+      // -----------------------------------------------
+      // Correction Update
+      // -----------------------------------------------
+
+      const result =
+        await usersCollection.updateOne(
+          {
+            _id:
+              new ObjectId(
+                userId,
+              ),
+          },
+          {
+            $set: {
+              // ---------------------------------------
+              // Status
+              // ---------------------------------------
+
+              "sellerVerification.status":
+                "action_required",
+
+              // ---------------------------------------
+              // Correction
+              // ---------------------------------------
+
+              "sellerVerification.correctionRequired":
+                true,
+
+              "sellerVerification.correctionType":
+                correctionType,
+
+              "sellerVerification.correctionReason":
+                reason,
+
+              "sellerVerification.correctionMessage":
+                correctionMessage,
+
+              "sellerVerification.correctionRequestedAt":
+                now,
+
+              "sellerVerification.correctionRequestedBy":
+                String(
+                  session.user.id,
+                ),
+
+              // ---------------------------------------
+              // Remove final approval
+              // ---------------------------------------
+
+              "sellerVerification.verifiedAt":
+                null,
+
+              "sellerVerification.rejectionReason":
+                null,
+
+              "sellerVerification.suspendedAt":
+                null,
+
+              "sellerVerification.suspensionReason":
+                null,
+
+              updatedAt:
+                now,
+
+              // ---------------------------------------
+              // Affected verification reset
+              // ---------------------------------------
+
+              ...correctionReset,
+            },
+          },
+        );
+
+      // -----------------------------------------------
+      // Database Safety Check
+      // -----------------------------------------------
+
+      if (
+        result.matchedCount ===
+        0
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+            message:
+              "Seller verification was not updated.",
+          },
+          {
+            status: 400,
+          },
+        );
+      }
+
+      // -----------------------------------------------
+      // Success
+      // -----------------------------------------------
+
+      return NextResponse.json(
+        {
+          success: true,
+
+          action:
+            "request_correction",
+
+          status:
+            "action_required",
+
+          correction: {
+            required: true,
+
+            type:
+              correctionType,
+
+            reason,
+
+            message:
+              correctionMessage,
+
+            requestedAt:
+              now,
+
+            requestedBy:
+              String(
+                session.user.id,
+              ),
+          },
+
+          message:
+            "Correction request has been sent to the seller successfully.",
+        },
+        {
+          status: 200,
+        },
+      );
+    }
 
     // =================================================
     // APPROVE
@@ -342,15 +1087,14 @@ export async function PATCH(
     // =================================================
 
     if (
-      action === "approve"
+      action ===
+      "approve"
     ) {
-      // ===============================================
+      // -----------------------------------------------
       // Phone
-      // ===============================================
+      // -----------------------------------------------
 
-      if (
-        !phoneVerified
-      ) {
+      if (!phoneVerified) {
         return NextResponse.json(
           {
             success: false,
@@ -373,13 +1117,11 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
+      // -----------------------------------------------
       // Identity
-      // ===============================================
+      // -----------------------------------------------
 
-      if (
-        !identityVerified
-      ) {
+      if (!identityVerified) {
         return NextResponse.json(
           {
             success: false,
@@ -402,13 +1144,11 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
+      // -----------------------------------------------
       // Live Selfie
-      // ===============================================
+      // -----------------------------------------------
 
-      if (
-        !selfieVerified
-      ) {
+      if (!selfieVerified) {
         return NextResponse.json(
           {
             success: false,
@@ -431,13 +1171,11 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
+      // -----------------------------------------------
       // Location
-      // ===============================================
+      // -----------------------------------------------
 
-      if (
-        !locationVerified
-      ) {
+      if (!locationVerified) {
         return NextResponse.json(
           {
             success: false,
@@ -460,13 +1198,11 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
+      // -----------------------------------------------
       // Final Safety Check
-      // ===============================================
+      // -----------------------------------------------
 
-      if (
-        !fullyVerified
-      ) {
+      if (!fullyVerified) {
         return NextResponse.json(
           {
             success: false,
@@ -489,9 +1225,9 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
-      // FINAL VERIFIED SELLER
-      // ===============================================
+      // -----------------------------------------------
+      // Final Database Safety Check
+      // -----------------------------------------------
 
       const result =
         await usersCollection.updateOne(
@@ -500,10 +1236,6 @@ export async function PATCH(
               new ObjectId(
                 userId,
               ),
-
-            // =========================================
-            // Re-check database values inside update
-            // =========================================
 
             "sellerVerification.phoneVerified":
               true,
@@ -519,11 +1251,19 @@ export async function PATCH(
           },
           {
             $set: {
+              // ---------------------------------------
+              // Verified Seller
+              // ---------------------------------------
+
               "sellerVerification.status":
                 "verified",
 
               "sellerVerification.verifiedAt":
                 now,
+
+              // ---------------------------------------
+              // Clear old rejection/suspension
+              // ---------------------------------------
 
               "sellerVerification.rejectionReason":
                 null,
@@ -534,15 +1274,40 @@ export async function PATCH(
               "sellerVerification.suspensionReason":
                 null,
 
+              // ---------------------------------------
+              // Correction Resolved
+              // ---------------------------------------
+
+              "sellerVerification.correctionRequired":
+                false,
+
+              "sellerVerification.correctionResolvedAt":
+                now,
+
+              "sellerVerification.correctionType":
+                null,
+
+              "sellerVerification.correctionReason":
+                null,
+
+              "sellerVerification.correctionMessage":
+                null,
+
+              "sellerVerification.correctionRequestedAt":
+                null,
+
+              "sellerVerification.correctionRequestedBy":
+                null,
+
               updatedAt:
                 now,
             },
           },
         );
 
-      // ===============================================
+      // -----------------------------------------------
       // Database Safety Check
-      // ===============================================
+      // -----------------------------------------------
 
       if (
         result.matchedCount ===
@@ -561,43 +1326,50 @@ export async function PATCH(
         );
       }
 
-      // ===============================================
+      // -----------------------------------------------
       // Success
-      // ===============================================
+      // -----------------------------------------------
 
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json(
+        {
+          success: true,
 
-        action: "approve",
+          action:
+            "approve",
 
-        status: "verified",
+          status:
+            "verified",
 
-        verification: {
-          phoneVerified:
-            true,
+          verification: {
+            phoneVerified:
+              true,
 
-          identityVerified:
-            true,
+            identityVerified:
+              true,
 
-          selfieVerified:
-            true,
+            selfieVerified:
+              true,
 
-          locationVerified:
-            true,
+            locationVerified:
+              true,
 
-          completedChecks:
-            4,
+            completedChecks:
+              4,
 
-          totalChecks:
-            4,
+            totalChecks:
+              4,
 
-          progress:
-            100,
+            progress:
+              100,
+          },
+
+          message:
+            "Seller has been fully verified successfully.",
         },
-
-        message:
-          "Seller has been fully verified successfully.",
-      });
+        {
+          status: 200,
+        },
+      );
     }
 
     // =================================================
@@ -605,7 +1377,8 @@ export async function PATCH(
     // =================================================
 
     if (
-      action === "reject"
+      action ===
+      "reject"
     ) {
       const result =
         await usersCollection.updateOne(
@@ -632,6 +1405,31 @@ export async function PATCH(
               "sellerVerification.suspensionReason":
                 null,
 
+              // ---------------------------------------
+              // Clear correction request
+              // ---------------------------------------
+
+              "sellerVerification.correctionRequired":
+                false,
+
+              "sellerVerification.correctionResolvedAt":
+                null,
+
+              "sellerVerification.correctionType":
+                null,
+
+              "sellerVerification.correctionReason":
+                null,
+
+              "sellerVerification.correctionMessage":
+                null,
+
+              "sellerVerification.correctionRequestedAt":
+                null,
+
+              "sellerVerification.correctionRequestedBy":
+                null,
+
               updatedAt:
                 now,
             },
@@ -645,7 +1443,6 @@ export async function PATCH(
         return NextResponse.json(
           {
             success: false,
-
             message:
               "Seller verification was not updated.",
           },
@@ -655,16 +1452,23 @@ export async function PATCH(
         );
       }
 
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json(
+        {
+          success: true,
 
-        action: "reject",
+          action:
+            "reject",
 
-        status: "rejected",
+          status:
+            "rejected",
 
-        message:
-          "Seller verification rejected successfully.",
-      });
+          message:
+            "Seller verification rejected successfully.",
+        },
+        {
+          status: 200,
+        },
+      );
     }
 
     // =================================================
@@ -672,7 +1476,8 @@ export async function PATCH(
     // =================================================
 
     if (
-      action === "suspend"
+      action ===
+      "suspend"
     ) {
       const result =
         await usersCollection.updateOne(
@@ -696,6 +1501,31 @@ export async function PATCH(
               "sellerVerification.verifiedAt":
                 null,
 
+              // ---------------------------------------
+              // Clear correction request
+              // ---------------------------------------
+
+              "sellerVerification.correctionRequired":
+                false,
+
+              "sellerVerification.correctionResolvedAt":
+                null,
+
+              "sellerVerification.correctionType":
+                null,
+
+              "sellerVerification.correctionReason":
+                null,
+
+              "sellerVerification.correctionMessage":
+                null,
+
+              "sellerVerification.correctionRequestedAt":
+                null,
+
+              "sellerVerification.correctionRequestedBy":
+                null,
+
               updatedAt:
                 now,
             },
@@ -709,7 +1539,6 @@ export async function PATCH(
         return NextResponse.json(
           {
             success: false,
-
             message:
               "Seller verification was not updated.",
           },
@@ -719,16 +1548,23 @@ export async function PATCH(
         );
       }
 
-      return NextResponse.json({
-        success: true,
+      return NextResponse.json(
+        {
+          success: true,
 
-        action: "suspend",
+          action:
+            "suspend",
 
-        status: "suspended",
+          status:
+            "suspended",
 
-        message:
-          "Seller has been suspended successfully.",
-      });
+          message:
+            "Seller has been suspended successfully.",
+        },
+        {
+          status: 200,
+        },
+      );
     }
 
     // =================================================
@@ -738,7 +1574,6 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-
         message:
           "Invalid action.",
       },
@@ -755,7 +1590,6 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-
         message:
           "Unable to update seller verification.",
       },

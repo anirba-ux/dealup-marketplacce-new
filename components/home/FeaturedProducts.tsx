@@ -5,9 +5,7 @@ interface FeaturedProductsProps {
   products: any[];
 }
 
-export default function FeaturedProducts({
-  products,
-}: FeaturedProductsProps) {
+export default function FeaturedProducts({ products }: FeaturedProductsProps) {
   return (
     <section className="bg-slate-50 py-20">
       <Container>
@@ -39,6 +37,8 @@ export default function FeaturedProducts({
               image={product.thumbnail}
               seller={product.sellerName}
               sellerIsPhoneVerified={product.sellerIsPhoneVerified}
+              sellerVerificationStatus={product.sellerVerificationStatus}
+              sellerBadge={product.sellerBadge}
               condition={product.condition}
               createdAt={product.createdAt}
               isFeatured={product.isFeatured}

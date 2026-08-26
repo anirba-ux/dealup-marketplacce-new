@@ -4,7 +4,10 @@ import clientPromise from "@/lib/db/mongodb";
 
 import {
   calculateSellerTrustScore,
+  getSellerBadge,
 } from "@/lib/risk/sellerTrust";
+
+import { findCrossSellerDuplicateImages } from "@/lib/risk/crossSellerImageDetection";
 
 // =====================================================
 // Database
@@ -17,220 +20,653 @@ const USERS_COLLECTION = "users";
 const PRODUCTS_COLLECTION = "products";
 
 // =====================================================
+// Helpers
+// =====================================================
+
+function safeNumber(value: unknown): number {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number : 0;
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+// =====================================================
+// Product Identity
+// =====================================================
+
+function getProductIdentityKey(product: any): string {
+  const title = normalizeText(product.title);
+
+  const brand = normalizeText(product.brand);
+
+  const model = normalizeText(product.model);
+
+  const category = normalizeText(product.category);
+
+  const subcategory = normalizeText(product.subcategory);
+
+  return [title, brand, model, category, subcategory].join("|");
+}
+
+// =====================================================
+// Image Keys
+//
+// Priority:
+//
+// 1. imageHash
+// 2. publicId
+// 3. url
+// 4. thumbnail
+//
+// Existing products may not have imageHash,
+// therefore legacy fallbacks remain.
+// =====================================================
+
+function getImageKeys(product: any): string[] {
+  const keys: string[] = [];
+
+  // ===================================================
+  // Thumbnail
+  // ===================================================
+
+  if (typeof product.thumbnail === "string" && product.thumbnail.trim()) {
+    keys.push(`thumbnail:${normalizeText(product.thumbnail)}`);
+  }
+
+  // ===================================================
+  // Product Images
+  // ===================================================
+
+  if (Array.isArray(product.images)) {
+    for (const image of product.images) {
+      // ===============================================
+      // Legacy string image
+      // ===============================================
+
+      if (typeof image === "string") {
+        const value = image.trim();
+
+        if (value) {
+          keys.push(`legacy:${normalizeText(value)}`);
+        }
+
+        continue;
+      }
+
+      // ===============================================
+      // Invalid image
+      // ===============================================
+
+      if (!image || typeof image !== "object") {
+        continue;
+      }
+
+      // ===============================================
+      // SHA-256 Image Hash
+      // ===============================================
+
+      if (typeof image.imageHash === "string" && image.imageHash.trim()) {
+        keys.push(`hash:${normalizeText(image.imageHash)}`);
+      }
+
+      // ===============================================
+      // Cloudinary Public ID
+      // ===============================================
+
+      if (typeof image.publicId === "string" && image.publicId.trim()) {
+        keys.push(`publicId:${normalizeText(image.publicId)}`);
+      }
+
+      // ===============================================
+      // Image URL
+      // ===============================================
+
+      if (typeof image.url === "string" && image.url.trim()) {
+        keys.push(`url:${normalizeText(image.url)}`);
+      }
+    }
+  }
+
+  // ===================================================
+  // Remove duplicate keys
+  // ===================================================
+
+  return [...new Set(keys)];
+}
+
+// =====================================================
+// Behaviour Signals
+// =====================================================
+
+function calculateBehaviourSignals(products: any[]) {
+  // ===================================================
+  // Duplicate Images
+  // ===================================================
+
+  const imageUsage = new Map<string, number>();
+
+  for (const product of products) {
+    const imageKeys = getImageKeys(product);
+
+    for (const imageKey of imageKeys) {
+      imageUsage.set(imageKey, (imageUsage.get(imageKey) ?? 0) + 1);
+    }
+  }
+
+  let duplicateImagePosts = 0;
+
+  for (const count of imageUsage.values()) {
+    if (count > 1) {
+      duplicateImagePosts += count - 1;
+    }
+  }
+
+  // ===================================================
+  // Repeated Listings
+  // ===================================================
+
+  const listingUsage = new Map<string, number>();
+
+  for (const product of products) {
+    const key = getProductIdentityKey(product);
+
+    if (key.replace(/\|/g, "").length === 0) {
+      continue;
+    }
+
+    listingUsage.set(key, (listingUsage.get(key) ?? 0) + 1);
+  }
+
+  let repeatedListings = 0;
+
+  for (const count of listingUsage.values()) {
+    if (count > 1) {
+      repeatedListings += count - 1;
+    }
+  }
+
+  // ===================================================
+  // Price Changes
+  // ===================================================
+
+  let priceChanges = 0;
+
+  // ===================================================
+  // Abnormal Price Events
+  // ===================================================
+
+  let abnormalPriceEvents = 0;
+
+  for (const product of products) {
+    const history = Array.isArray(product.priceHistory)
+      ? product.priceHistory
+      : [];
+
+    priceChanges += history.length;
+
+    for (const change of history) {
+      const previousPrice = safeNumber(change?.previousPrice);
+
+      const newPrice = safeNumber(change?.price ?? change?.newPrice);
+
+      if (previousPrice <= 0 || newPrice <= 0) {
+        continue;
+      }
+
+      const percentageChange = Math.abs(
+        ((newPrice - previousPrice) / previousPrice) * 100,
+      );
+
+      // 50%+ single price change
+      if (percentageChange >= 50) {
+        abnormalPriceEvents++;
+      }
+    }
+  }
+
+  // ===================================================
+  // Location Changes
+  // ===================================================
+
+  let locationChanges = 0;
+
+  for (const product of products) {
+    const history = Array.isArray(product.locationHistory)
+      ? product.locationHistory
+      : [];
+
+    locationChanges += history.length;
+  }
+
+  // ===================================================
+  // Suspicious Activity
+  // ===================================================
+
+  let suspiciousActivity = 0;
+
+  if (duplicateImagePosts >= 3) {
+    suspiciousActivity++;
+  }
+
+  if (repeatedListings >= 3) {
+    suspiciousActivity++;
+  }
+
+  if (priceChanges >= 8) {
+    suspiciousActivity++;
+  }
+
+  if (locationChanges >= 4) {
+    suspiciousActivity++;
+  }
+
+  if (abnormalPriceEvents >= 2) {
+    suspiciousActivity++;
+  }
+
+  // ===================================================
+  // Return Behaviour Signals
+  //
+  // Cross-seller duplicate images are intentionally
+  // NOT calculated here because that check requires
+  // access to products belonging to other sellers.
+  // It is calculated asynchronously inside
+  // refreshSellerTrustScore().
+  // ===================================================
+
+  return {
+    duplicateImagePosts,
+
+    repeatedListings,
+
+    priceChanges,
+
+    abnormalPriceEvents,
+
+    locationChanges,
+
+    suspiciousActivity,
+  };
+}
+
+// =====================================================
 // Refresh Seller Trust Score
 // =====================================================
 
-export async function refreshSellerTrustScore(
-  sellerId: string,
-) {
+export async function refreshSellerTrustScore(sellerId: string) {
   // ===================================================
   // Validate Seller ID
   // ===================================================
 
   if (!sellerId) {
-    throw new Error(
-      "Seller ID is required.",
-    );
+    throw new Error("Seller ID is required.");
   }
 
   if (!ObjectId.isValid(sellerId)) {
-    throw new Error(
-      "Invalid seller ID.",
-    );
+    throw new Error("Invalid seller ID.");
   }
 
   // ===================================================
-  // MongoDB
+  // Database
   // ===================================================
 
-  const client =
-    await clientPromise;
+  const client = await clientPromise;
 
-  const db =
-    client.db(
-      DATABASE_NAME,
-    );
+  const db = client.db(DATABASE_NAME);
 
-  const users =
-    db.collection(
-      USERS_COLLECTION,
-    );
+  const users = db.collection(USERS_COLLECTION);
 
-  const products =
-    db.collection(
-      PRODUCTS_COLLECTION,
-    );
+  const products = db.collection(PRODUCTS_COLLECTION);
 
   // ===================================================
-  // Find Seller
+  // Seller
   // ===================================================
 
-  const seller =
-    await users.findOne({
-      _id: new ObjectId(
-        sellerId,
-      ),
-    });
+  const seller = await users.findOne({
+    _id: new ObjectId(sellerId),
+  });
 
   if (!seller) {
-    throw new Error(
-      "Seller not found.",
-    );
+    throw new Error("Seller not found.");
   }
 
   // ===================================================
-  // Find Seller Products
+  // Seller Products
   // ===================================================
 
-  const sellerProducts =
-    await products
-      .find({
-        sellerId,
-      })
-      .toArray();
+  const sellerProducts = await products
+    .find({
+      sellerId,
+    })
+    .toArray();
+
+  // ===================================================
+  // Cross-Seller Duplicate Image Detection
+  //
+  // This is separate from calculateBehaviourSignals()
+  // because it needs to search OTHER sellers' products.
+  // ===================================================
+
+  const crossSellerImageResult = await findCrossSellerDuplicateImages(
+    sellerId,
+    sellerProducts,
+  );
+
+  const crossSellerDuplicateImages = crossSellerImageResult.count;
+
+  const crossSellerDuplicateMatches = crossSellerImageResult.matches;
 
   // ===================================================
   // Product Count
   // ===================================================
 
-  const totalProducts =
-    sellerProducts.length;
+  const totalProducts = sellerProducts.length;
 
-  const activeProducts =
-    sellerProducts.filter(
-      (product) =>
-        product.status ===
-        "active",
-    ).length;
+  const activeProducts = sellerProducts.filter(
+    (product) => product.status === "active",
+  ).length;
+
+  // ===================================================
+  // Completed Sales
+  // ===================================================
+
+  const completedSales = sellerProducts.filter(
+    (product) =>
+      product.status === "sold" ||
+      product.saleStatus === "completed" ||
+      product.orderStatus === "completed",
+  ).length;
+
+  // ===================================================
+  // Successful Listings
+  // ===================================================
+
+  const successfulListings = sellerProducts.filter(
+    (product) => product.status === "active" || product.status === "sold",
+  ).length;
 
   // ===================================================
   // Product Risk Scores
   // ===================================================
 
-  const productRiskScores =
-    sellerProducts
-      .map(
-        (product) =>
-          Number(
-            product.risk?.score ??
-              0,
-          ),
-      )
-      .filter(
-        (score) =>
-          Number.isFinite(
-            score,
-          ),
-      );
+  const productRiskScores = sellerProducts
+    .map((product) => safeNumber(product.risk?.score))
+    .filter((score) => Number.isFinite(score));
 
   // ===================================================
-  // Phone Verification
+  // Seller Verification
+  // ===================================================
+
+  const sellerVerification = seller.sellerVerification ?? {};
+
+  // ===================================================
+  // Phone
   // ===================================================
 
   const phoneVerified =
-    seller.isPhoneVerified ===
-      true ||
-    seller.sellerVerification
-      ?.phoneVerified === true;
+    seller.isPhoneVerified === true ||
+    sellerVerification.phoneVerified === true;
 
   // ===================================================
-  // Identity Verification
+  // Selfie
   // ===================================================
 
-  const identityVerified =
-    seller.sellerVerification
-      ?.identityVerified === true;
-
-      // ===================================================
-// Seller Verification Status
-//
-// Admin approval status is stored here.
-// Badge eligibility depends on this status.
-// ===================================================
-
-const verificationStatus =
-  seller.sellerVerification
-    ?.status ?? "unverified";
+  const selfieVerified = sellerVerification.selfieVerified === true;
 
   // ===================================================
-  // Location Verification
-  //
-  // For now we check whether
-  // seller has location verification
-  // data stored.
-  //
-  // Later we will make this stricter.
+  // Identity
+  // ===================================================
+
+  const identityVerified = sellerVerification.identityVerified === true;
+
+  // ===================================================
+  // Location
   // ===================================================
 
   const locationVerified =
-    seller.locationVerification
-      ?.status === "verified" ||
-    seller.sellerVerification
-      ?.locationVerified === true;
+    sellerVerification.locationVerified === true ||
+    seller.locationVerification?.status === "verified";
 
   // ===================================================
-  // Calculate Trust Score
+  // Admin Verification Status
   // ===================================================
 
-  const trust =
-    calculateSellerTrustScore({
-      phoneVerified,
-
-      identityVerified,
-
-      locationVerified,
-
-      productRiskScores,
-
-      activeProducts,
-
-      totalProducts,
-    });
+  const verificationStatus = sellerVerification.status ?? "unverified";
 
   // ===================================================
-  // Save Trust Score
+  // Account Age
   // ===================================================
 
-  await users.updateOne(
-    {
-      _id: new ObjectId(
-        sellerId,
-      ),
-    },
-    {
-      $set: {
-        trustScore:
-          trust.score,
+  const createdAt = seller.createdAt ? new Date(seller.createdAt) : new Date();
 
-        trustLevel:
-          trust.level,
-
-        trustScoreUpdatedAt:
-          trust.calculatedAt,
-      },
-    },
+  const accountAgeDays = Math.max(
+    0,
+    Math.floor((Date.now() - createdAt.getTime()) / (1000 * 60 * 60 * 24)),
   );
 
   // ===================================================
-  // Return Result
+  // Behaviour Engine
   // ===================================================
 
-  return {
-    sellerId,
+  const behaviourBase = calculateBehaviourSignals(sellerProducts);
 
-    trustScore:
-      trust.score,
+  // ===================================================
+  // Merge Cross-Seller Signal
+  //
+  // IMPORTANT:
+  //
+  // We do NOT add this signal to
+  // suspiciousActivity yet.
+  //
+  // Same stock/product images can legitimately
+  // be used by multiple sellers.
+  // ===================================================
 
-    trustLevel:
-      trust.level,
+  const behaviour = {
+    ...behaviourBase,
+
+    crossSellerDuplicateImages,
+  };
+
+  // ===================================================
+  // Moderation / Bad History
+  // ===================================================
+
+  const confirmedBadHistory = safeNumber(
+    seller.trustHistory?.confirmedBadHistory ?? seller.confirmedBadHistory,
+  );
+
+  const confirmedFraudReports = safeNumber(
+    seller.trustHistory?.confirmedFraudReports ?? seller.confirmedFraudReports,
+  );
+
+  const confirmedSpamReports = safeNumber(
+    seller.trustHistory?.confirmedSpamReports ?? seller.confirmedSpamReports,
+  );
+
+  const rejectedListings = safeNumber(
+    seller.trustHistory?.rejectedListings ?? seller.rejectedListings,
+  );
+
+  const removedListings = safeNumber(
+    seller.trustHistory?.removedListings ?? seller.removedListings,
+  );
+
+  // ===================================================
+  // TRUST ENGINE
+  // ===================================================
+
+  const trust = calculateSellerTrustScore({
+    phoneVerified,
+
+    identityVerified,
+
+    locationVerified,
+
+    productRiskScores,
+
+    activeProducts,
+
+    totalProducts,
+
+    completedSales,
+
+    signals: {
+      duplicateImagePosts: behaviour.duplicateImagePosts,
+
+      repeatedListings: behaviour.repeatedListings,
+
+      priceChanges: behaviour.priceChanges,
+
+      abnormalPriceEvents: behaviour.abnormalPriceEvents,
+
+      locationChanges: behaviour.locationChanges,
+
+      suspiciousActivity: behaviour.suspiciousActivity,
+    },
+  });
+
+  // ===================================================
+  // ADMIN APPROVAL
+  // ===================================================
+
+  const adminApproved = verificationStatus === "verified";
+
+  // ===================================================
+  // SELLER BADGE
+  // ===================================================
+
+  const sellerBadge = getSellerBadge({
+    verificationStatus,
 
     phoneVerified,
 
     identityVerified,
 
+    locationVerified,
+
+    trustScore: trust.score,
+
+    trustLevel: trust.level,
+
+    trustedSeller: trust.trustedSeller,
+
+    hasSeriousBadHistory: trust.seriousRisk,
+  });
+
+  // ===================================================
+  // Verified Seller
+  // ===================================================
+
+  const verifiedSeller = adminApproved && sellerBadge.badge === "verified";
+
+  // ===================================================
+  // Trusted Seller
+  // ===================================================
+
+  const trustedSeller = adminApproved && sellerBadge.badge === "trusted";
+
+  // ===================================================
+  // Save Trust Engine Result
+  // ===================================================
+
+  await users.updateOne(
+    {
+      _id: new ObjectId(sellerId),
+    },
+    {
+      $set: {
+        trustScore: trust.score,
+
+        trustLevel: trust.level,
+
+        trustRiskScore: trust.riskScore,
+
+        trustSeriousRisk: trust.seriousRisk,
+
+        trustedSeller,
+
+        verifiedSeller,
+
+        completedSales,
+
+        trustSignals: {
+          duplicateImagePosts: behaviour.duplicateImagePosts,
+
+          crossSellerDuplicateImages: behaviour.crossSellerDuplicateImages,
+
+          crossSellerDuplicateMatches: crossSellerDuplicateMatches,
+
+          repeatedListings: behaviour.repeatedListings,
+
+          priceChanges: behaviour.priceChanges,
+
+          abnormalPriceEvents: behaviour.abnormalPriceEvents,
+
+          locationChanges: behaviour.locationChanges,
+
+          suspiciousActivity: behaviour.suspiciousActivity,
+        },
+
+        trustPenalties: trust.penalties,
+
+        sellerBadge: sellerBadge.badge,
+
+        sellerBadgeLabel: sellerBadge.label,
+
+        trustScoreUpdatedAt: trust.calculatedAt,
+      },
+    },
+  );
+
+  // ===================================================
+  // Return
+  // ===================================================
+
+  return {
+    sellerId,
+
+    trustScore: trust.score,
+
+    trustLevel: trust.level,
+
+    riskScore: trust.riskScore,
+
+    seriousRisk: trust.seriousRisk,
+
+    trustedSeller,
+
+    verifiedSeller,
+
+    sellerBadge: sellerBadge.badge,
+
+    sellerBadgeLabel: sellerBadge.label,
+
+    badgeEligible: sellerBadge.eligible,
+
+    badgeReasons: sellerBadge.reasons,
+
     verificationStatus,
 
+    phoneVerified,
+
+    selfieVerified,
+
+    identityVerified,
+
     locationVerified,
+
+    accountAgeDays,
+
+    successfulListings,
+
+    completedSales,
 
     activeProducts,
 
@@ -238,7 +674,15 @@ const verificationStatus =
 
     productRiskScores,
 
-    calculatedAt:
-      trust.calculatedAt,
+    trustSignals: {
+  ...behaviour,
+
+  crossSellerDuplicateMatches:
+    crossSellerDuplicateMatches,
+},
+
+    penalties: trust.penalties,
+
+    calculatedAt: trust.calculatedAt,
   };
 }

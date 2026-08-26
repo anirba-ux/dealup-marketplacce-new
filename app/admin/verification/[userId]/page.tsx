@@ -1,8 +1,10 @@
 import Link from "next/link";
+
 import {
   ArrowLeft,
   CheckCircle2,
   Clock3,
+  Eye,
   FileText,
   MapPin,
   Phone,
@@ -16,6 +18,8 @@ import clientPromise from "@/lib/db/mongodb";
 
 import IdentityVerificationActions from "@/components/admin/IdentityVerificationActions";
 import SellerVerificationActions from "@/components/admin/SellerVerificationActions";
+
+import VerificationCorrectionForm from "@/components/admin/VerificationCorrectionForm";
 
 // =====================================================
 // Types
@@ -50,13 +54,39 @@ export default async function AdminSellerVerificationPage({
     return (
       <main className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950">
         <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-8 shadow-sm dark:border-red-900 dark:bg-slate-900">
-          <h1 className="text-xl font-bold text-red-600">
-            Unauthorized
-          </h1>
+          <h1 className="text-xl font-bold text-red-600">Unauthorized</h1>
 
           <p className="mt-2 text-sm text-slate-500">
             Please log in as an administrator.
           </p>
+        </div>
+      </main>
+    );
+  }
+
+  // ===================================================
+  // Admin Authorization
+  // ===================================================
+
+  if (session.user.role !== "admin") {
+    return (
+      <main className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-red-200 bg-white p-8 shadow-sm dark:border-red-900 dark:bg-slate-900">
+          <h1 className="text-xl font-bold text-red-600">
+            Admin Access Required
+          </h1>
+
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            You do not have permission to review seller verification.
+          </p>
+
+          <Link
+            href="/admin"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            <ArrowLeft size={17} />
+            Back to Admin
+          </Link>
         </div>
       </main>
     );
@@ -99,10 +129,7 @@ export default async function AdminSellerVerificationPage({
       _id: new ObjectId(userId),
     });
   } catch (error) {
-    console.error(
-      "ADMIN SELLER VERIFICATION USER LOOKUP ERROR:",
-      error,
-    );
+    console.error("ADMIN SELLER VERIFICATION USER LOOKUP ERROR:", error);
 
     return (
       <main className="min-h-screen bg-slate-50 p-6 dark:bg-slate-950">
@@ -111,9 +138,7 @@ export default async function AdminSellerVerificationPage({
             Unable to load seller
           </h1>
 
-          <p className="mt-2 text-sm text-slate-500">
-            Please try again.
-          </p>
+          <p className="mt-2 text-sm text-slate-500">Please try again.</p>
         </div>
       </main>
     );
@@ -151,74 +176,77 @@ export default async function AdminSellerVerificationPage({
   // Seller Verification
   // ===================================================
 
-  const sellerVerification =
-    user.sellerVerification ?? {};
+  const sellerVerification = user.sellerVerification ?? {};
 
-  const verificationStatus =
-    sellerVerification.status ??
-    "unverified";
+  const verificationStatus = sellerVerification.status ?? "unverified";
 
   // ===================================================
   // Verification Fields
   // ===================================================
 
   const phoneVerified =
-    sellerVerification.phoneVerified ===
-    true ||
-    user.isPhoneVerified === true;
+    sellerVerification.phoneVerified === true || user.isPhoneVerified === true;
 
-  const identityVerified =
-    sellerVerification.identityVerified ===
-    true;
+  const identityVerified = sellerVerification.identityVerified === true;
 
-  const selfieVerified =
-    sellerVerification.selfieVerified ===
-    true;
+  const selfieVerified = sellerVerification.selfieVerified === true;
 
-  const locationVerified =
-    sellerVerification.locationVerified ===
-    true;
+  const locationVerified = sellerVerification.locationVerified === true;
+
+  // ===================================================
+  // Live Selfie Details
+  // ===================================================
+
+  const selfieUrl = sellerVerification.selfieUrl ?? null;
+
+  const selfiePublicId = sellerVerification.selfiePublicId ?? null;
+
+  const selfieVerifiedAt = sellerVerification.selfieVerifiedAt ?? null;
+
+  // ===================================================
+  // Location Verification Details
+  // ===================================================
+
+  const locationLatitude = sellerVerification.locationLatitude ?? null;
+
+  const locationLongitude = sellerVerification.locationLongitude ?? null;
+
+  const locationAccuracy =
+    sellerVerification.locationVerificationAccuracy ?? null;
+
+  const locationMethod = sellerVerification.locationVerificationMethod ?? null;
+
+  const locationVerifiedAt = sellerVerification.locationVerifiedAt ?? null;
 
   // ===================================================
   // Identity Submission
   // ===================================================
 
-  const identitySubmissionId =
-    sellerVerification.identitySubmissionId ??
-    null;
+  const identitySubmissionId = sellerVerification.identitySubmissionId ?? null;
 
   // ===================================================
   // Identity Review Status
   // ===================================================
 
-  const identityReviewStatus =
-    sellerVerification.identityVerified
-      ? "approved"
-      : sellerVerification.identityRejectionReason
-        ? "rejected"
-        : identitySubmissionId
-          ? "pending"
-          : "not_submitted";
+  const identityReviewStatus = sellerVerification.identityVerified
+    ? "approved"
+    : sellerVerification.identityRejectionReason
+      ? "rejected"
+      : identitySubmissionId
+        ? "pending"
+        : "not_submitted";
 
   // ===================================================
   // Basic User Information
   // ===================================================
 
-  const name =
-    user.name ??
-    "Unknown User";
+  const name = user.name ?? "Unknown User";
 
-  const email =
-    user.email ??
-    "";
+  const email = user.email ?? "";
 
-  const phone =
-    user.phone ??
-    "";
+  const phone = user.phone ?? "";
 
-  const image =
-    user.image ??
-    "";
+  const image = user.image ?? "";
 
   // ===================================================
   // Verification Progress
@@ -233,8 +261,9 @@ export default async function AdminSellerVerificationPage({
 
   const totalChecks = 4;
 
-  const fullyVerified =
-    completedChecks === totalChecks;
+  const fullyVerified = completedChecks === totalChecks;
+
+  const progress = Math.round((completedChecks / totalChecks) * 100);
 
   // ===================================================
   // Page
@@ -242,15 +271,12 @@ export default async function AdminSellerVerificationPage({
 
   return (
     <main className="min-h-screen bg-slate-50 py-8 dark:bg-slate-950">
-
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
         {/* =================================================
             Header
         ================================================= */}
 
         <div className="mb-8">
-
           <Link
             href="/admin"
             className="
@@ -266,15 +292,12 @@ export default async function AdminSellerVerificationPage({
             "
           >
             <ArrowLeft size={17} />
-
             Back to Admin Dashboard
           </Link>
 
           <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
             <div>
               <div className="flex items-center gap-3">
-
                 <div className="rounded-xl bg-blue-100 p-3 text-[#1565d8] dark:bg-blue-950/40">
                   <ShieldCheck size={25} />
                 </div>
@@ -288,7 +311,6 @@ export default async function AdminSellerVerificationPage({
                     Review and manage this seller's verification.
                   </p>
                 </div>
-
               </div>
             </div>
 
@@ -306,37 +328,27 @@ export default async function AdminSellerVerificationPage({
                 text-sm
                 font-bold
                 ${
-                  verificationStatus ===
-                  "verified"
+                  verificationStatus === "verified"
                     ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                    : verificationStatus ===
-                        "rejected"
+                    : verificationStatus === "rejected"
                       ? "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400"
-                      : verificationStatus ===
-                          "suspended"
+                      : verificationStatus === "suspended"
                         ? "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
                         : "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400"
                 }
               `}
             >
-              {verificationStatus ===
-              "verified" ? (
+              {verificationStatus === "verified" ? (
                 <CheckCircle2 size={17} />
-              ) : verificationStatus ===
-                "rejected" ? (
+              ) : verificationStatus === "rejected" ? (
                 <XCircle size={17} />
               ) : (
                 <Clock3 size={17} />
               )}
 
-              {verificationStatus
-                .charAt(0)
-                .toUpperCase() +
-                verificationStatus.slice(
-                  1,
-                )}
+              {verificationStatus.charAt(0).toUpperCase() +
+                verificationStatus.slice(1)}
             </div>
-
           </div>
         </div>
 
@@ -345,16 +357,21 @@ export default async function AdminSellerVerificationPage({
         ================================================= */}
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-
             <div className="flex items-center gap-4">
-
               {image ? (
                 <img
                   src={image}
                   alt={name}
-                  className="h-20 w-20 rounded-2xl border border-slate-200 object-cover dark:border-slate-700"
+                  className="
+                    h-20
+                    w-20
+                    rounded-2xl
+                    border
+                    border-slate-200
+                    object-cover
+                    dark:border-slate-700
+                  "
                 />
               ) : (
                 <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
@@ -363,7 +380,6 @@ export default async function AdminSellerVerificationPage({
               )}
 
               <div>
-
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                   {name}
                 </h2>
@@ -377,13 +393,10 @@ export default async function AdminSellerVerificationPage({
                     {phone}
                   </p>
                 )}
-
               </div>
-
             </div>
 
             <div className="rounded-2xl bg-slate-50 px-5 py-4 dark:bg-slate-800">
-
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                 Verification Progress
               </p>
@@ -393,15 +406,10 @@ export default async function AdminSellerVerificationPage({
               </p>
 
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {fullyVerified
-                  ? "All checks completed"
-                  : "Checks completed"}
+                {progress}% complete
               </p>
-
             </div>
-
           </div>
-
         </section>
 
         {/* =================================================
@@ -409,9 +417,7 @@ export default async function AdminSellerVerificationPage({
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <div className="flex items-center justify-between">
-
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 Verification Checklist
@@ -438,11 +444,9 @@ export default async function AdminSellerVerificationPage({
             >
               {completedChecks}/4
             </span>
-
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-
             <VerificationCheck
               icon={<Phone size={18} />}
               label="Phone"
@@ -466,9 +470,7 @@ export default async function AdminSellerVerificationPage({
               label="Location"
               verified={locationVerified}
             />
-
           </div>
-
         </section>
 
         {/* =================================================
@@ -476,9 +478,7 @@ export default async function AdminSellerVerificationPage({
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <div className="flex items-center gap-3">
-
             <div className="rounded-xl bg-indigo-100 p-3 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
               <FileText size={22} />
             </div>
@@ -492,76 +492,47 @@ export default async function AdminSellerVerificationPage({
                 Aadhaar identity verification and admin review.
               </p>
             </div>
-
           </div>
 
           {/* Identity Status */}
 
           <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
-
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-
               <InfoItem
                 label="Document Type"
                 value={
-                  sellerVerification
-                    .identityDocumentType ??
-                  "Not submitted"
+                  sellerVerification.identityDocumentType ?? "Not submitted"
                 }
               />
 
               <InfoItem
                 label="Submission ID"
-                value={
-                  identitySubmissionId ??
-                  "Not submitted"
-                }
+                value={identitySubmissionId ?? "Not submitted"}
               />
 
-              <InfoItem
-                label="Review Status"
-                value={
-                  identityReviewStatus
-                }
-              />
+              <InfoItem label="Review Status" value={identityReviewStatus} />
 
               <InfoItem
                 label="Identity Verified"
-                value={
-                  identityVerified
-                    ? "Yes"
-                    : "No"
-                }
+                value={identityVerified ? "Yes" : "No"}
               />
-
             </div>
-
           </div>
 
           {/* Identity Admin Actions */}
 
           {identitySubmissionId && (
             <div className="mt-6">
-
               <IdentityVerificationActions
-                submissionId={
-                  identitySubmissionId
-                }
-                status={
-                  identityReviewStatus
-                }
+                submissionId={identitySubmissionId}
+                status={identityReviewStatus}
               />
-
             </div>
           )}
 
           {!identitySubmissionId && (
             <div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-slate-700">
-
-              <FileText
-                size={30}
-                className="mx-auto text-slate-400"
-              />
+              <FileText size={30} className="mx-auto text-slate-400" />
 
               <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 No identity document submitted.
@@ -570,28 +541,363 @@ export default async function AdminSellerVerificationPage({
               <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 The seller has not submitted an Aadhaar document yet.
               </p>
+            </div>
+          )}
+        </section>
 
+        {/* =================================================
+            Live Selfie Verification
+        ================================================= */}
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          {/* Header */}
+
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-purple-100 p-3 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400">
+              <User size={22} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Live Selfie Verification
+              </h2>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Review the live selfie submitted by the seller.
+              </p>
+            </div>
+          </div>
+
+          {/* Selfie Status */}
+
+          <div
+            className={`
+              mt-5
+              rounded-2xl
+              border
+              p-5
+              ${
+                selfieVerified
+                  ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20"
+                  : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
+              }
+            `}
+          >
+            <div className="flex items-center gap-3">
+              {selfieVerified ? (
+                <CheckCircle2
+                  size={22}
+                  className="text-green-600 dark:text-green-400"
+                />
+              ) : (
+                <Clock3 size={22} className="text-slate-400" />
+              )}
+
+              <div>
+                <p
+                  className={`
+                    text-sm
+                    font-bold
+                    ${
+                      selfieVerified
+                        ? "text-green-700 dark:text-green-400"
+                        : "text-slate-700 dark:text-slate-200"
+                    }
+                  `}
+                >
+                  {selfieVerified
+                    ? "Live Selfie Verified"
+                    : "Live Selfie Not Verified"}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {selfieVerified
+                    ? "The seller has successfully completed live selfie verification."
+                    : "The seller has not completed live selfie verification yet."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Selfie Image */}
+
+          {selfieVerified && selfieUrl && (
+            <div className="mt-6">
+              <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800">
+                <div className="flex min-h-[420px] items-center justify-center p-5">
+                  <img
+                    src={selfieUrl}
+                    alt={`${name} live selfie`}
+                    className="
+                        max-h-[520px]
+                        w-auto
+                        max-w-full
+                        rounded-2xl
+                        object-contain
+                        shadow-xl
+                      "
+                  />
+                </div>
+              </div>
+
+              {/* Selfie Details */}
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+                <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <InfoItem label="Verification Status" value="Verified" />
+
+                  <InfoItem
+                    label="Verified At"
+                    value={
+                      selfieVerifiedAt
+                        ? new Date(selfieVerifiedAt).toLocaleString("en-IN", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })
+                        : "Not available"
+                    }
+                  />
+
+                  <InfoItem
+                    label="Selfie Image ID"
+                    value={selfiePublicId ?? "Not available"}
+                  />
+                </div>
+              </div>
+
+              {/* View Full Selfie */}
+
+              <div className="mt-5">
+                <a
+                  href={selfieUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                      inline-flex
+                      items-center
+                      gap-2
+                      rounded-xl
+                      bg-[#1565d8]
+                      px-5
+                      py-3
+                      text-sm
+                      font-semibold
+                      text-white
+                      shadow-sm
+                      transition
+                      hover:bg-blue-700
+                    "
+                >
+                  <Eye size={17} />
+                  View Full Selfie
+                </a>
+              </div>
             </div>
           )}
 
+          {/* Verified But Image Missing */}
+
+          {selfieVerified && !selfieUrl && (
+            <div className="mt-5 rounded-2xl border border-dashed border-red-300 bg-red-50 p-6 text-center dark:border-red-900 dark:bg-red-950/20">
+              <XCircle size={30} className="mx-auto text-red-500" />
+
+              <p className="mt-3 text-sm font-semibold text-red-700 dark:text-red-400">
+                Selfie verification is marked as verified, but the selfie image
+                is unavailable.
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Please check the seller verification record.
+              </p>
+            </div>
+          )}
+
+          {/* Not Verified */}
+
+          {!selfieVerified && (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-slate-700">
+              <User size={30} className="mx-auto text-slate-400" />
+
+              <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                No verified live selfie available.
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                The seller must complete live selfie verification before admin
+                approval.
+              </p>
+            </div>
+          )}
         </section>
+
+        {/* =================================================
+            Location Verification
+        ================================================= */}
+
+        <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+          {/* Header */}
+
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-blue-100 p-3 text-[#1565d8] dark:bg-blue-950/40 dark:text-blue-400">
+              <MapPin size={22} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                Location Verification
+              </h2>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                Seller location captured during verification.
+              </p>
+            </div>
+          </div>
+
+          {/* Location Status */}
+
+          <div
+            className={`
+              mt-5
+              rounded-2xl
+              border
+              p-5
+              ${
+                locationVerified
+                  ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20"
+                  : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
+              }
+            `}
+          >
+            <div className="flex items-center gap-3">
+              {locationVerified ? (
+                <CheckCircle2
+                  size={22}
+                  className="text-green-600 dark:text-green-400"
+                />
+              ) : (
+                <Clock3 size={22} className="text-slate-400" />
+              )}
+
+              <div>
+                <p
+                  className={`
+                    text-sm
+                    font-bold
+                    ${
+                      locationVerified
+                        ? "text-green-700 dark:text-green-400"
+                        : "text-slate-700 dark:text-slate-200"
+                    }
+                  `}
+                >
+                  {locationVerified
+                    ? "Location Verified"
+                    : "Location Not Verified"}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  {locationVerified
+                    ? "Seller location was successfully captured using GPS."
+                    : "The seller has not completed location verification yet."}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Location Details */}
+
+          {locationVerified && (
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <InfoItem
+                  label="Latitude"
+                  value={
+                    locationLatitude !== null
+                      ? String(locationLatitude)
+                      : "Not available"
+                  }
+                />
+
+                <InfoItem
+                  label="Longitude"
+                  value={
+                    locationLongitude !== null
+                      ? String(locationLongitude)
+                      : "Not available"
+                  }
+                />
+
+                <InfoItem
+                  label="GPS Accuracy"
+                  value={
+                    locationAccuracy !== null
+                      ? `${locationAccuracy} meters`
+                      : "Not available"
+                  }
+                />
+
+                <InfoItem
+                  label="Verification Method"
+                  value={
+                    locationMethod ? String(locationMethod) : "Not available"
+                  }
+                />
+
+                <InfoItem
+                  label="Verified At"
+                  value={
+                    locationVerifiedAt
+                      ? new Date(locationVerifiedAt).toLocaleString("en-IN", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })
+                      : "Not available"
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {!locationVerified && (
+            <div className="mt-5 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-slate-700">
+              <MapPin size={30} className="mx-auto text-slate-400" />
+
+              <p className="mt-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                No verified location available.
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                The seller must complete location verification before admin
+                approval.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {/* =================================================
+    Request Verification Correction
+================================================= */}
+
+        <VerificationCorrectionForm
+          userId={userId}
+          currentStatus={verificationStatus}
+        />
 
         {/* =================================================
             Seller Verification Actions
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <div className="mb-5">
-
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               Admin Seller Approval
             </h2>
 
             <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-              The seller can only receive the Verified Seller status after all required verification checks are completed and the administrator approves the seller.
+              The seller can only receive the Verified Seller status after all
+              required verification checks are completed and the administrator
+              approves the seller.
             </p>
-
           </div>
 
           <SellerVerificationActions
@@ -604,20 +910,11 @@ export default async function AdminSellerVerificationPage({
                 | "rejected"
                 | "suspended"
             }
-            phoneVerified={
-              phoneVerified
-            }
-            identityVerified={
-              identityVerified
-            }
-            selfieVerified={
-              selfieVerified
-            }
-            locationVerified={
-              locationVerified
-            }
+            phoneVerified={phoneVerified}
+            identityVerified={identityVerified}
+            selfieVerified={selfieVerified}
+            locationVerified={locationVerified}
           />
-
         </section>
 
         {/* =================================================
@@ -625,59 +922,38 @@ export default async function AdminSellerVerificationPage({
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
             Verification Timeline
           </h2>
 
           <div className="mt-5 space-y-4">
-
             <TimelineItem
               label="Identity Submitted"
-              date={
-                sellerVerification
-                  .identitySubmittedAt
-              }
+              date={sellerVerification.identitySubmittedAt}
             />
 
             <TimelineItem
               label="Identity Reviewed"
-              date={
-                sellerVerification
-                  .identityReviewedAt
-              }
+              date={sellerVerification.identityReviewedAt}
             />
 
             <TimelineItem
               label="Selfie Verified"
-              date={
-                sellerVerification
-                  .selfieVerifiedAt
-              }
+              date={sellerVerification.selfieVerifiedAt}
             />
 
             <TimelineItem
               label="Location Verified"
-              date={
-                sellerVerification
-                  .locationVerifiedAt
-              }
+              date={sellerVerification.locationVerifiedAt}
             />
 
             <TimelineItem
               label="Seller Approved"
-              date={
-                sellerVerification
-                  .verifiedAt
-              }
+              date={sellerVerification.verifiedAt}
             />
-
           </div>
-
         </section>
-
       </div>
-
     </main>
   );
 }
@@ -708,14 +984,10 @@ function VerificationCheck({
         }
       `}
     >
-
       <div className="flex items-center justify-between">
-
         <div
           className={
-            verified
-              ? "text-green-600 dark:text-green-400"
-              : "text-slate-400"
+            verified ? "text-green-600 dark:text-green-400" : "text-slate-400"
           }
         >
           {icon}
@@ -727,12 +999,8 @@ function VerificationCheck({
             className="text-green-600 dark:text-green-400"
           />
         ) : (
-          <Clock3
-            size={18}
-            className="text-slate-400"
-          />
+          <Clock3 size={18} className="text-slate-400" />
         )}
-
       </div>
 
       <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
@@ -751,11 +1019,8 @@ function VerificationCheck({
           }
         `}
       >
-        {verified
-          ? "Verified"
-          : "Not verified"}
+        {verified ? "Verified" : "Not verified"}
       </p>
-
     </div>
   );
 }
@@ -764,13 +1029,7 @@ function VerificationCheck({
 // Info Item
 // =====================================================
 
-function InfoItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function InfoItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -796,21 +1055,16 @@ function TimelineItem({
   date?: Date | string | null;
 }) {
   const formattedDate = date
-    ? new Date(date).toLocaleString(
-        "en-IN",
-        {
-          dateStyle: "medium",
-          timeStyle: "short",
-        },
-      )
+    ? new Date(date).toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
     : "Not completed";
 
-  const completed =
-    Boolean(date);
+  const completed = Boolean(date);
 
   return (
     <div className="flex items-center gap-4">
-
       <div
         className={`
           flex
@@ -827,15 +1081,10 @@ function TimelineItem({
           }
         `}
       >
-        {completed ? (
-          <CheckCircle2 size={18} />
-        ) : (
-          <Clock3 size={18} />
-        )}
+        {completed ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}
       </div>
 
       <div className="min-w-0">
-
         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
           {label}
         </p>
@@ -843,9 +1092,7 @@ function TimelineItem({
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {formattedDate}
         </p>
-
       </div>
-
     </div>
   );
 }

@@ -333,6 +333,24 @@ export async function POST(request: NextRequest) {
     // Admin still controls overall status.
     // =================================================
 
+    console.log("========== MOBILE LOCATION SELLER DEBUG ==========");
+
+    console.log("mobileUserId:", mobileUserId);
+
+    console.log("sellerUserId:", sellerUserId);
+
+    console.log("latitude:", latitude);
+
+    console.log("longitude:", longitude);
+
+    console.log("accuracy:", accuracy);
+
+    console.log("verification.userId:", verification.userId);
+
+    console.log("seller._id:", seller._id.toString());
+
+    console.log("==================================================");
+
     const sellerResult = await users.updateOne(
       {
         _id: new ObjectId(sellerUserId),
@@ -355,6 +373,14 @@ export async function POST(request: NextRequest) {
         },
       },
     );
+
+    console.log("========== SELLER UPDATE RESULT ==========");
+
+    console.log("matchedCount:", sellerResult.matchedCount);
+
+    console.log("modifiedCount:", sellerResult.modifiedCount);
+
+    console.log("==========================================");
 
     if (sellerResult.matchedCount === 0) {
       return NextResponse.json(

@@ -182,6 +182,8 @@ export default function NearbyProducts() {
                 image={product.thumbnail}
                 seller={product.sellerName}
                 sellerIsPhoneVerified={product.sellerIsPhoneVerified}
+                sellerVerificationStatus={product.sellerVerificationStatus}
+                sellerBadge={product.sellerBadge}
                 location={product.location?.city ?? "Unknown"}
                 condition={product.condition}
                 createdAt={product.createdAt}

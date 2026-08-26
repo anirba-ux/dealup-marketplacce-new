@@ -34,12 +34,29 @@ function getLocationStatus(
 }
 
 // =====================================================
+// Coordinate Validation
+// =====================================================
+
+function isValidCoordinate(
+  latitude: number,
+  longitude: number,
+) {
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180 &&
+    !(latitude === 0 && longitude === 0)
+  );
+}
+
+// =====================================================
 // POST — Create Product
 // =====================================================
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
     // =================================================
     // Authentication
@@ -59,8 +76,7 @@ export async function POST(
       );
     }
 
-    const sellerId =
-      String(session.user.id);
+    const sellerId = String(session.user.id);
 
     // =================================================
     // Validate Seller ObjectId
@@ -70,8 +86,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Invalid seller account.",
+          message: "Invalid seller account.",
         },
         {
           status: 400,
@@ -83,8 +98,7 @@ export async function POST(
     // Request Body
     // =================================================
 
-    const body =
-      await request.json();
+    const body = await request.json();
 
     // =================================================
     // Basic Validation
@@ -99,8 +113,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Please fill all required fields.",
+          message: "Please fill all required fields.",
         },
         {
           status: 400,
@@ -111,21 +124,21 @@ export async function POST(
     // =================================================
     // Product Coordinates
     //
-    // These come from ProductForm.
-    // They represent the actual product location.
+    // These represent the actual location
+    // of the product selected on the map.
     // =================================================
 
-    const productLatitude =
-      Number(body.latitude);
+    const productLatitude = Number(
+      body.latitude,
+    );
 
-    const productLongitude =
-      Number(body.longitude);
+    const productLongitude = Number(
+      body.longitude,
+    );
 
     if (
-      !Number.isFinite(
+      !isValidCoordinate(
         productLatitude,
-      ) ||
-      !Number.isFinite(
         productLongitude,
       )
     ) {
@@ -142,52 +155,102 @@ export async function POST(
     }
 
     // =================================================
-    // DATABASE
-    // =================================================
-
-    const client =
-      await clientPromise;
-
-    const db =
-      client.db("dealup");
-
-    const users =
-      db.collection("users");
-
-    // =================================================
-    // Get Seller
+    // Seller Live GPS
     //
     // IMPORTANT:
     //
-    // We DO NOT take seller GPS from the browser.
+    // This is the seller's CURRENT device location.
     //
-    // We use the seller's previously verified
-    // location stored in MongoDB.
+    // We do NOT require the seller to have a previously
+    // verified location in sellerVerification.
     // =================================================
 
-    const seller =
-      await users.findOne(
+    const sellerLatitude = Number(
+      body.sellerLocation?.latitude,
+    );
+
+    const sellerLongitude = Number(
+      body.sellerLocation?.longitude,
+    );
+
+    const sellerAccuracy = Number(
+      body.sellerLocation?.accuracy,
+    );
+
+    // =================================================
+    // Validate Seller Live GPS
+    // =================================================
+
+    if (
+      !isValidCoordinate(
+        sellerLatitude,
+        sellerLongitude,
+      )
+    ) {
+      return NextResponse.json(
         {
-          _id:
-            new ObjectId(
-              sellerId,
-            ),
+          success: false,
+          message:
+            "Your current device location is required before publishing this product.",
         },
         {
-          projection: {
-            name: 1,
-            sellerVerification: 1,
-            isPhoneVerified: 1,
-          },
+          status: 400,
         },
       );
+    }
+
+    // =================================================
+    // Validate GPS Accuracy
+    // =================================================
+
+    if (
+      !Number.isFinite(sellerAccuracy) ||
+      sellerAccuracy <= 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Unable to verify your current GPS accuracy. Please try again.",
+        },
+        {
+          status: 400,
+        },
+      );
+    }
+
+    // =================================================
+    // DATABASE
+    // =================================================
+
+    const client = await clientPromise;
+
+    const db = client.db("dealup");
+
+    const users = db.collection("users");
+
+    // =================================================
+    // Get Seller
+    // =================================================
+
+    const seller = await users.findOne(
+      {
+        _id: new ObjectId(sellerId),
+      },
+      {
+        projection: {
+          name: 1,
+          isPhoneVerified: 1,
+          sellerVerification: 1,
+        },
+      },
+    );
 
     if (!seller) {
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Seller account not found.",
+          message: "Seller account not found.",
         },
         {
           status: 404,
@@ -196,127 +259,28 @@ export async function POST(
     }
 
     // =================================================
-    // Seller Location Verification
-    // =================================================
-
-    const sellerLocationVerified =
-      seller
-        .sellerVerification
-        ?.locationVerified === true;
-
-    if (!sellerLocationVerified) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Please complete seller location verification before publishing products.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
-    // =================================================
-    // Seller Verified Coordinates
-    // =================================================
-
-    const sellerLatitude =
-      Number(
-        seller
-          .sellerVerification
-          ?.locationLatitude,
-      );
-
-    const sellerLongitude =
-      Number(
-        seller
-          .sellerVerification
-          ?.locationLongitude,
-      );
-
-    const sellerAccuracy =
-      Number(
-        seller
-          .sellerVerification
-          ?.locationVerificationAccuracy,
-      );
-
-    // =================================================
-    // Validate Seller Coordinates
-    // =================================================
-
-    if (
-      !Number.isFinite(
-        sellerLatitude,
-      ) ||
-      !Number.isFinite(
-        sellerLongitude,
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Your verified seller location coordinates are unavailable. Please complete location verification again.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
-    // =================================================
-    // Validate Seller GPS Accuracy
-    //
-    // Accuracy is stored from the original
-    // seller verification.
-    // =================================================
-
-    if (
-      !Number.isFinite(
-        sellerAccuracy,
-      ) ||
-      sellerAccuracy <= 0
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Your verified seller location accuracy is unavailable. Please complete location verification again.",
-        },
-        {
-          status: 403,
-        },
-      );
-    }
-
-    // =================================================
     // SERVER-SIDE DISTANCE CALCULATION
     //
-    // Seller Verified Location
-    //             ↓
-    //           distance
-    //             ↑
+    // Current Seller GPS
+    //          ↓
+    //       distance
+    //          ↑
     // Product Location
     // =================================================
 
-    const distanceKm =
-      calculateDistance(
-        sellerLatitude,
-        sellerLongitude,
-        productLatitude,
-        productLongitude,
-      );
+    const distanceKm = calculateDistance(
+      sellerLatitude,
+      sellerLongitude,
+      productLatitude,
+      productLongitude,
+    );
 
     // =================================================
     // Location Status
     // =================================================
 
     const locationStatus =
-      getLocationStatus(
-        distanceKm,
-      );
+      getLocationStatus(distanceKm);
 
     // =================================================
     // Slug
@@ -326,55 +290,41 @@ export async function POST(
       body.title
         .toLowerCase()
         .trim()
-        .replace(
-          /[^a-z0-9]+/g,
-          "-",
-        )
-        .replace(
-          /^-|-$/g,
-          "",
-        );
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "");
 
     // =================================================
     // Timestamp
     // =================================================
 
-    const now =
-      new Date();
+    const now = new Date();
 
     // =================================================
     // Product Location Verification
     //
-    // This data will later help us build:
+    // This records the seller's CURRENT GPS and
+    // the distance from seller to product location.
     //
-    // - Trusted Seller
-    // - Product Trust
-    // - Location Risk
-    // - Seller Trust Score
+    // It does NOT automatically make the seller
+    // a Verified Seller.
     // =================================================
 
     const locationVerification = {
       sellerLatitude,
-
       sellerLongitude,
 
       productLatitude,
-
       productLongitude,
 
       distanceKm,
 
-      accuracy:
-        sellerAccuracy,
+      accuracy: sellerAccuracy,
 
-      status:
-        locationStatus,
+      status: locationStatus,
 
-      method:
-        "device-gps" as const,
+      method: "device-gps" as const,
 
-      capturedAt:
-        now,
+      capturedAt: now,
     };
 
     // =================================================
@@ -382,51 +332,33 @@ export async function POST(
     // =================================================
 
     const product: Product = {
-      title:
-        body.title,
+      title: body.title,
 
       slug,
 
-      description:
-        body.description,
+      description: body.description,
 
-      price:
-        Number(body.price),
+      price: Number(body.price),
 
-      currency:
-        "INR",
+      currency: "INR",
 
-      negotiable:
-        body.negotiable ??
-        false,
+      negotiable: body.negotiable ?? false,
 
-      category:
-        body.category,
+      category: body.category,
 
-      subcategory:
-        body.subcategory ??
-        "",
+      subcategory: body.subcategory ?? "",
 
-      brand:
-        body.brand ??
-        "",
+      brand: body.brand ?? "",
 
-      model:
-        body.model ??
-        "",
+      model: body.model ?? "",
 
-      condition:
-        body.condition,
+      condition: body.condition,
 
-      images:
-        body.images ??
-        [],
+      images: body.images ?? [],
 
       thumbnail:
-        body.images?.length >
-        0
-          ? body.images[0]
-              .url
+        body.images?.length > 0
+          ? body.images[0].url
           : "",
 
       sellerId,
@@ -436,8 +368,7 @@ export async function POST(
         session.user.name ??
         "Unknown Seller",
 
-      sellerPhone:
-        "",
+      sellerPhone: "",
 
       // =================================================
       // Product Location
@@ -445,35 +376,27 @@ export async function POST(
 
       location: {
         country:
-          body.country ??
-          "India",
+          body.country ?? "India",
 
         state:
-          body.state ??
-          "",
+          body.state ?? "",
 
         district:
-          body.district ??
-          "",
+          body.district ?? "",
 
         city:
-          body.city ??
-          "",
+          body.city ?? "",
 
         pincode:
-          body.pincode ??
-          "",
+          body.pincode ?? "",
 
         address:
-          body.address ??
-          "",
+          body.address ?? "",
 
         coordinates: {
-          lat:
-            productLatitude,
+          lat: productLatitude,
 
-          lng:
-            productLongitude,
+          lng: productLongitude,
         },
       },
 
@@ -487,40 +410,31 @@ export async function POST(
       // Status
       // =================================================
 
-      status:
-        "active",
+      status: "active",
 
-      views:
-        0,
+      views: 0,
 
-      favorites:
-        0,
+      favorites: 0,
 
       // =================================================
       // Premium / Promotion
       // =================================================
 
-      isFeatured:
-        false,
+      isFeatured: false,
 
-      isPremium:
-        false,
+      isPremium: false,
 
-      isBoosted:
-        false,
+      isBoosted: false,
 
-      boostedUntil:
-        undefined,
+      boostedUntil: undefined,
 
       // =================================================
       // Timestamps
       // =================================================
 
-      createdAt:
-        now,
+      createdAt: now,
 
-      updatedAt:
-        now,
+      updatedAt: now,
     };
 
     // =================================================
@@ -528,9 +442,7 @@ export async function POST(
     // =================================================
 
     const result =
-      await createProduct(
-        product,
-      );
+      await createProduct(product);
 
     // =================================================
     // Success
@@ -549,9 +461,7 @@ export async function POST(
         locationVerification: {
           distanceKm:
             Number(
-              distanceKm.toFixed(
-                2,
-              ),
+              distanceKm.toFixed(2),
             ),
 
           status:
@@ -576,9 +486,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-
-        message:
-          "Internal Server Error",
+        message: "Internal Server Error",
       },
       {
         status: 500,
@@ -594,9 +502,7 @@ export async function POST(
 export async function GET() {
   try {
     const products =
-      await findLatestProducts(
-        20,
-      );
+      await findLatestProducts(20);
 
     return NextResponse.json(
       {
@@ -616,7 +522,6 @@ export async function GET() {
     return NextResponse.json(
       {
         success: false,
-
         message:
           "Failed to fetch latest products.",
       },

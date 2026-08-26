@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+
 import {
   ArrowLeft,
   BadgeCheck,
@@ -12,8 +13,14 @@ import {
 } from "lucide-react";
 
 import { auth } from "@/auth";
+
 import { findUserById } from "@/lib/repositories/user.repository";
+
 import { getSellerBadge } from "@/lib/risk/sellerTrust";
+
+// =====================================================
+// Page Props
+// =====================================================
 
 interface PageProps {
   params: Promise<{
@@ -21,12 +28,33 @@ interface PageProps {
   }>;
 }
 
+// =====================================================
+// Cross Seller Match
+// =====================================================
+
+interface CrossSellerMatchedProduct {
+  productId?: string;
+  sellerId?: string;
+  title?: string;
+  image?: string;
+}
+
+interface CrossSellerDuplicateMatch {
+  imageHash?: string;
+
+  matchedProducts?: CrossSellerMatchedProduct[];
+}
+
+// =====================================================
+// Page
+// =====================================================
+
 export default async function AdminUserDetailsPage({
   params,
 }: PageProps) {
-  // =====================================================
+  // ===================================================
   // Authentication
-  // =====================================================
+  // ===================================================
 
   const session = await auth();
 
@@ -34,9 +62,9 @@ export default async function AdminUserDetailsPage({
     redirect("/login");
   }
 
-  // =====================================================
+  // ===================================================
   // Admin Authorization
-  // =====================================================
+  // ===================================================
 
   if (session.user.role !== "admin") {
     return (
@@ -65,15 +93,15 @@ export default async function AdminUserDetailsPage({
     );
   }
 
-  // =====================================================
+  // ===================================================
   // Params
-  // =====================================================
+  // ===================================================
 
   const { userId } = await params;
 
-  // =====================================================
+  // ===================================================
   // Find User
-  // =====================================================
+  // ===================================================
 
   const user = await findUserById(userId);
 
@@ -81,9 +109,9 @@ export default async function AdminUserDetailsPage({
     notFound();
   }
 
-  // =====================================================
+  // ===================================================
   // Seller Verification
-  // =====================================================
+  // ===================================================
 
   const sellerVerification =
     user.sellerVerification;
@@ -105,9 +133,9 @@ export default async function AdminUserDetailsPage({
     sellerVerification?.locationVerified ??
     false;
 
-  // =====================================================
+  // ===================================================
   // Trust
-  // =====================================================
+  // ===================================================
 
   const trustScore =
     Number(user.trustScore ?? 0);
@@ -124,26 +152,26 @@ export default async function AdminUserDetailsPage({
             : "low"
     );
 
-  // =====================================================
+  // ===================================================
   // Risk
-  // =====================================================
+  // ===================================================
 
   const riskScore =
     Number(user.riskScore ?? 0);
 
-  // =====================================================
+  // ===================================================
   // Serious History
   //
   // Detailed moderation history will be
   // connected later.
-  // =====================================================
+  // ===================================================
 
   const hasSeriousBadHistory =
     false;
 
-  // =====================================================
+  // ===================================================
   // Seller Badge
-  // =====================================================
+  // ===================================================
 
   const sellerBadge =
     getSellerBadge({
@@ -162,9 +190,9 @@ export default async function AdminUserDetailsPage({
       hasSeriousBadHistory,
     });
 
-  // =====================================================
+  // ===================================================
   // Risk Level
-  // =====================================================
+  // ===================================================
 
   const riskLevel =
     riskScore >= 70
@@ -173,9 +201,37 @@ export default async function AdminUserDetailsPage({
         ? "Medium"
         : "Low";
 
-  // =====================================================
+  // ===================================================
+  // Trust Signals
+  //
+  // Trust signals are currently stored on the
+  // user document by the trust engine.
+  // ===================================================
+
+  const trustSignals =
+    (user as any).trustSignals ??
+    {};
+
+  // ===================================================
+  // Cross Seller Duplicate Images
+  // ===================================================
+
+  const crossSellerDuplicateImages =
+    Number(
+      trustSignals.crossSellerDuplicateImages ??
+        0,
+    );
+
+  const crossSellerDuplicateMatches =
+    Array.isArray(
+      trustSignals.crossSellerDuplicateMatches,
+    )
+      ? (trustSignals.crossSellerDuplicateMatches as CrossSellerDuplicateMatch[])
+      : [];
+
+  // ===================================================
   // Page
-  // =====================================================
+  // ===================================================
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
@@ -192,6 +248,7 @@ export default async function AdminUserDetailsPage({
               className="inline-flex items-center gap-2 text-sm font-semibold text-[#1565d8] hover:underline"
             >
               <ArrowLeft size={16} />
+
               Back to Users
             </Link>
 
@@ -222,9 +279,7 @@ export default async function AdminUserDetailsPage({
         ================================================= */}
 
         <section className="mt-8 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
           <div className="p-6 sm:p-8">
-
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
 
               {/* Avatar */}
@@ -288,6 +343,7 @@ export default async function AdminUserDetailsPage({
                       {sellerBadge.label}
                     </span>
                   )}
+
                 </div>
 
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
@@ -295,6 +351,7 @@ export default async function AdminUserDetailsPage({
                 </p>
 
                 <div className="mt-4 flex flex-wrap gap-2">
+
                   <StatusBadge
                     label={
                       verificationStatus
@@ -307,12 +364,16 @@ export default async function AdminUserDetailsPage({
                   <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold capitalize text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     Role:{" "}
                     {user._id ===
-                    String(session.user.id)
+                    String(
+                      session.user.id,
+                    )
                       ? "Admin"
                       : "User"}
                   </span>
+
                 </div>
               </div>
+
             </div>
           </div>
         </section>
@@ -464,8 +525,297 @@ export default async function AdminUserDetailsPage({
               label="Risk Level"
               value={riskLevel}
             />
+
+            <InfoRow
+              label="Cross-Seller Image Matches"
+              value={String(
+                crossSellerDuplicateImages,
+              )}
+            />
           </InfoSection>
+
         </div>
+
+        {/* =================================================
+            CROSS-SELLER IMAGE DETECTION
+        ================================================= */}
+
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
+
+          {/* Header */}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                Cross-Seller Image Detection
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Image matches detected across products belonging to different sellers.
+              </p>
+            </div>
+
+            <span
+              className={`inline-flex w-fit rounded-full px-3 py-1.5 text-xs font-bold ${
+                crossSellerDuplicateImages >
+                0
+                  ? "bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300"
+                  : "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300"
+              }`}
+            >
+              {crossSellerDuplicateImages >
+              0
+                ? `${crossSellerDuplicateImages} Match${
+                    crossSellerDuplicateImages >
+                    1
+                      ? "es"
+                      : ""
+                  }`
+                : "No Matches"}
+            </span>
+
+          </div>
+
+          {/* Summary */}
+
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Duplicate Image Count
+              </p>
+
+              <p
+                className={`mt-2 text-3xl font-bold ${
+                  crossSellerDuplicateImages >
+                  0
+                    ? "text-orange-600"
+                    : "text-green-600"
+                }`}
+              >
+                {crossSellerDuplicateImages}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Matches found across other sellers.
+              </p>
+            </div>
+
+            <div
+              className={`rounded-2xl border p-5 ${
+                crossSellerDuplicateImages >
+                0
+                  ? "border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20"
+                  : "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20"
+              }`}
+            >
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Detection Status
+              </p>
+
+              <p
+                className={`mt-2 text-lg font-bold ${
+                  crossSellerDuplicateImages >
+                  0
+                    ? "text-orange-700 dark:text-orange-300"
+                    : "text-green-700 dark:text-green-300"
+                }`}
+              >
+                {crossSellerDuplicateImages >
+                0
+                  ? "Review Recommended"
+                  : "No Suspicious Match"}
+              </p>
+
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+                {crossSellerDuplicateImages >
+                0
+                  ? "Admin should review the matching evidence."
+                  : "No cross-seller image match was detected."
+                }
+              </p>
+            </div>
+
+          </div>
+
+          {/* =================================================
+              NO MATCHES
+          ================================================= */}
+
+          {crossSellerDuplicateMatches.length ===
+            0 && (
+            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5 dark:border-green-900 dark:bg-green-950/20">
+
+              <div className="flex items-start gap-3">
+
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300">
+                  ✓
+                </div>
+
+                <div>
+                  <p className="font-semibold text-green-700 dark:text-green-300">
+                    No cross-seller image matches detected
+                  </p>
+
+                  <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                    The trust engine did not find a matching image hash belonging to another seller.
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* =================================================
+              MATCHING EVIDENCE
+          ================================================= */}
+
+          {crossSellerDuplicateMatches.length >
+            0 && (
+            <div className="mt-6">
+
+              <div className="mb-4 flex items-center gap-2">
+
+                <div className="h-2.5 w-2.5 rounded-full bg-orange-500" />
+
+                <h3 className="font-bold text-slate-900 dark:text-white">
+                  Matching Evidence
+                </h3>
+
+              </div>
+
+              <div className="space-y-4">
+
+                {crossSellerDuplicateMatches.map(
+                  (
+                    match,
+                    index,
+                  ) => (
+                    <div
+                      key={`${match.imageHash ?? "unknown"}-${index}`}
+                      className="rounded-2xl border border-orange-200 bg-orange-50 p-5 dark:border-orange-900 dark:bg-orange-950/20"
+                    >
+
+                      {/* Image Hash */}
+
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-orange-600 dark:text-orange-400">
+                          Image Hash
+                        </p>
+
+                        <p className="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs text-slate-700 dark:bg-slate-900 dark:text-slate-300">
+                          {match.imageHash ||
+                            "Hash unavailable"}
+                        </p>
+                      </div>
+
+                      {/* Matched Products */}
+
+                      {Array.isArray(
+                        match.matchedProducts,
+                      ) &&
+                        match.matchedProducts.length >
+                          0 && (
+                          <div className="mt-5 space-y-3">
+
+                            <p className="text-sm font-bold text-slate-900 dark:text-white">
+                              Matched Products
+                            </p>
+
+                            {match.matchedProducts.map(
+                              (
+                                matched,
+                                matchedIndex,
+                              ) => (
+                                <div
+                                  key={`${matched.productId ?? "product"}-${matchedIndex}`}
+                                  className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+                                >
+
+                                  <div className="grid gap-4 sm:grid-cols-2">
+
+                                    <div>
+                                      <p className="text-xs text-slate-400">
+                                        Seller ID
+                                      </p>
+
+                                      <p className="mt-1 break-all text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                        {matched.sellerId ||
+                                          "Unavailable"}
+                                      </p>
+                                    </div>
+
+                                    <div>
+                                      <p className="text-xs text-slate-400">
+                                        Product ID
+                                      </p>
+
+                                      <p className="mt-1 break-all text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                        {matched.productId ||
+                                          "Unavailable"}
+                                      </p>
+                                    </div>
+
+                                  </div>
+
+                                  {/* Product Title */}
+
+                                  {matched.title && (
+                                    <div className="mt-4">
+                                      <p className="text-xs text-slate-400">
+                                        Product
+                                      </p>
+
+                                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                                        {matched.title}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Actions */}
+
+                                  <div className="mt-4 flex flex-wrap gap-2">
+
+                                    {matched.sellerId && (
+                                      <Link
+                                        href={`/admin/users/${matched.sellerId}`}
+                                        className="inline-flex items-center rounded-lg bg-[#1565d8] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0f52ba]"
+                                      >
+                                        View Seller
+                                      </Link>
+                                    )}
+
+                                    {matched.productId && (
+                                      <Link
+                                        href={`/products/${matched.productId}`}
+                                        target="_blank"
+                                        className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                                      >
+                                        View Product
+                                      </Link>
+                                    )}
+
+                                  </div>
+
+                                </div>
+                              ),
+                            )}
+
+                          </div>
+                        )}
+
+                    </div>
+                  ),
+                )}
+
+              </div>
+
+            </div>
+          )}
+
+        </section>
 
         {/* =================================================
             SELLER VERIFICATION
@@ -474,6 +824,7 @@ export default async function AdminUserDetailsPage({
         <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+
             <div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                 Seller Verification
@@ -492,6 +843,7 @@ export default async function AdminUserDetailsPage({
                 verificationStatus
               }
             />
+
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -519,6 +871,7 @@ export default async function AdminUserDetailsPage({
               }
               icon="📍"
             />
+
           </div>
 
           {/* Timeline */}
@@ -564,7 +917,9 @@ export default async function AdminUserDetailsPage({
                 }
               />
             )}
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -621,9 +976,11 @@ export default async function AdminUserDetailsPage({
                     This seller currently meets the badge requirements.
                   </p>
                 </div>
+
               </div>
             ) : (
               <div>
+
                 <p className="font-bold text-slate-900 dark:text-white">
                   No Seller Badge
                 </p>
@@ -631,6 +988,7 @@ export default async function AdminUserDetailsPage({
                 {sellerBadge.reasons.length >
                   0 && (
                   <ul className="mt-3 space-y-2">
+
                     {sellerBadge.reasons.map(
                       (
                         reason,
@@ -644,11 +1002,15 @@ export default async function AdminUserDetailsPage({
                         </li>
                       ),
                     )}
+
                   </ul>
                 )}
+
               </div>
             )}
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -664,6 +1026,7 @@ export default async function AdminUserDetailsPage({
           verificationStatus ===
             "suspended") && (
           <div className="mt-8">
+
             <Link
               href={`/admin/verification/${user._id}`}
               className="
@@ -682,8 +1045,10 @@ export default async function AdminUserDetailsPage({
             >
               Open Seller Verification Review →
             </Link>
+
           </div>
         )}
+
       </div>
     </main>
   );
@@ -706,6 +1071,7 @@ function InfoSection({
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-900">
 
       <div className="flex items-center gap-3">
+
         <div className="rounded-xl bg-blue-50 p-2.5 text-[#1565d8] dark:bg-blue-950/40">
           {icon}
         </div>
@@ -713,11 +1079,13 @@ function InfoSection({
         <h2 className="text-lg font-bold text-slate-900 dark:text-white">
           {title}
         </h2>
+
       </div>
 
       <div className="mt-5 space-y-4">
         {children}
       </div>
+
     </section>
   );
 }
@@ -737,14 +1105,19 @@ function InfoRow({
 }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-3 last:border-0 last:pb-0 dark:border-slate-800">
+
       <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
         {icon}
-        <span>{label}</span>
+
+        <span>
+          {label}
+        </span>
       </div>
 
       <span className="max-w-[60%] text-right text-sm font-semibold text-slate-800 dark:text-slate-200">
         {value}
       </span>
+
     </div>
   );
 }
@@ -815,14 +1188,21 @@ function StatusBadge({
   > = {
     verified:
       "bg-green-100 text-green-700",
+
     pending:
       "bg-yellow-100 text-yellow-700",
+
     rejected:
       "bg-red-100 text-red-700",
+
     suspended:
       "bg-slate-200 text-slate-700",
+
     unverified:
       "bg-slate-100 text-slate-500",
+
+    action_required:
+      "bg-orange-100 text-orange-700",
   };
 
   return (
@@ -832,7 +1212,10 @@ function StatusBadge({
         styles.unverified
       }`}
     >
-      {label}
+      {label.replace(
+        /_/g,
+        " ",
+      )}
     </span>
   );
 }
@@ -846,13 +1229,16 @@ function formatDate(
 ) {
   return new Date(
     value,
-  ).toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  ).toLocaleString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
 }
 
 // =====================================================
@@ -863,8 +1249,13 @@ function formatTrustLevel(
   value: string,
 ) {
   return value
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (char) =>
-      char.toUpperCase(),
+    .replace(
+      /_/g,
+      " ",
+    )
+    .replace(
+      /\b\w/g,
+      (char) =>
+        char.toUpperCase(),
     );
 }

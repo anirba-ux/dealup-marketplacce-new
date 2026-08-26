@@ -1,42 +1,13 @@
 import Image from "next/image";
 
-// =====================================================
-// Seller Verification Status
-// =====================================================
+import type {
+  SellerVerificationStatus,
+} from "@/lib/types/user";
 
-type SellerVerificationStatus =
-  | "unverified"
-  | "pending"
-  | "verified"
-  | "rejected"
-  | "suspended";
-
-// =====================================================
-// Seller Trust Level
-// =====================================================
-
-type SellerTrustLevel =
-  | "low"
-  | "basic"
-  | "trusted"
-  | "highly_trusted";
-
-// =====================================================
-// Seller Badge
-// =====================================================
-
-interface SellerBadge {
-  badge:
-    | "none"
-    | "verified"
-    | "trusted";
-
-  label: string;
-
-  eligible: boolean;
-
-  reasons: string[];
-}
+import type {
+  SellerTrustLevel,
+  SellerBadgeResult,
+} from "@/lib/risk/sellerTrust";
 
 // =====================================================
 // Props
@@ -64,7 +35,8 @@ interface PublicSellerHeaderProps {
     // Final Seller Verification Status
     // =========================================
 
-    verificationStatus?: SellerVerificationStatus;
+    verificationStatus?:
+      SellerVerificationStatus;
 
     // =========================================
     // Individual Verification
@@ -88,7 +60,7 @@ interface PublicSellerHeaderProps {
     // Seller Badge
     // =========================================
 
-    badge?: SellerBadge;
+    badge?: SellerBadgeResult;
   };
 
   totalProducts: number;
@@ -157,16 +129,62 @@ export default function PublicSellerHeader({
           "pending"
         ? "Verification Pending"
         : verificationStatus ===
-            "rejected"
-          ? "Verification Rejected"
+            "action_required"
+          ? "Verification Correction Required"
           : verificationStatus ===
-              "suspended"
-            ? "Verification Suspended"
-            : "Not Verified";
+              "rejected"
+            ? "Verification Rejected"
+            : verificationStatus ===
+                "suspended"
+              ? "Verification Suspended"
+              : "Not Verified";
+
+  // ===================================================
+  // Verification Status Style
+  // ===================================================
+
+  const verificationStatusClass =
+    verificationStatus ===
+    "verified"
+      ? "border border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400"
+      : verificationStatus ===
+          "pending"
+        ? "border border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+        : verificationStatus ===
+            "action_required"
+          ? "border border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+          : verificationStatus ===
+              "rejected"
+            ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
+            : verificationStatus ===
+                "suspended"
+              ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
+              : "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400";
+
+  // ===================================================
+  // Verification Status Icon
+  // ===================================================
+
+  const verificationStatusIcon =
+    verificationStatus ===
+    "verified"
+      ? "✓"
+      : verificationStatus ===
+          "pending"
+        ? "◷"
+        : verificationStatus ===
+            "action_required"
+          ? "⚠"
+          : verificationStatus ===
+              "rejected"
+            ? "✕"
+            : verificationStatus ===
+                "suspended"
+              ? "⚠"
+              : "○";
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm dark:border-slate-700 dark:bg-slate-900">
-
       <div className="flex flex-col items-center text-center">
 
         {/* =================================================
@@ -217,35 +235,9 @@ export default function PublicSellerHeader({
         ================================================= */}
 
         <span
-          className={`mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold ${
-            verificationStatus ===
-            "verified"
-              ? "border border-green-200 bg-green-50 text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-400"
-              : verificationStatus ===
-                  "pending"
-                ? "border border-yellow-200 bg-yellow-50 text-yellow-700 dark:border-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
-                : verificationStatus ===
-                    "rejected"
-                  ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
-                  : verificationStatus ===
-                      "suspended"
-                    ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400"
-                    : "border border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-          }`}
+          className={`mt-3 inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold ${verificationStatusClass}`}
         >
-          {verificationStatus ===
-            "verified"
-            ? "✓ "
-            : verificationStatus ===
-                "pending"
-              ? "⏳ "
-              : verificationStatus ===
-                  "rejected"
-                ? "✕ "
-                : verificationStatus ===
-                    "suspended"
-                  ? "⚠ "
-                  : "○ "}
+          {verificationStatusIcon}{" "}
           {verificationStatusLabel}
         </span>
 
@@ -407,7 +399,6 @@ export default function PublicSellerHeader({
         </div>
 
       </div>
-
     </div>
   );
 }

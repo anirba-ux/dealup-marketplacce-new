@@ -1,21 +1,24 @@
-import {
-  NextResponse,
-} from "next/server";
+import { NextResponse } from "next/server";
 
-import {
-  ObjectId,
-} from "mongodb";
+import { ObjectId } from "mongodb";
 
 import { auth } from "@/auth";
 
 import clientPromise from "@/lib/db/mongodb";
-
 
 // =====================================================
 // GET — Current Seller Verification Status
 //
 // Source of truth:
 // users.sellerVerification
+//
+// IMPORTANT:
+// This API supports BOTH:
+//
+// 1. New correctionRequest object
+// 2. Existing flat correction fields
+//
+// This keeps the verification system backward compatible.
 // =====================================================
 
 export async function GET() {
@@ -24,16 +27,13 @@ export async function GET() {
     // Authentication
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-
-          message:
-            "Unauthorized",
+          message: "Unauthorized.",
         },
         {
           status: 401,
@@ -41,24 +41,18 @@ export async function GET() {
       );
     }
 
-    const userId =
-      String(
-        session.user.id,
-      );
+    const userId = String(
+      session.user.id,
+    );
 
     // =================================================
     // Validate User ID
     // =================================================
 
-    if (
-      !ObjectId.isValid(
-        userId,
-      )
-    ) {
+    if (!ObjectId.isValid(userId)) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "Invalid user account.",
         },
@@ -78,25 +72,23 @@ export async function GET() {
     const db =
       client.db("dealup");
 
+    const users =
+      db.collection("users");
+
     // =================================================
-    // Find User
+    // Find Seller
     // =================================================
 
-    const user =
-      await db
-        .collection("users")
-        .findOne({
-          _id:
-            new ObjectId(
-              userId,
-            ),
-        });
+    const seller =
+      await users.findOne({
+        _id:
+          new ObjectId(userId),
+      });
 
-    if (!user) {
+    if (!seller) {
       return NextResponse.json(
         {
           success: false,
-
           message:
             "User account not found.",
         },
@@ -110,30 +102,35 @@ export async function GET() {
     // Seller Verification
     // =================================================
 
-    const sellerVerification =
-      user.sellerVerification ??
+    const verification =
+      seller.sellerVerification ??
       {};
 
     // =================================================
-    // Verification States
+    // FOUR VERIFICATION CHECKS
+    //
+    // 1. Phone
+    // 2. Identity
+    // 3. Live Selfie
+    // 4. Location
     // =================================================
 
     const phoneVerified =
-      sellerVerification.phoneVerified ===
+      verification.phoneVerified ===
         true ||
-      user.isPhoneVerified ===
+      seller.isPhoneVerified ===
         true;
 
     const identityVerified =
-      sellerVerification.identityVerified ===
+      verification.identityVerified ===
       true;
 
     const selfieVerified =
-      sellerVerification.selfieVerified ===
+      verification.selfieVerified ===
       true;
 
     const locationVerified =
-      sellerVerification.locationVerified ===
+      verification.locationVerified ===
       true;
 
     // =================================================
@@ -157,43 +154,248 @@ export async function GET() {
       );
 
     // =================================================
+    // Overall Verification Status
+    // =================================================
+
+    const status =
+      verification.status ??
+      "unverified";
+
+    // =================================================
+    // CORRECTION REQUEST
+    //
+    // We support BOTH:
+    //
+    // A) sellerVerification.correctionRequest
+    //
+    // B) Existing flat fields:
+    //
+    // correctionRequired
+    // correctionType
+    // correctionReason
+    // correctionMessage
+    // correctionRequestedAt
+    // correctionRequestedBy
+    // correctionResolvedAt
+    // =================================================
+
+    const storedCorrectionRequest =
+      verification.correctionRequest ??
+      null;
+
+    // =================================================
+    // Flat correction fields
+    // =================================================
+
+    const flatCorrectionRequired =
+      verification.correctionRequired ===
+      true;
+
+    const flatCorrectionType =
+      verification.correctionType ??
+      null;
+
+    const flatCorrectionReason =
+      verification.correctionReason ??
+      null;
+
+    const flatCorrectionMessage =
+      verification.correctionMessage ??
+      null;
+
+    const flatCorrectionRequestedAt =
+      verification.correctionRequestedAt ??
+      null;
+
+    const flatCorrectionRequestedBy =
+      verification.correctionRequestedBy ??
+      null;
+
+    const flatCorrectionResolvedAt =
+      verification.correctionResolvedAt ??
+      null;
+
+    // =================================================
+    // Build correction request
+    //
+    // Prefer the new nested structure.
+    // Otherwise convert the existing flat structure.
+    // =================================================
+
+    let correctionRequest: any =
+      null;
+
+    if (
+      storedCorrectionRequest &&
+      typeof storedCorrectionRequest ===
+        "object"
+    ) {
+      correctionRequest = {
+        required:
+          storedCorrectionRequest.required ===
+          true,
+
+        type:
+          storedCorrectionRequest.type ??
+          null,
+
+        reason:
+          storedCorrectionRequest.reason ??
+          null,
+
+        message:
+          storedCorrectionRequest.message ??
+          null,
+
+        requestedAt:
+          storedCorrectionRequest.requestedAt ??
+          null,
+
+        requestedBy:
+          storedCorrectionRequest.requestedBy ??
+          null,
+
+        sellerViewed:
+          storedCorrectionRequest.sellerViewed ===
+          true,
+
+        sellerViewedAt:
+          storedCorrectionRequest.sellerViewedAt ??
+          null,
+
+        resolved:
+          storedCorrectionRequest.resolved ===
+          true,
+
+        resolvedAt:
+          storedCorrectionRequest.resolvedAt ??
+          null,
+      };
+    } else if (
+      flatCorrectionRequired ||
+      flatCorrectionType ||
+      flatCorrectionReason ||
+      flatCorrectionMessage
+    ) {
+      correctionRequest = {
+        required:
+          flatCorrectionRequired,
+
+        type:
+          flatCorrectionType,
+
+        reason:
+          flatCorrectionReason,
+
+        message:
+          flatCorrectionMessage,
+
+        requestedAt:
+          flatCorrectionRequestedAt,
+
+        requestedBy:
+          flatCorrectionRequestedBy
+            ? {
+                userId:
+                  String(
+                    flatCorrectionRequestedBy,
+                  ),
+              }
+            : null,
+
+        sellerViewed:
+          false,
+
+        sellerViewedAt:
+          null,
+
+        resolved:
+          false,
+
+        resolvedAt:
+          flatCorrectionResolvedAt,
+      };
+    }
+
+    // =================================================
+    // Correction Required
+    //
+    // action_required alone should NOT invent a message.
+    //
+    // But if correction data exists, it is required.
+    // =================================================
+
+    const correctionRequired =
+      correctionRequest?.required ===
+        true ||
+      flatCorrectionRequired ===
+        true;
+
+    // =================================================
+    // Seller verification details
+    // =================================================
+
+    const verifiedAt =
+      verification.verifiedAt ??
+      null;
+
+    const rejectionReason =
+      verification.rejectionReason ??
+      null;
+
+    // =================================================
     // Response
     // =================================================
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json(
+      {
+        success: true,
 
-      verification: {
-        phoneVerified,
+        verification: {
+          // -------------------------------------------
+          // Four Checks
+          // -------------------------------------------
 
-        identityVerified,
+          phoneVerified,
 
-        selfieVerified,
+          identityVerified,
 
-        locationVerified,
+          selfieVerified,
 
-        status:
-          sellerVerification.status ??
-          "unverified",
+          locationVerified,
 
-        rejectionReason:
-          sellerVerification.rejectionReason ??
-          null,
+          // -------------------------------------------
+          // Overall Status
+          // -------------------------------------------
 
-        verifiedAt:
-          sellerVerification.verifiedAt ??
-          null,
+          status,
+
+          rejectionReason,
+
+          verifiedAt,
+
+          // -------------------------------------------
+          // Correction
+          // -------------------------------------------
+
+          correctionRequired,
+
+          correctionRequest,
+        },
+
+        progress: {
+          completedSteps,
+
+          totalSteps,
+
+          percent:
+            progressPercent,
+        },
       },
-
-      progress: {
-        completedSteps,
-
-        totalSteps,
-
-        percent:
-          progressPercent,
+      {
+        status: 200,
       },
-    });
+    );
   } catch (error) {
     console.error(
       "SELLER VERIFICATION STATUS ERROR:",

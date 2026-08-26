@@ -17,6 +17,46 @@ import LocationVerificationCard from "@/components/verification/LocationVerifica
 import { auth } from "@/auth";
 import { findUserById } from "@/lib/repositories/user.repository";
 
+// =====================================================
+// Types
+// =====================================================
+
+type CorrectionType =
+  | "identity"
+  | "selfie"
+  | "location"
+  | "multiple";
+
+type CorrectionRequest = {
+  required?: boolean;
+
+  type?: CorrectionType;
+
+  message?: string;
+
+  requestedAt?: string | Date;
+
+  requestedBy?: {
+    userId?: string;
+
+    name?: string;
+
+    email?: string | null;
+  };
+
+  sellerViewed?: boolean;
+
+  sellerViewedAt?: string | Date | null;
+
+  resolved?: boolean;
+
+  resolvedAt?: string | Date | null;
+};
+
+// =====================================================
+// Seller Verification Page
+// =====================================================
+
 export default async function SellerVerificationPage() {
   // =====================================================
   // Authentication
@@ -32,7 +72,9 @@ export default async function SellerVerificationPage() {
   // Current User
   // =====================================================
 
-  const user = await findUserById(session.user.id);
+  const user = await findUserById(
+    session.user.id,
+  );
 
   if (!user) {
     redirect("/login");
@@ -42,25 +84,50 @@ export default async function SellerVerificationPage() {
   // Verification Data
   // =====================================================
 
-  const verification = user.sellerVerification;
+  const verification =
+    user.sellerVerification;
+
+  // =====================================================
+  // Verification States
+  // =====================================================
 
   const phoneVerified =
-  user.isPhoneVerified === true;
+    user.isPhoneVerified === true ||
+    verification?.phoneVerified === true;
 
   const identityVerified =
     verification?.identityVerified === true;
 
+  const selfieVerified =
+    verification?.selfieVerified === true;
+
   const locationVerified =
     verification?.locationVerified === true;
 
-    const selfieVerified =
-  verification?.selfieVerified === true;
+  // =====================================================
+  // Overall Verification Status
+  // =====================================================
 
   const verificationStatus =
-    verification?.status ?? "unverified";
+    verification?.status ??
+    "unverified";
 
   // =====================================================
-  // Status States
+  // Correction Request
+  // =====================================================
+
+  const correctionRequest =
+    (verification?.correctionRequest ??
+      null) as CorrectionRequest | null;
+
+  const correctionRequired =
+    verificationStatus ===
+      "action_required" &&
+    correctionRequest?.required === true &&
+    correctionRequest?.resolved !== true;
+
+  // =====================================================
+  // Existing Verification States
   // =====================================================
 
   const identityPending =
@@ -74,25 +141,31 @@ export default async function SellerVerificationPage() {
 
   // =====================================================
   // Verification Progress
-  //
-  // Phone
-  // Identity
-  // Location
-  // Live Selfie
   // =====================================================
 
   const completedSteps = [
-  phoneVerified,
-  identityVerified,
-  selfieVerified,
-  locationVerified,
-].filter(Boolean).length;
+    phoneVerified,
+    identityVerified,
+    selfieVerified,
+    locationVerified,
+  ].filter(Boolean).length;
 
-const totalSteps = 4;
+  const totalSteps = 4;
 
   const progress = Math.round(
-    (completedSteps / totalSteps) * 100,
+    (completedSteps /
+      totalSteps) *
+      100,
   );
+
+  // =====================================================
+  // Correction Type Label
+  // =====================================================
+
+  const correctionTypeLabel =
+    getCorrectionTypeLabel(
+      correctionRequest?.type,
+    );
 
   // =====================================================
   // Page
@@ -118,7 +191,6 @@ const totalSteps = 4;
         ================================================= */}
 
         <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[#1565d8] to-blue-700 p-6 text-white shadow-lg sm:p-8">
-
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 
             <div className="flex items-start gap-4">
@@ -180,8 +252,137 @@ const totalSteps = 4;
             </p>
 
           </div>
-
         </section>
+
+        {/* =================================================
+            ADMIN CORRECTION REQUEST
+        ================================================= */}
+
+        {correctionRequired &&
+          correctionRequest && (
+            <section className="mt-8 overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-sm dark:border-orange-900 dark:bg-slate-900">
+
+              {/* Header */}
+
+              <div className="border-b border-orange-200 bg-orange-50 px-6 py-5 dark:border-orange-900 dark:bg-orange-950/30">
+
+                <div className="flex items-start gap-4">
+
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300">
+                    <ShieldCheck size={22} />
+                  </div>
+
+                  <div>
+                    <h2 className="text-lg font-bold text-orange-900 dark:text-orange-200">
+                      Verification Correction Required
+                    </h2>
+
+                    <p className="mt-1 text-sm leading-6 text-orange-700 dark:text-orange-300">
+                      DealUp admin has requested you to
+                      correct your seller verification.
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Body */}
+
+              <div className="p-6">
+
+                {/* Verification Step */}
+
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Verification Step
+                  </p>
+
+                  <div className="mt-2 inline-flex rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-700 dark:bg-orange-950 dark:text-orange-300">
+                    {correctionTypeLabel}
+                  </div>
+                </div>
+
+                {/* Admin Message */}
+
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-700 dark:bg-slate-800">
+
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    Message from DealUp Admin
+                  </p>
+
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700 dark:text-slate-200">
+                    {correctionRequest.message ||
+                      "Please review and correct your verification information."}
+                  </p>
+
+                </div>
+
+                {/* Requested By */}
+
+                <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+
+                  Requested by{" "}
+
+                  <span className="font-semibold">
+                    {
+                      correctionRequest
+                        .requestedBy
+                        ?.name ??
+                      "DealUp Admin"
+                    }
+                  </span>
+
+                  {correctionRequest.requestedAt && (
+                    <>
+                      {" "}
+                      on{" "}
+                      {new Date(
+                        correctionRequest.requestedAt,
+                      ).toLocaleString(
+                        "en-IN",
+                      )}
+                    </>
+                  )}
+
+                </div>
+
+                {/* Fix Button */}
+
+                <div className="mt-6">
+
+                  {correctionRequest.type ===
+                    "identity" && (
+                    <Link
+                      href="/dashboard/verification/identity"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f52ba]"
+                    >
+                      Fix Identity Verification
+                      <ChevronRight size={17} />
+                    </Link>
+                  )}
+
+                  {(correctionRequest.type ===
+                    "selfie" ||
+                    correctionRequest.type ===
+                      "location" ||
+                    correctionRequest.type ===
+                      "multiple") && (
+                    <Link
+                      href="/dashboard/profile/verification"
+                      className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f52ba]"
+                    >
+                      Fix Verification
+                      <ChevronRight size={17} />
+                    </Link>
+                  )}
+
+                </div>
+
+              </div>
+
+            </section>
+          )}
 
         {/* =================================================
             VERIFICATION STEPS
@@ -215,15 +416,17 @@ const totalSteps = 4;
               completed={phoneVerified}
               completedText="Phone Verified"
               action={
-                phoneVerified ? undefined : (
-                  <Link
-                    href="/dashboard/profile/verification"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f52ba]"
-                  >
-                    Verify Phone
-                    <ChevronRight size={17} />
-                  </Link>
-                )
+                phoneVerified
+                  ? undefined
+                  : (
+                    <Link
+                      href="/dashboard/profile/verification"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[#1565d8] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#0f52ba]"
+                    >
+                      Verify Phone
+                      <ChevronRight size={17} />
+                    </Link>
+                  )
               }
             />
 
@@ -248,7 +451,8 @@ const totalSteps = 4;
               rejected={identityRejected}
               rejectionReason={
                 identityRejected
-                  ? verification?.rejectionReason ?? undefined
+                  ? verification?.rejectionReason ??
+                    undefined
                   : undefined
               }
               action={
@@ -287,7 +491,7 @@ const totalSteps = 4;
               icon={<Camera size={22} />}
               title="Live Selfie Verification"
               description="Complete a live selfie check to confirm that you are the person completing the seller verification."
-              completed={false}
+              completed={selfieVerified}
               completedText="Selfie Verified"
               locked={
                 !phoneVerified ||
@@ -300,7 +504,8 @@ const totalSteps = 4;
               action={
                 phoneVerified &&
                 identityVerified &&
-                locationVerified ? (
+                locationVerified &&
+                !selfieVerified ? (
                   <span className="inline-flex items-center gap-2 rounded-xl bg-blue-100 px-5 py-3 text-sm font-bold text-[#1565d8] dark:bg-blue-950 dark:text-blue-300">
                     Next Step
                     <ChevronRight size={17} />
@@ -331,21 +536,32 @@ const totalSteps = 4;
                 Admin Review
               </h2>
 
-              {verificationStatus === "pending" && (
+              {verificationStatus ===
+                "pending" && (
                 <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Your seller verification is currently
                   under review by the DealUp admin team.
                 </p>
               )}
 
-              {verificationStatus === "verified" && (
+              {verificationStatus ===
+                "verified" && (
                 <p className="mt-1 text-sm leading-6 text-green-600 dark:text-green-400">
                   Your seller verification has been approved.
                   You are now a Verified Seller.
                 </p>
               )}
 
-              {verificationStatus === "rejected" && (
+              {verificationStatus ===
+                "action_required" && (
+                <p className="mt-1 text-sm leading-6 text-orange-600 dark:text-orange-400">
+                  DealUp admin has requested you to correct
+                  your verification information.
+                </p>
+              )}
+
+              {verificationStatus ===
+                "rejected" && (
                 <p className="mt-1 text-sm leading-6 text-red-600 dark:text-red-400">
                   Your verification was rejected. Please
                   review the rejection reason and submit
@@ -353,14 +569,16 @@ const totalSteps = 4;
                 </p>
               )}
 
-              {verificationStatus === "suspended" && (
+              {verificationStatus ===
+                "suspended" && (
                 <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Your seller verification is currently
                   suspended.
                 </p>
               )}
 
-              {verificationStatus === "unverified" && (
+              {verificationStatus ===
+                "unverified" && (
                 <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                   Complete the required verification steps
                   before your seller application can be
@@ -426,6 +644,31 @@ const totalSteps = 4;
 }
 
 // =====================================================
+// Correction Type Label
+// =====================================================
+
+function getCorrectionTypeLabel(
+  type?: CorrectionType,
+) {
+  switch (type) {
+    case "identity":
+      return "Identity Verification";
+
+    case "selfie":
+      return "Live Selfie Verification";
+
+    case "location":
+      return "Location Verification";
+
+    case "multiple":
+      return "Multiple Verification Steps";
+
+    default:
+      return "Seller Verification";
+  }
+}
+
+// =====================================================
 // Verification Step Card
 // =====================================================
 
@@ -444,16 +687,27 @@ function VerificationStepCard({
   action,
 }: {
   icon: React.ReactNode;
+
   title: string;
+
   description: string;
+
   completed: boolean;
+
   completedText: string;
+
   pending?: boolean;
+
   suspended?: boolean;
+
   rejected?: boolean;
+
   rejectionReason?: string;
+
   locked?: boolean;
+
   lockedMessage?: string;
+
   action?: React.ReactNode;
 }) {
   return (
@@ -505,24 +759,29 @@ function VerificationStepCard({
                 LOCKED MESSAGE
             ================================================= */}
 
-            {locked && lockedMessage && (
-              <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
-                {lockedMessage}
-              </div>
-            )}
+            {locked &&
+              lockedMessage && (
+                <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                  {lockedMessage}
+                </div>
+              )}
 
             {/* =================================================
                 REJECTION
             ================================================= */}
 
-            {rejected && rejectionReason && (
-              <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-                <span className="font-semibold">
-                  Rejection reason:
-                </span>{" "}
-                {rejectionReason}
-              </div>
-            )}
+            {rejected &&
+              rejectionReason && (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+
+                  <span className="font-semibold">
+                    Rejection reason:
+                  </span>{" "}
+
+                  {rejectionReason}
+
+                </div>
+              )}
 
           </div>
 
@@ -536,23 +795,32 @@ function VerificationStepCard({
 
           {completed && (
             <span className="inline-flex items-center gap-2 rounded-xl bg-green-100 px-5 py-3 text-sm font-bold text-green-700 dark:bg-green-950 dark:text-green-300">
+
               <CheckCircle2 size={18} />
+
               {completedText}
+
             </span>
           )}
 
-          {!completed && pending && (
-            <span className="inline-flex items-center gap-2 rounded-xl bg-yellow-100 px-5 py-3 text-sm font-bold text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
-              <Clock3 size={18} />
-              Under Review
-            </span>
-          )}
+          {!completed &&
+            pending && (
+              <span className="inline-flex items-center gap-2 rounded-xl bg-yellow-100 px-5 py-3 text-sm font-bold text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
 
-          {!completed && !pending && suspended && (
-            <span className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-3 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
-              Suspended
-            </span>
-          )}
+                <Clock3 size={18} />
+
+                Under Review
+
+              </span>
+            )}
+
+          {!completed &&
+            !pending &&
+            suspended && (
+              <span className="inline-flex items-center gap-2 rounded-xl bg-slate-200 px-5 py-3 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                Suspended
+              </span>
+            )}
 
           {!completed &&
             !pending &&
@@ -576,6 +844,7 @@ function VerificationStatusBadge({
   light = false,
 }: {
   status: string;
+
   light?: boolean;
 }) {
   const config: Record<
@@ -585,8 +854,10 @@ function VerificationStatusBadge({
       className: string;
     }
   > = {
+
     unverified: {
       label: "Not Verified",
+
       className: light
         ? "bg-white/15 text-white"
         : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
@@ -594,37 +865,50 @@ function VerificationStatusBadge({
 
     pending: {
       label: "Under Review",
+
       className:
         "bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300",
     },
 
+    action_required: {
+      label: "Action Required",
+
+      className:
+        "bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+    },
+
     verified: {
       label: "Verified",
+
       className:
         "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
     },
 
     approved: {
       label: "Verified",
+
       className:
         "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300",
     },
 
     rejected: {
       label: "Rejected",
+
       className:
         "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
     },
 
     suspended: {
       label: "Suspended",
+
       className:
         "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
     },
   };
 
   const current =
-    config[status] ?? config.unverified;
+    config[status] ??
+    config.unverified;
 
   return (
     <span

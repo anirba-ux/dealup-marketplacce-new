@@ -41,6 +41,13 @@ type ProductFormInitialData =
     _id?: string;
   };
 
+interface LiveSellerLocation {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  capturedAt: string;
+}
+
 interface ProductFormProps {
   mode?: "create" | "edit";
   initialData?: ProductFormInitialData;
@@ -107,19 +114,31 @@ export default function ProductForm({
   // Product Images
   // ===================================================
 
-  const [productImages, setProductImages] =
-    useState<
-      {
-        publicId: string;
-        url: string;
-      }[]
-    >(initialData?.images ?? []);
+ const [productImages, setProductImages] =
+  useState<
+    {
+      publicId: string;
+      url: string;
+      imageHash?: string;
+    }[]
+  >(initialData?.images ?? []);
 
   const [thumbnailIndex, setThumbnailIndex] =
     useState(0);
 
   const [imageError, setImageError] =
     useState("");
+
+  // ===================================================
+  // Live Seller GPS
+  //
+  // This is captured during the current product
+  // publishing flow. It is NOT permanent seller
+  // verification and is NOT saved in the draft.
+  // ===================================================
+
+  const [sellerLiveLocation, setSellerLiveLocation] =
+    useState<LiveSellerLocation | null>(null);
 
   // ===================================================
   // React Hook Form
@@ -259,6 +278,11 @@ export default function ProductForm({
       initialData.images ?? [],
     );
 
+    // A new live GPS capture is required only when
+    // publishing/updating from the current device.
+    // Never reuse an old live GPS snapshot.
+    setSellerLiveLocation(null);
+
     // Existing thumbnail
     if (
       initialData.images?.length
@@ -285,11 +309,13 @@ export default function ProductForm({
   // ===================================================
   // Submit Product
   //
-  // Product location is independent
-  // from seller live GPS.
+  // Product location and live seller GPS are kept
+  // as two separate pieces of information.
   //
-  // Seller's previously verified location
-  // is obtained server-side.
+  // Product coordinates = where the product is.
+  // sellerLocation = seller/device GPS captured now.
+  //
+  // Permanent seller verification remains separate.
   // ===================================================
 
   async function onSubmit(
@@ -374,6 +400,31 @@ export default function ProductForm({
 
       // =================================================
       // STEP 3
+      // Validate Live Seller GPS
+      // =================================================
+
+      if (mode === "create") {
+        if (
+          !sellerLiveLocation ||
+          !Number.isFinite(sellerLiveLocation.latitude) ||
+          !Number.isFinite(sellerLiveLocation.longitude) ||
+          !Number.isFinite(sellerLiveLocation.accuracy) ||
+          sellerLiveLocation.accuracy <= 0
+        ) {
+          throw new Error(
+            "Please capture your current location using GPS before publishing this product.",
+          );
+        }
+
+        if (sellerLiveLocation.accuracy > 200) {
+          throw new Error(
+            "Your GPS accuracy is too low. Please enable precise location and try again.",
+          );
+        }
+      }
+
+      // =================================================
+      // STEP 4
       // Prepare Product Payload
       // =================================================
 
@@ -408,6 +459,19 @@ export default function ProductForm({
 
         longitude:
           productLongitude,
+
+        // Live seller/device GPS snapshot.
+        // Permanent seller verification remains separate.
+        ...(sellerLiveLocation
+          ? {
+              sellerLocation: {
+                latitude: sellerLiveLocation.latitude,
+                longitude: sellerLiveLocation.longitude,
+                accuracy: sellerLiveLocation.accuracy,
+                capturedAt: sellerLiveLocation.capturedAt,
+              },
+            }
+          : {}),
       };
 
       console.log(
@@ -976,6 +1040,9 @@ export default function ProductForm({
       productImages,
 
       thumbnailIndex,
+
+      // Do NOT store sellerLiveLocation in localStorage.
+      // GPS must be freshly captured for publishing.
     };
 
     try {
@@ -1248,6 +1315,9 @@ export default function ProductForm({
             }
             watch={watch}
             mode={mode}
+            onMobileLocationChange={
+              setSellerLiveLocation
+            }
           />
         </div>
 

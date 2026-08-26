@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 
-import { refreshSellerTrustScore } from "@/lib/repositories/seller.repository";
-
-import { getSellerBadge } from "@/lib/risk/sellerTrust";
+import {
+  refreshSellerTrustScore,
+} from "@/lib/repositories/seller.repository";
 
 // =====================================================
 // GET — Seller Trust Score + Badge
@@ -16,7 +16,8 @@ export async function GET() {
     // Authentication
     // =================================================
 
-    const session = await auth();
+    const session =
+      await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -34,45 +35,31 @@ export async function GET() {
     // Seller ID
     // =================================================
 
-    const sellerId = session.user.id;
+    const sellerId =
+      session.user.id;
 
     // =================================================
     // Calculate + Save Trust Score
-    // =================================================
-
-    const result = await refreshSellerTrustScore(sellerId);
-
-    // =================================================
-    // Serious Bad History
     //
-    // This will be connected to the
-    // reports/bad-history system later.
+    // The repository now performs:
     //
-    // For now we do NOT assume that
-    // the seller has bad history.
+    // - Verification checks
+    // - Behaviour analysis
+    // - Duplicate image detection
+    // - Repeated listing detection
+    // - Price change detection
+    // - Abnormal price detection
+    // - Location change detection
+    // - Suspicious activity detection
+    // - Trust score calculation
+    // - Verified Seller eligibility
+    // - Trusted Seller eligibility
     // =================================================
 
-    const hasSeriousBadHistory = false;
-
-    // =================================================
-    // Calculate Seller Badge
-    // =================================================
-
-    const badge = getSellerBadge({
-      verificationStatus: result.verificationStatus,
-
-      phoneVerified: result.phoneVerified,
-
-      identityVerified: result.identityVerified,
-
-      locationVerified: result.locationVerified,
-
-      trustScore: result.trustScore,
-
-      trustLevel: result.trustLevel,
-
-      hasSeriousBadHistory,
-    });
+    const result =
+      await refreshSellerTrustScore(
+        sellerId,
+      );
 
     // =================================================
     // Response
@@ -82,26 +69,120 @@ export async function GET() {
       {
         success: true,
 
+        sellerId:
+
+          result.sellerId,
+
         trust: {
-          score: result.trustScore,
+          // -------------------------------------------
+          // Score
+          // -------------------------------------------
 
-          level: result.trustLevel,
+          score:
+            result.trustScore,
 
-          phoneVerified: result.phoneVerified,
+          level:
+            result.trustLevel,
 
-          verificationStatus: result.verificationStatus,
+          // -------------------------------------------
+          // Risk
+          // -------------------------------------------
 
-          identityVerified: result.identityVerified,
+          riskScore:
+            result.riskScore,
 
-          locationVerified: result.locationVerified,
+          seriousRisk:
+            result.seriousRisk,
 
-          activeProducts: result.activeProducts,
+          // -------------------------------------------
+          // Seller Badges
+          // -------------------------------------------
 
-          totalProducts: result.totalProducts,
+          verifiedSeller:
+            result.verifiedSeller,
 
-          badge,
+          trustedSeller:
+            result.trustedSeller,
 
-          calculatedAt: result.calculatedAt,
+          badge: {
+            type:
+              result.sellerBadge,
+
+            label:
+              result.sellerBadgeLabel,
+
+            eligible:
+              result.badgeEligible,
+
+            reasons:
+              result.badgeReasons,
+          },
+
+          // -------------------------------------------
+          // Verification
+          // -------------------------------------------
+
+          verificationStatus:
+            result.verificationStatus,
+
+          phoneVerified:
+            result.phoneVerified,
+
+          selfieVerified:
+            result.selfieVerified,
+
+          identityVerified:
+            result.identityVerified,
+
+          locationVerified:
+            result.locationVerified,
+
+          // -------------------------------------------
+          // Seller Activity
+          // -------------------------------------------
+
+          accountAgeDays:
+            result.accountAgeDays,
+
+          successfulListings:
+            result.successfulListings,
+
+          completedSales:
+            result.completedSales,
+
+          activeProducts:
+            result.activeProducts,
+
+          totalProducts:
+            result.totalProducts,
+
+          // -------------------------------------------
+          // Product Risk
+          // -------------------------------------------
+
+          productRiskScores:
+            result.productRiskScores,
+
+          // -------------------------------------------
+          // Behaviour Signals
+          // -------------------------------------------
+
+          signals:
+            result.trustSignals,
+
+          // -------------------------------------------
+          // Penalties
+          // -------------------------------------------
+
+          penalties:
+            result.penalties,
+
+          // -------------------------------------------
+          // Timestamp
+          // -------------------------------------------
+
+          calculatedAt:
+            result.calculatedAt,
         },
       },
       {
@@ -109,13 +190,17 @@ export async function GET() {
       },
     );
   } catch (error) {
-    console.error("SELLER TRUST SCORE ERROR:", error);
+    console.error(
+      "SELLER TRUST SCORE ERROR:",
+      error,
+    );
 
     return NextResponse.json(
       {
         success: false,
 
-        message: "Failed to calculate seller trust score.",
+        message:
+          "Failed to calculate seller trust score.",
       },
       {
         status: 500,

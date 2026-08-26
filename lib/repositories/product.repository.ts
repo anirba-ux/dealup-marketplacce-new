@@ -1,8 +1,6 @@
 import { ObjectId } from "mongodb";
 
-import {
-  getConversationCountByProduct,
-} from "./chat.repository";
+import { getConversationCountByProduct } from "./chat.repository";
 
 import clientPromise from "@/lib/db/mongodb";
 
@@ -12,13 +10,9 @@ import { findCategoryById } from "./category.repository";
 
 import { calculateDistance } from "@/lib/utils/distance";
 
-import {
-  calculateProductRisk,
-} from "@/lib/risk/productRisk";
+import { calculateProductRisk } from "@/lib/risk/productRisk";
 
-import {
-  getSellerBadge,
-} from "@/lib/risk/sellerTrust";
+import { getSellerBadge } from "@/lib/risk/sellerTrust";
 
 // =====================================================
 // Database
@@ -26,33 +20,22 @@ import {
 
 const DATABASE_NAME = "dealup";
 
-const COLLECTION_NAME =
-  "products";
+const COLLECTION_NAME = "products";
 
 // =====================================================
 // MongoDB Collection
 // =====================================================
 
 async function getCollection() {
-  const client =
-    await clientPromise;
+  const client = await clientPromise;
 
-  const db =
-    client.db(DATABASE_NAME);
+  const db = client.db(DATABASE_NAME);
 
-  console.log(
-    "DATABASE:",
-    db.databaseName,
-  );
+  console.log("DATABASE:", db.databaseName);
 
-  console.log(
-    "COLLECTION:",
-    COLLECTION_NAME,
-  );
+  console.log("COLLECTION:", COLLECTION_NAME);
 
-  return db.collection<Product>(
-    COLLECTION_NAME,
-  );
+  return db.collection<Product>(COLLECTION_NAME);
 }
 
 // =====================================================
@@ -74,21 +57,16 @@ async function getCollection() {
 //
 // =====================================================
 
-async function attachSellerVerification(
-  products: any[],
-) {
+async function attachSellerVerification(products: any[]) {
   if (!products.length) {
     return [];
   }
 
-  const client =
-    await clientPromise;
+  const client = await clientPromise;
 
-  const db =
-    client.db(DATABASE_NAME);
+  const db = client.db(DATABASE_NAME);
 
-  const users =
-    db.collection("users");
+  const users = db.collection("users");
 
   // ===================================================
   // Unique Seller IDs
@@ -97,10 +75,7 @@ async function attachSellerVerification(
   const sellerIds = [
     ...new Set(
       products
-        .map(
-          (product) =>
-            product.sellerId,
-        )
+        .map((product) => product.sellerId)
         .filter(Boolean)
         .map(String),
     ),
@@ -110,307 +85,316 @@ async function attachSellerVerification(
   // Valid ObjectIds
   // ===================================================
 
-  const validSellerIds =
-    sellerIds.filter(
-      (id) =>
-        ObjectId.isValid(id),
-    );
+  const validSellerIds = sellerIds.filter((id) => ObjectId.isValid(id));
+
+  // ===================================================
+  // No Valid Seller
+  // ===================================================
 
   if (!validSellerIds.length) {
-    return products.map(
-      (product) => ({
-        ...product,
+    return products.map((product) => ({
+      ...product,
 
-        sellerIsPhoneVerified:
-          false,
+      sellerIsPhoneVerified: false,
 
-        sellerVerificationStatus:
-          "unverified",
+      sellerVerificationStatus: "unverified",
 
-        sellerPhoneVerified:
-          false,
+      sellerPhoneVerified: false,
 
-        sellerIdentityVerified:
-          false,
+      sellerIdentityVerified: false,
 
-        sellerLocationVerified:
-          false,
+      sellerLocationVerified: false,
 
-        sellerTrustScore:
-          0,
+      sellerTrustScore: 0,
 
-        sellerTrustLevel:
-          "low",
+      sellerTrustLevel: "low",
 
-        sellerBadge:
-          null,
-      }),
-    );
+      sellerBadge: null,
+
+      sellerLocationLatitude: undefined,
+
+      sellerLocationLongitude: undefined,
+
+      sellerProductDistance: undefined,
+    }));
   }
 
   // ===================================================
-  // Fetch All Sellers In One Query
-  //
-  // Avoids one database query per product.
+  // Fetch Sellers
   // ===================================================
 
-  const sellers =
-    await users
-      .find(
-        {
-          _id: {
-            $in:
-              validSellerIds.map(
-                (id) =>
-                  new ObjectId(id),
-              ),
-          },
+  const sellers = await users
+    .find(
+      {
+        _id: {
+          $in: validSellerIds.map((id) => new ObjectId(id)),
         },
-        {
-          projection: {
-            isPhoneVerified: 1,
-            sellerVerification: 1,
-            trustScore: 1,
-            trustLevel: 1,
-          },
+      },
+      {
+        projection: {
+          isPhoneVerified: 1,
+          sellerVerification: 1,
+          trustScore: 1,
+          trustLevel: 1,
         },
-      )
-      .toArray();
+      },
+    )
+    .toArray();
 
   // ===================================================
   // Seller Map
   // ===================================================
 
-  const sellerMap =
-    new Map<
-      string,
-      any
-    >();
+  const sellerMap = new Map<string, any>();
 
-  for (
-    const seller of sellers
-  ) {
-    sellerMap.set(
-      seller._id.toString(),
-      seller,
-    );
+  for (const seller of sellers) {
+    sellerMap.set(seller._id.toString(), seller);
   }
 
   // ===================================================
   // Attach Seller Data
   // ===================================================
 
-  return products.map(
-    (product) => {
-      const sellerId =
-        String(
-          product.sellerId ??
-            "",
-        );
+  return products.map((product) => {
+    const sellerId = String(product.sellerId ?? "");
 
-      const seller =
-        sellerMap.get(
-          sellerId,
-        );
+    const seller = sellerMap.get(sellerId);
 
-      // =================================================
-      // Seller Not Found
-      // =================================================
+    // =================================================
+    // Seller Not Found
+    // =================================================
 
-      if (!seller) {
-        return {
-          ...product,
-
-          sellerIsPhoneVerified:
-            false,
-
-          sellerVerificationStatus:
-            "unverified",
-
-          sellerPhoneVerified:
-            false,
-
-          sellerIdentityVerified:
-            false,
-
-          sellerLocationVerified:
-            false,
-
-          sellerTrustScore:
-            0,
-
-          sellerTrustLevel:
-            "low",
-
-          sellerBadge:
-            null,
-        };
-      }
-
-      // =================================================
-      // Seller Verification Status
-      // =================================================
-
-      const sellerVerificationStatus =
-        seller.sellerVerification
-          ?.status ??
-        "unverified";
-
-      // =================================================
-      // Phone Verification
-      // =================================================
-
-      const sellerPhoneVerified =
-        Boolean(
-          seller.sellerVerification
-            ?.phoneVerified ??
-            seller.isPhoneVerified ??
-            false,
-        );
-
-      // =================================================
-      // Identity Verification
-      // =================================================
-
-      const sellerIdentityVerified =
-        Boolean(
-          seller.sellerVerification
-            ?.identityVerified ??
-            false,
-        );
-
-      // =================================================
-      // Location Verification
-      // =================================================
-
-      const sellerLocationVerified =
-        Boolean(
-          seller.sellerVerification
-            ?.locationVerified ??
-            false,
-        );
-
-      // =================================================
-      // Trust Score
-      // =================================================
-
-      const sellerTrustScore =
-        Number(
-          seller.trustScore ??
-            0,
-        );
-
-      // =================================================
-      // Trust Level
-      // =================================================
-
-      const sellerTrustLevel =
-        seller.trustLevel ??
-        (
-          sellerTrustScore >= 85
-            ? "highly_trusted"
-            : sellerTrustScore >= 70
-              ? "trusted"
-              : sellerTrustScore >= 40
-                ? "basic"
-                : "low"
-        );
-
-      // =================================================
-      // Serious Bad History
-      //
-      // Report/moderation history can be connected later.
-      // =================================================
-
-      const sellerHasSeriousBadHistory =
-        false;
-
-      // =================================================
-      // Calculate Seller Badge
-      // =================================================
-
-      const sellerBadge =
-        getSellerBadge({
-          verificationStatus:
-            sellerVerificationStatus,
-
-          phoneVerified:
-            sellerPhoneVerified,
-
-          identityVerified:
-            sellerIdentityVerified,
-
-          locationVerified:
-            sellerLocationVerified,
-
-          trustScore:
-            sellerTrustScore,
-
-          trustLevel:
-            sellerTrustLevel,
-
-          hasSeriousBadHistory:
-            sellerHasSeriousBadHistory,
-        });
-
-      // =================================================
-      // Return Product
-      // =================================================
-
+    if (!seller) {
       return {
         ...product,
 
-        // -----------------------------------------------
-        // Backward Compatibility
-        // -----------------------------------------------
+        sellerIsPhoneVerified: false,
 
-        sellerIsPhoneVerified:
-          sellerPhoneVerified,
+        sellerVerificationStatus: "unverified",
 
-        // -----------------------------------------------
-        // Seller Verification
-        // -----------------------------------------------
+        sellerPhoneVerified: false,
 
-        sellerVerificationStatus,
+        sellerIdentityVerified: false,
 
-        sellerPhoneVerified,
+        sellerLocationVerified: false,
 
-        sellerIdentityVerified,
+        sellerTrustScore: 0,
 
-        sellerLocationVerified,
+        sellerTrustLevel: "low",
 
-        // -----------------------------------------------
-        // Trust
-        // -----------------------------------------------
+        sellerBadge: null,
 
-        sellerTrustScore,
+        sellerLocationLatitude: undefined,
 
-        sellerTrustLevel,
+        sellerLocationLongitude: undefined,
 
-        // -----------------------------------------------
-        // Badge
-        // -----------------------------------------------
-
-        sellerBadge,
+        sellerProductDistance: undefined,
       };
-    },
-  );
+    }
+
+    // =================================================
+    // Seller Verification Object
+    // =================================================
+
+    const sellerVerification = seller.sellerVerification ?? {};
+
+    // =================================================
+    // Verification Status
+    // =================================================
+
+    const sellerVerificationStatus = sellerVerification.status ?? "unverified";
+
+    // =================================================
+    // Phone Verification
+    // =================================================
+
+    const sellerPhoneVerified = Boolean(
+      sellerVerification.phoneVerified ?? seller.isPhoneVerified ?? false,
+    );
+
+    // =================================================
+    // Identity Verification
+    // =================================================
+
+    const sellerIdentityVerified = Boolean(
+      sellerVerification.identityVerified ?? false,
+    );
+
+    // =================================================
+    // Location Verification
+    // =================================================
+
+    const sellerLocationVerified = sellerVerification.locationVerified === true;
+
+    // =================================================
+    // Seller Verified Location
+    //
+    // IMPORTANT:
+    // These coordinates come from the seller's
+    // location verification process.
+    // =================================================
+
+    const rawSellerLatitude = sellerVerification.locationLatitude;
+
+    const rawSellerLongitude = sellerVerification.locationLongitude;
+
+    const sellerLocationLatitude = Number(rawSellerLatitude);
+
+    const sellerLocationLongitude = Number(rawSellerLongitude);
+
+    const hasValidSellerCoordinates =
+      sellerLocationVerified &&
+      Number.isFinite(sellerLocationLatitude) &&
+      Number.isFinite(sellerLocationLongitude);
+
+    // =================================================
+    // Product Location
+    // =================================================
+
+    const rawProductLatitude = product.location?.coordinates?.lat;
+
+    const rawProductLongitude = product.location?.coordinates?.lng;
+
+    const productLatitude = Number(rawProductLatitude);
+
+    const productLongitude = Number(rawProductLongitude);
+
+    const hasValidProductCoordinates =
+      Number.isFinite(productLatitude) && Number.isFinite(productLongitude);
+
+    // =================================================
+    // Seller → Product Distance
+    //
+    // Calculate ONLY when both locations exist.
+    // =================================================
+
+    let sellerProductDistance: number | undefined;
+
+    if (hasValidSellerCoordinates && hasValidProductCoordinates) {
+      sellerProductDistance = calculateDistance(
+        sellerLocationLatitude,
+        sellerLocationLongitude,
+        productLatitude,
+        productLongitude,
+      );
+    }
+
+    // =================================================
+    // Trust Score
+    // =================================================
+
+    const sellerTrustScore = Number(seller.trustScore ?? 0);
+
+    // =================================================
+    // Trust Level
+    // =================================================
+
+    const sellerTrustLevel =
+      seller.trustLevel ??
+      (sellerTrustScore >= 85
+        ? "highly_trusted"
+        : sellerTrustScore >= 70
+          ? "trusted"
+          : sellerTrustScore >= 40
+            ? "basic"
+            : "low");
+
+    // =================================================
+    // Serious Bad History
+    //
+    // Existing system preserved.
+    // =================================================
+
+    const sellerHasSeriousBadHistory = false;
+
+    // =================================================
+    // Calculate Seller Badge
+    // =================================================
+
+    const sellerBadge = getSellerBadge({
+      verificationStatus: sellerVerificationStatus,
+
+      phoneVerified: sellerPhoneVerified,
+
+      identityVerified: sellerIdentityVerified,
+
+      locationVerified: sellerLocationVerified,
+
+      trustScore: sellerTrustScore,
+
+      trustLevel: sellerTrustLevel,
+
+      hasSeriousBadHistory: sellerHasSeriousBadHistory,
+    });
+
+    // =================================================
+    // Return Product With Seller Data
+    // =================================================
+
+    return {
+      ...product,
+
+      // -----------------------------------------------
+      // Backward Compatibility
+      // -----------------------------------------------
+
+      sellerIsPhoneVerified: sellerPhoneVerified,
+
+      // -----------------------------------------------
+      // Verification
+      // -----------------------------------------------
+
+      sellerVerificationStatus,
+
+      sellerPhoneVerified,
+
+      sellerIdentityVerified,
+
+      sellerLocationVerified,
+
+      // -----------------------------------------------
+      // Seller Verified Coordinates
+      // -----------------------------------------------
+
+      sellerLocationLatitude: hasValidSellerCoordinates
+        ? sellerLocationLatitude
+        : undefined,
+
+      sellerLocationLongitude: hasValidSellerCoordinates
+        ? sellerLocationLongitude
+        : undefined,
+
+      // -----------------------------------------------
+      // Seller → Product Distance
+      // -----------------------------------------------
+
+      sellerProductDistance,
+
+      // -----------------------------------------------
+      // Trust
+      // -----------------------------------------------
+
+      sellerTrustScore,
+
+      sellerTrustLevel,
+
+      // -----------------------------------------------
+      // Badge
+      // -----------------------------------------------
+
+      sellerBadge,
+    };
+  });
 }
 
 // =====================================================
 // Create Product
 // =====================================================
 
-export async function createProduct(
-  product: Product,
-) {
-  const collection =
-    await getCollection();
+export async function createProduct(product: Product) {
+  const collection = await getCollection();
 
-  const result =
-    await collection.insertOne(
-      product,
-    );
+  const result = await collection.insertOne(product);
 
   return result;
 }
@@ -419,73 +403,49 @@ export async function createProduct(
 // Find Product By Id
 // =====================================================
 
-export async function findProductById(
-  id: string,
-) {
-  const collection =
-    await getCollection();
+export async function findProductById(id: string) {
+  const collection = await getCollection();
 
-  const product =
-    await collection.findOne({
-      _id: new ObjectId(id),
-    });
+  const product = await collection.findOne({
+    _id: new ObjectId(id),
+  });
 
   if (!product) {
     return null;
   }
 
-  const products =
-    await attachSellerVerification([
-      product,
-    ]);
+  const products = await attachSellerVerification([product]);
 
-  return (
-    products[0] ?? null
-  );
+  return products[0] ?? null;
 }
 
 // =====================================================
 // Find Product By Slug
 // =====================================================
 
-export async function findProductBySlug(
-  slug: string,
-) {
-  const collection =
-    await getCollection();
+export async function findProductBySlug(slug: string) {
+  const collection = await getCollection();
 
-  const product =
-    await collection.findOne({
-      slug,
-    });
+  const product = await collection.findOne({
+    slug,
+  });
 
   if (!product) {
     return null;
   }
 
-  const category =
-    await findCategoryById(
-      product.category.toString(),
-    );
+  const category = await findCategoryById(product.category.toString());
 
-  const products =
-    await attachSellerVerification([
-      product,
-    ]);
+  const products = await attachSellerVerification([product]);
 
-  const productWithSeller =
-    products[0] ?? product;
+  const productWithSeller = products[0] ?? product;
 
   return {
     ...productWithSeller,
 
-    categoryName:
-      category?.name ??
-      "Unknown",
+    categoryName: category?.name ?? "Unknown",
 
-    categorySlug:
-      category?.slug ??
-      "",
+    categorySlug: category?.slug ?? "",
   };
 }
 
@@ -498,8 +458,7 @@ export async function findActiveProductsBySeller(
   currentProductId?: string,
   limit = 3,
 ) {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
   const query: any = {
     sellerId,
@@ -508,55 +467,41 @@ export async function findActiveProductsBySeller(
 
   if (currentProductId) {
     query._id = {
-      $ne:
-        new ObjectId(
-          currentProductId,
-        ),
+      $ne: new ObjectId(currentProductId),
     };
   }
 
-  const products =
-    await collection
-      .find(query)
-      .sort({
-        createdAt: -1,
-      })
-      .limit(limit)
-      .toArray();
+  const products = await collection
+    .find(query)
+    .sort({
+      createdAt: -1,
+    })
+    .limit(limit)
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
 // Seller Statistics
 // =====================================================
 
-export async function findSellerStats(
-  sellerId: string,
-) {
-  const collection =
-    await getCollection();
+export async function findSellerStats(sellerId: string) {
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        sellerId,
-        status: "active",
-      })
-      .toArray();
+  const products = await collection
+    .find({
+      sellerId,
+      status: "active",
+    })
+    .toArray();
 
-  const activeAds =
-    products.length;
+  const activeAds = products.length;
 
-  const totalViews =
-    products.reduce(
-      (sum, product) =>
-        sum +
-        (product.views ?? 0),
-      0,
-    );
+  const totalViews = products.reduce(
+    (sum, product) => sum + (product.views ?? 0),
+    0,
+  );
 
   return {
     activeAds,
@@ -568,79 +513,55 @@ export async function findSellerStats(
 // Latest Products
 // =====================================================
 
-export async function findLatestProducts(
-  limit = 20,
-) {
+export async function findLatestProducts(limit = 20) {
   await removeExpiredBoosts();
 
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        status: "active",
-      })
-      .sort({
-        isBoosted: -1,
-        createdAt: -1,
-      })
-      .limit(limit)
-      .toArray();
+  const products = await collection
+    .find({
+      status: "active",
+    })
+    .sort({
+      isBoosted: -1,
+      createdAt: -1,
+    })
+    .limit(limit)
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
 // Products By Seller
 // =====================================================
 
-export async function findProductsBySeller(
-  sellerId: string,
-) {
-  const collection =
-    await getCollection();
+export async function findProductsBySeller(sellerId: string) {
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        sellerId,
+  const products = await collection
+    .find({
+      sellerId,
 
-        status: {
-          $in: [
-            "active",
-            "sold",
-          ],
-        },
-      })
-      .sort({
-        updatedAt: -1,
-      })
-      .toArray();
+      status: {
+        $in: ["active", "sold"],
+      },
+    })
+    .sort({
+      updatedAt: -1,
+    })
+    .toArray();
 
-  const productsWithSeller =
-    await attachSellerVerification(
-      products,
-    );
+  const productsWithSeller = await attachSellerVerification(products);
 
   return Promise.all(
-    productsWithSeller.map(
-      async (
-        product,
-      ) => ({
-        ...product,
+    productsWithSeller.map(async (product) => ({
+      ...product,
 
-        isBoosted:
-          product.isBoosted,
+      isBoosted: product.isBoosted,
 
-        chatCount:
-          await getConversationCountByProduct(
-            product._id!.toString(),
-          ),
-      }),
-    ),
+      chatCount: await getConversationCountByProduct(product._id!.toString()),
+    })),
   );
 }
 
@@ -648,53 +569,41 @@ export async function findProductsBySeller(
 // Featured Products
 // =====================================================
 
-export async function findFeaturedProducts(
-  limit = 8,
-) {
+export async function findFeaturedProducts(limit = 8) {
   await removeExpiredBoosts();
 
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        status: "active",
-      })
-      .sort({
-        isBoosted: -1,
-        createdAt: -1,
-      })
-      .limit(limit)
-      .toArray();
+  const products = await collection
+    .find({
+      status: "active",
+    })
+    .sort({
+      isBoosted: -1,
+      createdAt: -1,
+    })
+    .limit(limit)
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
 // Products By Category
 // =====================================================
 
-export async function findProductsByCategory(
-  category: string,
-) {
-  const collection =
-    await getCollection();
+export async function findProductsByCategory(category: string) {
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        category,
+  const products = await collection
+    .find({
+      category,
 
-        status: "active",
-      })
-      .toArray();
+      status: "active",
+    })
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
@@ -722,8 +631,7 @@ export async function searchProductsPage({
   lng?: string;
   page?: number;
 }) {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
   const query: any = {
     status: "active",
@@ -734,8 +642,7 @@ export async function searchProductsPage({
   // ===================================================
 
   if (category) {
-    query.subcategory =
-      category;
+    query.subcategory = category;
   }
 
   // ===================================================
@@ -743,8 +650,7 @@ export async function searchProductsPage({
   // ===================================================
 
   if (condition) {
-    const conditions =
-      condition.split(",");
+    const conditions = condition.split(",");
 
     query.condition = {
       $in: conditions,
@@ -757,8 +663,7 @@ export async function searchProductsPage({
 
   if (maxPrice) {
     query.price = {
-      $lte:
-        Number(maxPrice),
+      $lte: Number(maxPrice),
     };
   }
 
@@ -770,48 +675,42 @@ export async function searchProductsPage({
     query.$or = [
       {
         title: {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
 
       {
         brand: {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
 
       {
         model: {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
 
       {
         category: {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
 
       {
         subcategory: {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
 
       {
         "location.city": {
-          $regex:
-            keyword,
+          $regex: keyword,
           $options: "i",
         },
       },
@@ -822,11 +721,7 @@ export async function searchProductsPage({
   // Sorting
   // ===================================================
 
-  let sortOption:
-    Record<
-      string,
-      1 | -1
-    > = {
+  let sortOption: Record<string, 1 | -1> = {
     isBoosted: -1,
     createdAt: -1,
   };
@@ -870,44 +765,29 @@ export async function searchProductsPage({
 
   const limit = 20;
 
-  const skip =
-    (page - 1) *
-    limit;
+  const skip = (page - 1) * limit;
 
-  const totalProducts =
-    await collection.countDocuments(
-      query,
-    );
+  const totalProducts = await collection.countDocuments(query);
 
-  const totalPages =
-    Math.ceil(
-      totalProducts /
-        limit,
-    );
+  const totalPages = Math.ceil(totalProducts / limit);
 
   // ===================================================
   // Products
   // ===================================================
 
-  const products =
-    await collection
-      .find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit)
-      .toArray();
+  const products = await collection
+    .find(query)
+    .sort(sortOption)
+    .skip(skip)
+    .limit(limit)
+    .toArray();
 
-  const productsWithSeller =
-    await attachSellerVerification(
-      products,
-    );
+  const productsWithSeller = await attachSellerVerification(products);
 
   return {
-    products:
-      productsWithSeller,
+    products: productsWithSeller,
 
-    currentPage:
-      page,
+    currentPage: page,
 
     totalPages,
 
@@ -926,45 +806,33 @@ export async function searchProductsPage({
 // Client cannot directly modify history.
 // =====================================================
 
-export async function updateProduct(
-  id: string,
-  data: Partial<Product>,
-) {
-  const collection =
-    await getCollection();
+export async function updateProduct(id: string, data: Partial<Product>) {
+  const collection = await getCollection();
 
   // ===================================================
   // Find Existing Product
   // ===================================================
 
-  const existingProduct =
-    await collection.findOne({
-      _id:
-        new ObjectId(id),
-    });
+  const existingProduct = await collection.findOne({
+    _id: new ObjectId(id),
+  });
 
   if (!existingProduct) {
-    throw new Error(
-      "Product not found.",
-    );
+    throw new Error("Product not found.");
   }
 
-  const now =
-    new Date();
+  const now = new Date();
 
   // ===================================================
   // Remove Client Supplied History
   // ===================================================
 
   const {
-    priceHistory:
-      _ignoredPriceHistory,
+    priceHistory: _ignoredPriceHistory,
 
-    locationHistory:
-      _ignoredLocationHistory,
+    locationHistory: _ignoredLocationHistory,
 
-    productHistory:
-      _ignoredProductHistory,
+    productHistory: _ignoredProductHistory,
 
     ...safeData
   } = data as any;
@@ -973,145 +841,83 @@ export async function updateProduct(
   // Existing Price History
   // ===================================================
 
-  const existingPriceHistory =
-    Array.isArray(
-      (existingProduct as any)
-        .priceHistory,
-    )
-      ? (
-          existingProduct as any
-        ).priceHistory
-      : [];
+  const existingPriceHistory = Array.isArray(
+    (existingProduct as any).priceHistory,
+  )
+    ? (existingProduct as any).priceHistory
+    : [];
 
   // ===================================================
   // Existing Location History
   // ===================================================
 
-  const existingLocationHistory =
-    Array.isArray(
-      (existingProduct as any)
-        .locationHistory,
-    )
-      ? (
-          existingProduct as any
-        ).locationHistory
-      : [];
+  const existingLocationHistory = Array.isArray(
+    (existingProduct as any).locationHistory,
+  )
+    ? (existingProduct as any).locationHistory
+    : [];
 
   // ===================================================
   // PRICE CHANGE DETECTION
   // ===================================================
 
-  const oldPrice =
-    Number(
-      existingProduct.price,
-    );
+  const oldPrice = Number(existingProduct.price);
 
-  const newPrice =
-    data.price !==
-    undefined
-      ? Number(data.price)
-      : oldPrice;
+  const newPrice = data.price !== undefined ? Number(data.price) : oldPrice;
 
   const priceChanged =
-    Number.isFinite(
-      oldPrice,
-    ) &&
-    Number.isFinite(
-      newPrice,
-    ) &&
-    oldPrice !==
-      newPrice;
+    Number.isFinite(oldPrice) &&
+    Number.isFinite(newPrice) &&
+    oldPrice !== newPrice;
 
   // ===================================================
   // LOCATION CHANGE DETECTION
   // ===================================================
 
-  const oldLocation =
-    (existingProduct as any)
-      .location ?? {};
+  const oldLocation = (existingProduct as any).location ?? {};
 
-  const newLocation =
-    (data as any)
-      .location ??
-    oldLocation;
+  const newLocation = (data as any).location ?? oldLocation;
 
-  const oldCoordinates =
-    oldLocation.coordinates ??
-    {};
+  const oldCoordinates = oldLocation.coordinates ?? {};
 
-  const newCoordinates =
-    newLocation.coordinates ??
-    oldCoordinates;
+  const newCoordinates = newLocation.coordinates ?? oldCoordinates;
 
-  const oldLat =
-    Number(
-      oldCoordinates.lat,
-    );
+  const oldLat = Number(oldCoordinates.lat);
 
-  const oldLng =
-    Number(
-      oldCoordinates.lng,
-    );
+  const oldLng = Number(oldCoordinates.lng);
 
-  const newLat =
-    Number(
-      newCoordinates.lat,
-    );
+  const newLat = Number(newCoordinates.lat);
 
-  const newLng =
-    Number(
-      newCoordinates.lng,
-    );
+  const newLng = Number(newCoordinates.lng);
 
   // ===================================================
   // Compare Location Fields
   // ===================================================
 
   const locationChanged =
-    oldLocation.country !==
-      newLocation.country ||
-
-    oldLocation.state !==
-      newLocation.state ||
-
-    oldLocation.district !==
-      newLocation.district ||
-
-    oldLocation.city !==
-      newLocation.city ||
-
-    oldLocation.pincode !==
-      newLocation.pincode ||
-
-    oldLocation.address !==
-      newLocation.address ||
-
-    oldLat !==
-      newLat ||
-
-    oldLng !==
-      newLng;
+    oldLocation.country !== newLocation.country ||
+    oldLocation.state !== newLocation.state ||
+    oldLocation.district !== newLocation.district ||
+    oldLocation.city !== newLocation.city ||
+    oldLocation.pincode !== newLocation.pincode ||
+    oldLocation.address !== newLocation.address ||
+    oldLat !== newLat ||
+    oldLng !== newLng;
 
   // ===================================================
   // PRICE HISTORY ENTRY
   // ===================================================
 
   const priceHistoryEntry = {
-    price:
-      newPrice,
+    price: newPrice,
 
-    previousPrice:
-      oldPrice,
+    previousPrice: oldPrice,
 
-    changedAt:
-      now,
+    changedAt: now,
 
-    changedBy:
-      existingProduct.sellerId,
+    changedBy: existingProduct.sellerId,
 
-    changedByName:
-      existingProduct.sellerName ??
-      "Unknown Seller",
+    changedByName: existingProduct.sellerName ?? "Unknown Seller",
   };
 
   // ===================================================
@@ -1119,29 +925,17 @@ export async function updateProduct(
   // ===================================================
 
   const locationHistoryEntry = {
-    country:
-      newLocation.country ??
-      "India",
+    country: newLocation.country ?? "India",
 
-    state:
-      newLocation.state ??
-      "",
+    state: newLocation.state ?? "",
 
-    district:
-      newLocation.district ??
-      "",
+    district: newLocation.district ?? "",
 
-    city:
-      newLocation.city ??
-      "",
+    city: newLocation.city ?? "",
 
-    pincode:
-      newLocation.pincode ??
-      "",
+    pincode: newLocation.pincode ?? "",
 
-    address:
-      newLocation.address ??
-      "",
+    address: newLocation.address ?? "",
 
     coordinates: {
       lat: newLat,
@@ -1153,29 +947,17 @@ export async function updateProduct(
     // ================================================
 
     previousLocation: {
-      country:
-        oldLocation.country ??
-        "India",
+      country: oldLocation.country ?? "India",
 
-      state:
-        oldLocation.state ??
-        "",
+      state: oldLocation.state ?? "",
 
-      district:
-        oldLocation.district ??
-        "",
+      district: oldLocation.district ?? "",
 
-      city:
-        oldLocation.city ??
-        "",
+      city: oldLocation.city ?? "",
 
-      pincode:
-        oldLocation.pincode ??
-        "",
+      pincode: oldLocation.pincode ?? "",
 
-      address:
-        oldLocation.address ??
-        "",
+      address: oldLocation.address ?? "",
 
       coordinates: {
         lat: oldLat,
@@ -1183,99 +965,72 @@ export async function updateProduct(
       },
     },
 
-    changedAt:
-      now,
+    changedAt: now,
 
-    changedBy:
-      existingProduct.sellerId,
+    changedBy: existingProduct.sellerId,
 
-    changedByName:
-      existingProduct.sellerName ??
-      "Unknown Seller",
+    changedByName: existingProduct.sellerName ?? "Unknown Seller",
   };
 
   // ===================================================
   // Build Updated Price History
   // ===================================================
 
-  const updatedPriceHistory =
-    priceChanged
-      ? [
-          ...existingPriceHistory,
-          priceHistoryEntry,
-        ]
-      : existingPriceHistory;
+  const updatedPriceHistory = priceChanged
+    ? [...existingPriceHistory, priceHistoryEntry]
+    : existingPriceHistory;
 
   // ===================================================
   // Build Updated Location History
   // ===================================================
 
-  const updatedLocationHistory =
-    locationChanged
-      ? [
-          ...existingLocationHistory,
-          locationHistoryEntry,
-        ]
-      : existingLocationHistory;
+  const updatedLocationHistory = locationChanged
+    ? [...existingLocationHistory, locationHistoryEntry]
+    : existingLocationHistory;
 
   // ===================================================
   // Build Product For Risk Engine
   // ===================================================
 
-  const updatedProductForRisk =
-    {
-      ...existingProduct,
+  const updatedProductForRisk = {
+    ...existingProduct,
 
-      ...safeData,
+    ...safeData,
 
-      price:
-        newPrice,
+    price: newPrice,
 
-      priceHistory:
-        updatedPriceHistory,
+    priceHistory: updatedPriceHistory,
 
-      locationHistory:
-        updatedLocationHistory,
-    };
+    locationHistory: updatedLocationHistory,
+  };
 
   // ===================================================
   // Calculate Product Risk
   // ===================================================
 
-  const productRisk =
-    calculateProductRisk({
-      price:
-        updatedProductForRisk.price,
+  const productRisk = calculateProductRisk({
+    price: updatedProductForRisk.price,
 
-      priceHistory:
-        updatedProductForRisk
-          .priceHistory,
+    priceHistory: updatedProductForRisk.priceHistory,
 
-      locationHistory:
-        updatedProductForRisk
-          .locationHistory,
+    locationHistory: updatedProductForRisk.locationHistory,
 
-      locationVerification:
-        updatedProductForRisk
-          .locationVerification,
-    });
+    locationVerification: updatedProductForRisk.locationVerification,
+  });
 
   // ===================================================
   // MongoDB Update Operation
   // ===================================================
 
-  const updateOperation: any =
-    {
-      $set: {
-        ...safeData,
+  const updateOperation: any = {
+    $set: {
+      ...safeData,
 
-        risk:
-          productRisk,
+      risk: productRisk,
 
-        updatedAt:
-          now,
-      },
-    };
+      updatedAt: now,
+    },
+  };
 
   // ===================================================
   // Add Price History
@@ -1283,11 +1038,9 @@ export async function updateProduct(
 
   if (priceChanged) {
     updateOperation.$push = {
-      ...(updateOperation.$push ??
-        {}),
+      ...(updateOperation.$push ?? {}),
 
-      priceHistory:
-        priceHistoryEntry,
+      priceHistory: priceHistoryEntry,
     };
   }
 
@@ -1297,11 +1050,9 @@ export async function updateProduct(
 
   if (locationChanged) {
     updateOperation.$push = {
-      ...(updateOperation.$push ??
-        {}),
+      ...(updateOperation.$push ?? {}),
 
-      locationHistory:
-        locationHistoryEntry,
+      locationHistory: locationHistoryEntry,
     };
   }
 
@@ -1311,8 +1062,7 @@ export async function updateProduct(
 
   return collection.updateOne(
     {
-      _id:
-        new ObjectId(id),
+      _id: new ObjectId(id),
     },
 
     updateOperation,
@@ -1323,15 +1073,11 @@ export async function updateProduct(
 // Delete Product
 // =====================================================
 
-export async function deleteProduct(
-  id: string,
-) {
-  const collection =
-    await getCollection();
+export async function deleteProduct(id: string) {
+  const collection = await getCollection();
 
   return collection.deleteOne({
-    _id:
-      new ObjectId(id),
+    _id: new ObjectId(id),
   });
 }
 
@@ -1339,16 +1085,11 @@ export async function deleteProduct(
 // Delete Product By Owner
 // =====================================================
 
-export async function deleteProductByOwner(
-  id: string,
-  sellerId: string,
-) {
-  const collection =
-    await getCollection();
+export async function deleteProductByOwner(id: string, sellerId: string) {
+  const collection = await getCollection();
 
   return collection.deleteOne({
-    _id:
-      new ObjectId(id),
+    _id: new ObjectId(id),
 
     sellerId,
   });
@@ -1358,16 +1099,12 @@ export async function deleteProductByOwner(
 // Increase Product Views
 // =====================================================
 
-export async function increaseProductViews(
-  id: string,
-) {
-  const collection =
-    await getCollection();
+export async function increaseProductViews(id: string) {
+  const collection = await getCollection();
 
   return collection.updateOne(
     {
-      _id:
-        new ObjectId(id),
+      _id: new ObjectId(id),
     },
 
     {
@@ -1387,118 +1124,81 @@ export async function findRelatedProducts(
   currentProductId: string,
   limit = 4,
 ) {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        category,
+  const products = await collection
+    .find({
+      category,
 
-        status: "active",
+      status: "active",
 
-        _id: {
-          $ne:
-            new ObjectId(
-              currentProductId,
-            ),
-        },
-      })
-      .limit(limit)
-      .toArray();
+      _id: {
+        $ne: new ObjectId(currentProductId),
+      },
+    })
+    .limit(limit)
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
 // Mark Product As Sold
 // =====================================================
 
-export async function markProductSold(
-  productId: string,
-  sellerId: string,
-) {
-  const collection =
-    await getCollection();
+export async function markProductSold(productId: string, sellerId: string) {
+  const collection = await getCollection();
 
-  const result =
-    await collection.updateOne(
-      {
-        _id:
-          new ObjectId(
-            productId,
-          ),
+  const result = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
 
-        sellerId,
+      sellerId,
+    },
+
+    {
+      $set: {
+        status: "sold",
+
+        updatedAt: new Date(),
       },
-
-      {
-        $set: {
-          status:
-            "sold",
-
-          updatedAt:
-            new Date(),
-        },
-      },
-    );
-
-  return (
-    result.modifiedCount >
-    0
+    },
   );
+
+  return result.modifiedCount > 0;
 }
 
 // =====================================================
 // Boost Product
 // =====================================================
 
-export async function boostProduct(
-  productId: string,
-  sellerId: string,
-) {
-  const collection =
-    await getCollection();
+export async function boostProduct(productId: string, sellerId: string) {
+  const collection = await getCollection();
 
-  const boostedUntil =
-    new Date();
+  const boostedUntil = new Date();
 
   // 7 days boost
-  boostedUntil.setDate(
-    boostedUntil.getDate() +
-      7,
+  boostedUntil.setDate(boostedUntil.getDate() + 7);
+
+  const result = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
+
+      sellerId,
+    },
+
+    {
+      $set: {
+        isBoosted: true,
+
+        boostedUntil,
+
+        updatedAt: new Date(),
+      },
+    },
   );
 
-  const result =
-    await collection.updateOne(
-      {
-        _id:
-          new ObjectId(
-            productId,
-          ),
-
-        sellerId,
-      },
-
-      {
-        $set: {
-          isBoosted:
-            true,
-
-          boostedUntil,
-
-          updatedAt:
-            new Date(),
-        },
-      },
-    );
-
-  return (
-    result.modifiedCount >
-    0
-  );
+  return result.modifiedCount > 0;
 }
 
 // =====================================================
@@ -1506,24 +1206,20 @@ export async function boostProduct(
 // =====================================================
 
 export async function removeExpiredBoosts() {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
   await collection.updateMany(
     {
-      isBoosted:
-        true,
+      isBoosted: true,
 
       boostedUntil: {
-        $lt:
-          new Date(),
+        $lt: new Date(),
       },
     },
 
     {
       $set: {
-        isBoosted:
-          false,
+        isBoosted: false,
       },
     },
   );
@@ -1533,114 +1229,89 @@ export async function removeExpiredBoosts() {
 // Search Products
 // =====================================================
 
-export async function searchProducts(
-  query: string,
-  limit = 5,
-) {
-  const collection =
-    await getCollection();
+export async function searchProducts(query: string, limit = 5) {
+  const collection = await getCollection();
 
-  const keyword =
-    query.trim();
+  const keyword = query.trim();
 
   if (!keyword) {
     return [];
   }
 
-  console.log(
-    "Search Keyword:",
-    keyword,
-  );
+  console.log("Search Keyword:", keyword);
 
-  const total =
-    await collection.countDocuments();
+  const total = await collection.countDocuments();
 
-  console.log(
-    "Total Products:",
-    total,
-  );
+  console.log("Total Products:", total);
 
-  const activeProducts =
-    await collection.countDocuments({
+  const activeProducts = await collection.countDocuments({
+    status: "active",
+  });
+
+  console.log("Active Products:", activeProducts);
+
+  const products = await collection
+    .find({
       status: "active",
-    });
 
-  console.log(
-    "Active Products:",
-    activeProducts,
-  );
+      $or: [
+        {
+          title: {
+            $regex: keyword,
 
-  const products =
-    await collection
-      .find({
-        status: "active",
-
-        $or: [
-          {
-            title: {
-              $regex:
-                keyword,
-
-              $options: "i",
-            },
+            $options: "i",
           },
+        },
 
-          {
-            brand: {
-              $regex:
-                keyword,
+        {
+          brand: {
+            $regex: keyword,
 
-              $options: "i",
-            },
+            $options: "i",
           },
+        },
 
-          {
-            model: {
-              $regex:
-                keyword,
+        {
+          model: {
+            $regex: keyword,
 
-              $options: "i",
-            },
+            $options: "i",
           },
+        },
 
-          {
-            category: {
-              $regex:
-                keyword,
+        {
+          category: {
+            $regex: keyword,
 
-              $options: "i",
-            },
+            $options: "i",
           },
+        },
 
-          {
-            subcategory: {
-              $regex:
-                keyword,
+        {
+          subcategory: {
+            $regex: keyword,
 
-              $options: "i",
-            },
+            $options: "i",
           },
+        },
 
-          {
-            "location.city": {
-              $regex:
-                keyword,
+        {
+          "location.city": {
+            $regex: keyword,
 
-              $options: "i",
-            },
+            $options: "i",
           },
-        ],
-      })
-      .sort({
-        isBoosted: -1,
-        createdAt: -1,
-      })
-      .limit(limit)
-      .toArray();
+        },
+      ],
+    })
+    .sort({
+      isBoosted: -1,
+      createdAt: -1,
+    })
+    .limit(limit)
+    .toArray();
 
-  return attachSellerVerification(
-    products,
-  );
+  return attachSellerVerification(products);
 }
 
 // =====================================================
@@ -1652,88 +1323,49 @@ export async function findNearbyProducts(
   userLng: number,
   radius = 25,
 ) {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
-  const products =
-    await collection
-      .find({
-        status: "active",
-      })
-      .toArray();
+  const products = await collection
+    .find({
+      status: "active",
+    })
+    .toArray();
 
-  const nearbyProducts =
-    products
+  const nearbyProducts = products
 
-      .map((product) => {
-        const coordinates =
-          product.location
-            ?.coordinates;
+    .map((product) => {
+      const coordinates = product.location?.coordinates;
 
-        if (!coordinates) {
-          return null;
-        }
+      if (!coordinates) {
+        return null;
+      }
 
-        const lat =
-          Number(
-            coordinates.lat,
-          );
+      const lat = Number(coordinates.lat);
 
-        const lng =
-          Number(
-            coordinates.lng,
-          );
+      const lng = Number(coordinates.lng);
 
-        if (
-          !Number.isFinite(
-            lat,
-          ) ||
-          !Number.isFinite(
-            lng,
-          )
-        ) {
-          return null;
-        }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return null;
+      }
 
-        const distance =
-          calculateDistance(
-            userLat,
-            userLng,
-            lat,
-            lng,
-          );
+      const distance = calculateDistance(userLat, userLng, lat, lng);
 
-        return {
-          ...product,
+      return {
+        ...product,
 
-          distance,
-        };
-      })
+        distance,
+      };
+    })
 
-      .filter(
-        (
-          product,
-        ): product is NonNullable<
-          typeof product
-        > =>
-          product !== null,
-      )
+    .filter(
+      (product): product is NonNullable<typeof product> => product !== null,
+    )
 
-      .filter(
-        (product) =>
-          product.distance <=
-          radius,
-      )
+    .filter((product) => product.distance <= radius)
 
-      .sort(
-        (a, b) =>
-          a.distance -
-          b.distance,
-      );
+    .sort((a, b) => a.distance - b.distance);
 
-  return attachSellerVerification(
-    nearbyProducts,
-  );
+  return attachSellerVerification(nearbyProducts);
 }
 
 // =====================================================
@@ -1766,8 +1398,7 @@ export async function searchNearbyProducts({
 
   radius: number;
 }) {
-  const collection =
-    await getCollection();
+  const collection = await getCollection();
 
   const query: any = {
     status: "active",
@@ -1778,8 +1409,7 @@ export async function searchNearbyProducts({
   // ===================================================
 
   if (category) {
-    query.subcategory =
-      category;
+    query.subcategory = category;
   }
 
   // ===================================================
@@ -1787,12 +1417,10 @@ export async function searchNearbyProducts({
   // ===================================================
 
   if (condition) {
-    const conditions =
-      condition.split(",");
+    const conditions = condition.split(",");
 
     query.condition = {
-      $in:
-        conditions,
+      $in: conditions,
     };
   }
 
@@ -1802,8 +1430,7 @@ export async function searchNearbyProducts({
 
   if (maxPrice) {
     query.price = {
-      $lte:
-        Number(maxPrice),
+      $lte: Number(maxPrice),
     };
   }
 
@@ -1815,8 +1442,7 @@ export async function searchNearbyProducts({
     query.$or = [
       {
         title: {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1824,8 +1450,7 @@ export async function searchNearbyProducts({
 
       {
         brand: {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1833,8 +1458,7 @@ export async function searchNearbyProducts({
 
       {
         model: {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1842,8 +1466,7 @@ export async function searchNearbyProducts({
 
       {
         category: {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1851,8 +1474,7 @@ export async function searchNearbyProducts({
 
       {
         subcategory: {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1860,8 +1482,7 @@ export async function searchNearbyProducts({
 
       {
         "location.city": {
-          $regex:
-            keyword,
+          $regex: keyword,
 
           $options: "i",
         },
@@ -1873,83 +1494,51 @@ export async function searchNearbyProducts({
   // Fetch Products
   // ===================================================
 
-  const products =
-    await collection
-      .find(query)
-      .toArray();
+  const products = await collection.find(query).toArray();
 
   // ===================================================
   // Calculate Distance
   // ===================================================
 
-  const nearbyProducts =
-    products.map(
-      (product) => {
-        const coordinates =
-          product.location
-            ?.coordinates;
+  const nearbyProducts = products.map((product) => {
+    const coordinates = product.location?.coordinates;
 
-        if (!coordinates) {
-          return {
-            ...product,
+    if (!coordinates) {
+      return {
+        ...product,
 
-            distance:
-              Number.MAX_SAFE_INTEGER,
-          };
-        }
+        distance: Number.MAX_SAFE_INTEGER,
+      };
+    }
 
-        const productLat =
-          Number(
-            coordinates.lat,
-          );
+    const productLat = Number(coordinates.lat);
 
-        const productLng =
-          Number(
-            coordinates.lng,
-          );
+    const productLng = Number(coordinates.lng);
 
-        if (
-          !Number.isFinite(
-            productLat,
-          ) ||
-          !Number.isFinite(
-            productLng,
-          )
-        ) {
-          return {
-            ...product,
+    if (!Number.isFinite(productLat) || !Number.isFinite(productLng)) {
+      return {
+        ...product,
 
-            distance:
-              Number.MAX_SAFE_INTEGER,
-          };
-        }
+        distance: Number.MAX_SAFE_INTEGER,
+      };
+    }
 
-        const distance =
-          calculateDistance(
-            lat,
-            lng,
-            productLat,
-            productLng,
-          );
+    const distance = calculateDistance(lat, lng, productLat, productLng);
 
-        return {
-          ...product,
+    return {
+      ...product,
 
-          distance,
-        };
-      },
-    );
+      distance,
+    };
+  });
 
   // ===================================================
   // Radius Filter
   // ===================================================
 
-  let filteredProducts =
-    nearbyProducts.filter(
-      (product) =>
-        product.distance <=
-        radius,
-    );
+  let filteredProducts = nearbyProducts.filter(
+    (product) => product.distance <= radius,
+  );
 
   // ===================================================
   // Sort
@@ -1957,68 +1546,40 @@ export async function searchNearbyProducts({
 
   switch (sort) {
     case "price_asc":
-      filteredProducts.sort(
-        (a, b) =>
-          a.price -
-          b.price,
-      );
+      filteredProducts.sort((a, b) => a.price - b.price);
       break;
 
     case "price_desc":
-      filteredProducts.sort(
-        (a, b) =>
-          b.price -
-          a.price,
-      );
+      filteredProducts.sort((a, b) => b.price - a.price);
       break;
 
     case "most_viewed":
-      filteredProducts.sort(
-        (a, b) =>
-          (b.views ?? 0) -
-          (a.views ?? 0),
-      );
+      filteredProducts.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
       break;
 
     case "oldest":
       filteredProducts.sort(
         (a, b) =>
-          new Date(
-            a.createdAt,
-          ).getTime() -
-          new Date(
-            b.createdAt,
-          ).getTime(),
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       );
       break;
 
     case "newest":
       filteredProducts.sort(
         (a, b) =>
-          new Date(
-            b.createdAt,
-          ).getTime() -
-          new Date(
-            a.createdAt,
-          ).getTime(),
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       break;
 
     default:
       // Default = nearest
 
-      filteredProducts.sort(
-        (a, b) =>
-          a.distance -
-          b.distance,
-      );
+      filteredProducts.sort((a, b) => a.distance - b.distance);
   }
 
   // ===================================================
   // Attach Seller Verification + Badge
   // ===================================================
 
-  return attachSellerVerification(
-    filteredProducts,
-  );
+  return attachSellerVerification(filteredProducts);
 }

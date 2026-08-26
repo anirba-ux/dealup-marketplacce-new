@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import crypto from "crypto";
+
 import cloudinary from "@/lib/cloudinary";
 
 export async function POST(request: NextRequest) {
@@ -8,8 +10,7 @@ export async function POST(request: NextRequest) {
 
     const file = formData.get("file") as File | null;
 
-    const type =
-      (formData.get("type") as string) || "product";
+    const type = (formData.get("type") as string) || "product";
 
     // =====================================================
     // Validate File
@@ -82,8 +83,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            message:
-              "Image size must be less than 10 MB.",
+            message: "Image size must be less than 10 MB.",
           },
           {
             status: 400,
@@ -98,6 +98,19 @@ export async function POST(request: NextRequest) {
       const bytes = await file.arrayBuffer();
 
       const buffer = Buffer.from(bytes);
+
+      // ===================================================
+      // Exact Image Fingerprint
+      //
+      // SHA-256 identifies the exact uploaded file.
+      // This will later be used by the Trust Engine
+      // to detect image reuse across product listings.
+      // ===================================================
+
+      const imageHash = crypto
+        .createHash("sha256")
+        .update(buffer)
+        .digest("hex");
 
       // ===================================================
       // Image Folder
@@ -116,34 +129,32 @@ export async function POST(request: NextRequest) {
       // Cloudinary Image Upload
       // ===================================================
 
-      const uploadResult = await new Promise<any>(
-        (resolve, reject) => {
-          cloudinary.uploader
-            .upload_stream(
-              {
-                folder,
+      const uploadResult = await new Promise<any>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder,
 
-                resource_type: "image",
+              resource_type: "image",
 
-                // Keep original upload format.
-                // Cloudinary can process the image
-                // and generate optimized versions later.
+              // Keep original upload format.
+              // Cloudinary can process the image
+              // and generate optimized versions later.
 
-                use_filename: true,
+              use_filename: true,
 
-                unique_filename: true,
-              },
-              (error, result) => {
-                if (error) {
-                  reject(error);
-                } else {
-                  resolve(result);
-                }
-              },
-            )
-            .end(buffer);
-        },
-      );
+              unique_filename: true,
+            },
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            },
+          )
+          .end(buffer);
+      });
 
       // ===================================================
       // Return Image Result
@@ -153,34 +164,26 @@ export async function POST(request: NextRequest) {
         success: true,
 
         type: "image",
-
         image: {
-          publicId:
-            uploadResult.public_id,
+          publicId: uploadResult.public_id,
 
-          url:
-            uploadResult.secure_url,
+          url: uploadResult.secure_url,
 
-          width:
-            uploadResult.width,
+          imageHash,
 
-          height:
-            uploadResult.height,
+          width: uploadResult.width,
 
-          format:
-            uploadResult.format,
+          height: uploadResult.height,
 
-          resourceType:
-            uploadResult.resource_type,
+          format: uploadResult.format,
 
-          originalFilename:
-            file.name,
+          resourceType: uploadResult.resource_type,
 
-          originalMimeType:
-            file.type,
+          originalFilename: file.name,
 
-          size:
-            file.size,
+          originalMimeType: file.type,
+
+          size: file.size,
         },
       });
     }
@@ -206,17 +209,12 @@ export async function POST(request: NextRequest) {
       // Validate MIME Type
       // ===================================================
 
-      if (
-        !allowedDocumentTypes.includes(
-          file.type,
-        )
-      ) {
+      if (!allowedDocumentTypes.includes(file.type)) {
         return NextResponse.json(
           {
             success: false,
 
-            message:
-              "Only PDF, DOC, DOCX and ZIP files are allowed.",
+            message: "Only PDF, DOC, DOCX and ZIP files are allowed.",
           },
           {
             status: 400,
@@ -228,19 +226,14 @@ export async function POST(request: NextRequest) {
       // Maximum Document Size
       // ===================================================
 
-      const MAX_DOCUMENT_SIZE =
-        20 * 1024 * 1024;
+      const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024;
 
-      if (
-        file.size >
-        MAX_DOCUMENT_SIZE
-      ) {
+      if (file.size > MAX_DOCUMENT_SIZE) {
         return NextResponse.json(
           {
             success: false,
 
-            message:
-              "Document size must be less than 20 MB.",
+            message: "Document size must be less than 20 MB.",
           },
           {
             status: 400,
@@ -252,51 +245,37 @@ export async function POST(request: NextRequest) {
       // File -> Buffer
       // ===================================================
 
-      const bytes =
-        await file.arrayBuffer();
+      const bytes = await file.arrayBuffer();
 
-      const buffer =
-        Buffer.from(bytes);
+      const buffer = Buffer.from(bytes);
 
       // ===================================================
       // Cloudinary Document Upload
       // ===================================================
 
-      const uploadResult =
-        await new Promise<any>(
-          (resolve, reject) => {
-            cloudinary.uploader
-              .upload_stream(
-                {
-                  folder:
-                    "dealup/chat",
+      const uploadResult = await new Promise<any>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "dealup/chat",
 
-                  resource_type:
-                    "raw",
+              resource_type: "raw",
 
-                  use_filename:
-                    true,
+              use_filename: true,
 
-                  unique_filename:
-                    true,
-                },
+              unique_filename: true,
+            },
 
-                (
-                  error,
-                  result,
-                ) => {
-                  if (error) {
-                    reject(error);
-                  } else {
-                    resolve(
-                      result,
-                    );
-                  }
-                },
-              )
-              .end(buffer);
-          },
-        );
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            },
+          )
+          .end(buffer);
+      });
 
       return NextResponse.json({
         success: true,
@@ -304,20 +283,15 @@ export async function POST(request: NextRequest) {
         type: "document",
 
         document: {
-          publicId:
-            uploadResult.public_id,
+          publicId: uploadResult.public_id,
 
-          url:
-            uploadResult.secure_url,
+          url: uploadResult.secure_url,
 
-          name:
-            file.name,
+          name: file.name,
 
-          size:
-            file.size,
+          size: file.size,
 
-          mimeType:
-            file.type,
+          mimeType: file.type,
         },
       });
     }
@@ -327,27 +301,18 @@ export async function POST(request: NextRequest) {
     // =====================================================
 
     if (type === "video") {
-      const allowedVideoTypes = [
-        "video/mp4",
-        "video/quicktime",
-        "video/webm",
-      ];
+      const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/webm"];
 
       // ===================================================
       // Validate MIME Type
       // ===================================================
 
-      if (
-        !allowedVideoTypes.includes(
-          file.type,
-        )
-      ) {
+      if (!allowedVideoTypes.includes(file.type)) {
         return NextResponse.json(
           {
             success: false,
 
-            message:
-              "Only MP4, MOV and WEBM videos are allowed.",
+            message: "Only MP4, MOV and WEBM videos are allowed.",
           },
           {
             status: 400,
@@ -359,19 +324,14 @@ export async function POST(request: NextRequest) {
       // Maximum Video Size
       // ===================================================
 
-      const MAX_VIDEO_SIZE =
-        50 * 1024 * 1024;
+      const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 
-      if (
-        file.size >
-        MAX_VIDEO_SIZE
-      ) {
+      if (file.size > MAX_VIDEO_SIZE) {
         return NextResponse.json(
           {
             success: false,
 
-            message:
-              "Video size must be less than 50 MB.",
+            message: "Video size must be less than 50 MB.",
           },
           {
             status: 400,
@@ -383,51 +343,37 @@ export async function POST(request: NextRequest) {
       // File -> Buffer
       // ===================================================
 
-      const bytes =
-        await file.arrayBuffer();
+      const bytes = await file.arrayBuffer();
 
-      const buffer =
-        Buffer.from(bytes);
+      const buffer = Buffer.from(bytes);
 
       // ===================================================
       // Cloudinary Video Upload
       // ===================================================
 
-      const uploadResult =
-        await new Promise<any>(
-          (resolve, reject) => {
-            cloudinary.uploader
-              .upload_stream(
-                {
-                  folder:
-                    "dealup/chat",
+      const uploadResult = await new Promise<any>((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              folder: "dealup/chat",
 
-                  resource_type:
-                    "video",
+              resource_type: "video",
 
-                  use_filename:
-                    true,
+              use_filename: true,
 
-                  unique_filename:
-                    true,
-                },
+              unique_filename: true,
+            },
 
-                (
-                  error,
-                  result,
-                ) => {
-                  if (error) {
-                    reject(error);
-                  } else {
-                    resolve(
-                      result,
-                    );
-                  }
-                },
-              )
-              .end(buffer);
-          },
-        );
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            },
+          )
+          .end(buffer);
+      });
 
       // ===================================================
       // Return Video Upload Result
@@ -439,29 +385,21 @@ export async function POST(request: NextRequest) {
         type: "video",
 
         video: {
-          publicId:
-            uploadResult.public_id,
+          publicId: uploadResult.public_id,
 
-          url:
-            uploadResult.secure_url,
+          url: uploadResult.secure_url,
 
-          name:
-            file.name,
+          name: file.name,
 
-          size:
-            file.size,
+          size: file.size,
 
-          mimeType:
-            file.type,
+          mimeType: file.type,
 
-          width:
-            uploadResult.width,
+          width: uploadResult.width,
 
-          height:
-            uploadResult.height,
+          height: uploadResult.height,
 
-          duration:
-            uploadResult.duration,
+          duration: uploadResult.duration,
         },
       });
     }
@@ -474,25 +412,20 @@ export async function POST(request: NextRequest) {
       {
         success: false,
 
-        message:
-          "Unsupported upload type.",
+        message: "Unsupported upload type.",
       },
       {
         status: 400,
       },
     );
   } catch (error) {
-    console.error(
-      "UPLOAD ERROR:",
-      error,
-    );
+    console.error("UPLOAD ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
 
-        message:
-          "File upload failed.",
+        message: "File upload failed.",
       },
       {
         status: 500,

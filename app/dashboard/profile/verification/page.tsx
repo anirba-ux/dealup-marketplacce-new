@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
 import { useEffect, useState } from "react";
-
 import { QRCodeSVG } from "qrcode.react";
 
 import {
@@ -26,9 +24,7 @@ import {
 
 type LocationSession = {
   token: string;
-
   mobileUrl: string;
-
   expiresAt: string;
 };
 
@@ -42,44 +38,66 @@ type LocationStatus =
 
 type VerificationProgress = {
   phone: boolean;
-
   identity: boolean;
-
   selfie: boolean;
-
   location: boolean;
 };
 
 type SessionStatusResponse = {
   success?: boolean;
-
   valid?: boolean;
-
   authenticated?: boolean;
-
   status?: string;
 
   selfieVerified?: boolean;
-
   locationVerified?: boolean;
 
   expiresAt?: string;
-
   verifiedAt?: string | null;
 
   mobileLocation?: {
     latitude?: number;
-
     longitude?: number;
-
     accuracy?: number;
-
     method?: string;
-
     capturedAt?: string;
   } | null;
 
   message?: string;
+};
+
+// =====================================================
+// CORRECTION REQUEST
+// =====================================================
+
+type CorrectionType =
+  | "identity"
+  | "selfie"
+  | "location"
+  | "multiple";
+
+type CorrectionRequest = {
+  required?: boolean;
+
+  type?: CorrectionType;
+
+  message?: string;
+
+  requestedAt?: string | Date;
+
+  requestedBy?: {
+    userId?: string;
+    name?: string;
+    email?: string | null;
+  };
+
+  sellerViewed?: boolean;
+
+  sellerViewedAt?: string | Date | null;
+
+  resolved?: boolean;
+
+  resolvedAt?: string | Date | null;
 };
 
 type SellerVerificationStatusResponse = {
@@ -87,11 +105,8 @@ type SellerVerificationStatusResponse = {
 
   verification?: {
     phoneVerified?: boolean;
-
     identityVerified?: boolean;
-
     selfieVerified?: boolean;
-
     locationVerified?: boolean;
 
     status?: string;
@@ -99,13 +114,13 @@ type SellerVerificationStatusResponse = {
     rejectionReason?: string | null;
 
     verifiedAt?: string | null;
+
+    correctionRequest?: CorrectionRequest | null;
   };
 
   progress?: {
     completedSteps?: number;
-
     totalSteps?: number;
-
     percent?: number;
   };
 
@@ -121,49 +136,120 @@ export default function VerificationPage() {
   // LOCATION / MOBILE SESSION
   // ===================================================
 
-  const [locationStatus, setLocationStatus] = useState<LocationStatus>("idle");
+  const [locationStatus, setLocationStatus] =
+    useState<LocationStatus>("idle");
 
   const [locationSession, setLocationSession] =
     useState<LocationSession | null>(null);
 
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+  const [locationAccuracy, setLocationAccuracy] =
+    useState<number | null>(null);
 
-  const [locationError, setLocationError] = useState("");
+  const [locationError, setLocationError] =
+    useState("");
 
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] =
+    useState(false);
 
-  const [creatingSession, setCreatingSession] = useState(false);
+  const [creatingSession, setCreatingSession] =
+    useState(false);
 
   // ===================================================
   // GENERAL
   // ===================================================
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] =
+    useState("");
+
+  // ===================================================
+  // ADMIN CORRECTION REQUEST
+  // ===================================================
+
+  const [correctionRequest, setCorrectionRequest] =
+    useState<CorrectionRequest | null>(null);
+
+  const [resolvingCorrection, setResolvingCorrection] =
+    useState(false);
+
+  const [correctionResolved, setCorrectionResolved] =
+    useState(false);
 
   // ===================================================
   // VERIFICATION PROGRESS
   // ===================================================
 
-  const [progress, setProgress] = useState<VerificationProgress>({
-    phone: false,
+  const [progress, setProgress] =
+    useState<VerificationProgress>({
+      phone: false,
+      identity: false,
+      selfie: false,
+      location: false,
+    });
 
-    identity: false,
+  const [loadingVerification, setLoadingVerification] =
+    useState(true);
 
-    selfie: false,
+  const completedSteps =
+    Object.values(progress).filter(Boolean).length;
 
-    location: false,
-  });
+  const progressPercent =
+    completedSteps * 25;
 
-  const [loadingVerification, setLoadingVerification] = useState(true);
+  // ===================================================
+  // CORRECTION HELPERS
+  // ===================================================
 
-  const completedSteps = Object.values(progress).filter(Boolean).length;
+  function getCorrectionTypeLabel(
+    type?: CorrectionType,
+  ) {
+    switch (type) {
+      case "identity":
+        return "Identity Verification";
 
-  const progressPercent = completedSteps * 25;
+      case "selfie":
+        return "Live Selfie Verification";
+
+      case "location":
+        return "Location Verification";
+
+      case "multiple":
+        return "Multiple Verification Steps";
+
+      default:
+        return "Seller Verification";
+    }
+  }
+
+  function isCorrectionStepCompleted() {
+    if (!correctionRequest?.required) {
+      return false;
+    }
+
+    switch (correctionRequest.type) {
+      case "identity":
+        return progress.identity;
+
+      case "selfie":
+        return progress.selfie;
+
+      case "location":
+        return progress.location;
+
+      case "multiple":
+        return (
+          progress.identity &&
+          progress.selfie &&
+          progress.location
+        );
+
+      default:
+        return false;
+    }
+  }
 
   // ===================================================
   // LOAD PERMANENT VERIFICATION STATUS
   //
-  // IMPORTANT:
   // MongoDB users.sellerVerification is the
   // permanent source of truth.
   // ===================================================
@@ -175,11 +261,13 @@ export default function VerificationPage() {
       try {
         setLoadingVerification(true);
 
-        const response = await fetch("/api/seller-verification/status", {
-          method: "GET",
-
-          cache: "no-store",
-        });
+        const response = await fetch(
+          "/api/seller-verification/status",
+          {
+            method: "GET",
+            cache: "no-store",
+          },
+        );
 
         const data =
           (await response.json()) as SellerVerificationStatusResponse;
@@ -188,36 +276,57 @@ export default function VerificationPage() {
           return;
         }
 
-        if (!response.ok || !data.success) {
+        if (
+          !response.ok ||
+          !data.success
+        ) {
           throw new Error(
-            data.message || "Unable to load verification status.",
+            data.message ||
+              "Unable to load verification status.",
           );
         }
 
-        const verification = data.verification ?? {};
+        const verification =
+          data.verification ?? {};
 
-        const selfieVerified = verification.selfieVerified === true;
+        const selfieVerified =
+          verification.selfieVerified === true;
 
-        const locationVerified = verification.locationVerified === true;
+        const locationVerified =
+          verification.locationVerified === true;
+
+        const correction =
+          verification.correctionRequest ?? null;
+
+        setCorrectionRequest(correction);
+
+        setCorrectionResolved(
+          correction?.resolved === true,
+        );
 
         setProgress({
-          phone: verification.phoneVerified === true,
+          phone:
+            verification.phoneVerified === true,
 
-          identity: verification.identityVerified === true,
+          identity:
+            verification.identityVerified === true,
 
-          selfie: selfieVerified,
+          selfie:
+            selfieVerified,
 
-          location: locationVerified,
+          location:
+            locationVerified,
         });
 
         // =================================================
-        // IMPORTANT
-        //
         // If selfie + location are already completed,
-        // NEVER show/create another QR session.
+        // NEVER create another QR session.
         // =================================================
 
-        if (selfieVerified && locationVerified) {
+        if (
+          selfieVerified &&
+          locationVerified
+        ) {
           setLocationStatus("verified");
         }
       } catch (error) {
@@ -225,7 +334,10 @@ export default function VerificationPage() {
           return;
         }
 
-        console.error("LOAD SELLER VERIFICATION STATUS ERROR:", error);
+        console.error(
+          "LOAD SELLER VERIFICATION STATUS ERROR:",
+          error,
+        );
 
         setMessage(
           error instanceof Error
@@ -254,13 +366,14 @@ export default function VerificationPage() {
 
   async function createMobileVerificationSession() {
     // =================================================
-    // SECURITY / UI CHECK
-    //
     // Never create another session if both are already
     // verified.
     // =================================================
 
-    if (progress.selfie && progress.location) {
+    if (
+      progress.selfie &&
+      progress.location
+    ) {
       setLocationStatus("verified");
 
       setMessage(
@@ -283,30 +396,30 @@ export default function VerificationPage() {
 
       setLocationAccuracy(null);
 
-      // ===============================================
-      // Create secure session
-      // ===============================================
+      const response = await fetch(
+        "/api/location-verification/session",
+        {
+          method: "POST",
 
-      const response = await fetch("/api/location-verification/session", {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
+          headers: {
+            "Content-Type": "application/json",
+          },
         },
-      });
+      );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       // =================================================
       // Already verified
       // =================================================
 
-      if (data?.alreadyVerified === true) {
+      if (
+        data?.alreadyVerified === true
+      ) {
         setProgress((previous) => ({
           ...previous,
-
           selfie: true,
-
           location: true,
         }));
 
@@ -319,29 +432,37 @@ export default function VerificationPage() {
         return;
       }
 
-      if (!response.ok || !data?.success) {
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
         throw new Error(
-          data?.message || "Unable to create mobile verification session.",
+          data?.message ||
+            "Unable to create mobile verification session.",
         );
       }
 
-      // ===============================================
+      // =================================================
       // Validate response
-      // ===============================================
+      // =================================================
 
-      if (!data.token || !data.mobileUrl || !data.expiresAt) {
-        throw new Error("Verification session response is incomplete.");
+      if (
+        !data.token ||
+        !data.mobileUrl ||
+        !data.expiresAt
+      ) {
+        throw new Error(
+          "Verification session response is incomplete.",
+        );
       }
 
-      // ===============================================
+      // =================================================
       // Save session
-      // ===============================================
+      // =================================================
 
       setLocationSession({
         token: String(data.token),
-
         mobileUrl: String(data.mobileUrl),
-
         expiresAt: String(data.expiresAt),
       });
 
@@ -351,7 +472,10 @@ export default function VerificationPage() {
         "Scan the QR code with your mobile phone. Your mobile will complete both Live Selfie and GPS verification.",
       );
     } catch (error) {
-      console.error("CREATE MOBILE VERIFICATION SESSION ERROR:", error);
+      console.error(
+        "CREATE MOBILE VERIFICATION SESSION ERROR:",
+        error,
+      );
 
       setLocationStatus("error");
 
@@ -370,11 +494,15 @@ export default function VerificationPage() {
   // ===================================================
 
   useEffect(() => {
-    if (locationStatus !== "waiting" || !locationSession?.token) {
+    if (
+      locationStatus !== "waiting" ||
+      !locationSession?.token
+    ) {
       return;
     }
 
-    const token = locationSession.token;
+    const token =
+      locationSession.token;
 
     let cancelled = false;
 
@@ -386,22 +514,25 @@ export default function VerificationPage() {
           )}`,
           {
             method: "GET",
-
             cache: "no-store",
           },
         );
 
-        const data = (await response.json()) as SessionStatusResponse;
+        const data =
+          (await response.json()) as SessionStatusResponse;
 
         if (cancelled) {
           return;
         }
 
-        // =============================================
+        // =================================================
         // Expired
-        // =============================================
+        // =================================================
 
-        if (response.status === 410 || data?.status === "expired") {
+        if (
+          response.status === 410 ||
+          data?.status === "expired"
+        ) {
           setLocationStatus("expired");
 
           setLocationError(
@@ -411,11 +542,14 @@ export default function VerificationPage() {
           return;
         }
 
-        // =============================================
+        // =================================================
         // Wrong account
-        // =============================================
+        // =================================================
 
-        if (response.status === 401 || response.status === 403) {
+        if (
+          response.status === 401 ||
+          response.status === 403
+        ) {
           setLocationError(
             data?.message ||
               "Please make sure your mobile is logged into the same DealUp account.",
@@ -424,40 +558,50 @@ export default function VerificationPage() {
           return;
         }
 
-        if (!response.ok || !data?.valid) {
+        if (
+          !response.ok ||
+          !data?.valid
+        ) {
           return;
         }
 
-        // =============================================
+        // =================================================
         // SELFIE
-        // =============================================
+        // =================================================
 
-        if (data.selfieVerified === true) {
+        if (
+          data.selfieVerified === true
+        ) {
           setProgress((previous) => ({
             ...previous,
-
             selfie: true,
           }));
         }
 
-        // =============================================
+        // =================================================
         // LOCATION
-        // =============================================
+        // =================================================
 
-        if (data.locationVerified === true) {
+        if (
+          data.locationVerified === true
+        ) {
           setProgress((previous) => ({
             ...previous,
-
             location: true,
           }));
 
-          if (typeof data.mobileLocation?.accuracy === "number") {
-            setLocationAccuracy(data.mobileLocation.accuracy);
+          if (
+            typeof data.mobileLocation?.accuracy ===
+            "number"
+          ) {
+            setLocationAccuracy(
+              data.mobileLocation.accuracy,
+            );
           }
 
-          // ===========================================
+          // =================================================
           // Complete
-          // ===========================================
+          // =================================================
 
           setLocationStatus("verified");
 
@@ -468,11 +612,14 @@ export default function VerificationPage() {
           return;
         }
 
-        // =============================================
+        // =================================================
         // Selfie complete but location pending
-        // =============================================
+        // =================================================
 
-        if (data.selfieVerified === true && data.locationVerified === false) {
+        if (
+          data.selfieVerified === true &&
+          data.locationVerified === false
+        ) {
           setMessage(
             "Live Selfie verified successfully. Your mobile is now completing GPS verification.",
           );
@@ -482,20 +629,30 @@ export default function VerificationPage() {
           return;
         }
 
-        console.error("MOBILE VERIFICATION STATUS ERROR:", error);
+        console.error(
+          "MOBILE VERIFICATION STATUS ERROR:",
+          error,
+        );
       }
     }
 
     checkMobileVerification();
 
-    const interval = window.setInterval(checkMobileVerification, 2500);
+    const interval =
+      window.setInterval(
+        checkMobileVerification,
+        2500,
+      );
 
     return () => {
       cancelled = true;
 
       window.clearInterval(interval);
     };
-  }, [locationStatus, locationSession]);
+  }, [
+    locationStatus,
+    locationSession,
+  ]);
 
   // ===================================================
   // COPY MOBILE URL
@@ -507,7 +664,9 @@ export default function VerificationPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(locationSession.mobileUrl);
+      await navigator.clipboard.writeText(
+        locationSession.mobileUrl,
+      );
 
       setCopied(true);
 
@@ -515,7 +674,10 @@ export default function VerificationPage() {
         setCopied(false);
       }, 2000);
     } catch (error) {
-      console.error("COPY MOBILE URL ERROR:", error);
+      console.error(
+        "COPY MOBILE URL ERROR:",
+        error,
+      );
 
       setLocationError(
         "Unable to copy the verification link. Please copy it manually.",
@@ -528,14 +690,10 @@ export default function VerificationPage() {
   // ===================================================
 
   function resetMobileVerification() {
-    // =================================================
-    // IMPORTANT:
-    //
-    // If verification is permanently complete,
-    // do NOT allow reset back to idle.
-    // =================================================
-
-    if (progress.selfie && progress.location) {
+    if (
+      progress.selfie &&
+      progress.location
+    ) {
       setLocationStatus("verified");
 
       return;
@@ -555,14 +713,171 @@ export default function VerificationPage() {
   }
 
   // ===================================================
-  // RENDER
+  // RESOLVE ADMIN CORRECTION
+  //
+  // IMPORTANT:
+  // This DOES NOT make seller verified.
+  //
+  // It only tells admin:
+  // "Seller has completed the requested correction."
   // ===================================================
 
-  const mobileVerificationCompleted = progress.selfie && progress.location;
+  async function resolveCorrection() {
+    if (
+      !correctionRequest?.required ||
+      correctionRequest.resolved === true
+    ) {
+      return;
+    }
+
+    // =================================================
+    // Validate requested correction
+    // =================================================
+
+    if (
+      correctionRequest.type ===
+        "identity" &&
+      !progress.identity
+    ) {
+      setMessage(
+        "Please complete Identity Verification first.",
+      );
+
+      return;
+    }
+
+    if (
+      correctionRequest.type ===
+        "selfie" &&
+      !progress.selfie
+    ) {
+      setMessage(
+        "Please complete Live Selfie Verification first.",
+      );
+
+      return;
+    }
+
+    if (
+      correctionRequest.type ===
+        "location" &&
+      !progress.location
+    ) {
+      setMessage(
+        "Please complete Location Verification first.",
+      );
+
+      return;
+    }
+
+    if (
+      correctionRequest.type ===
+        "multiple" &&
+      (
+        !progress.identity ||
+        !progress.selfie ||
+        !progress.location
+      )
+    ) {
+      setMessage(
+        "Please complete Identity, Live Selfie and Location Verification first.",
+      );
+
+      return;
+    }
+
+    try {
+      setResolvingCorrection(true);
+
+      setMessage("");
+
+      const response = await fetch(
+        "/api/verification/correction/resolve",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+          },
+
+          body: JSON.stringify({
+            correctionType:
+              correctionRequest.type,
+          }),
+        },
+      );
+
+      const data =
+        await response.json();
+
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
+        throw new Error(
+          data?.message ||
+            "Unable to submit correction for admin review.",
+        );
+      }
+
+      setCorrectionResolved(true);
+
+      setCorrectionRequest(
+        (previous) =>
+          previous
+            ? {
+                ...previous,
+                resolved: true,
+                resolvedAt:
+                  new Date().toISOString(),
+              }
+            : previous,
+      );
+
+      setMessage(
+        "Your correction has been submitted successfully. DealUp admin will review it again.",
+      );
+    } catch (error) {
+      console.error(
+        "RESOLVE CORRECTION ERROR:",
+        error,
+      );
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to submit correction.",
+      );
+    } finally {
+      setResolvingCorrection(false);
+    }
+  }
+
+  // ===================================================
+  // DERIVED STATES
+  // ===================================================
+
+  const mobileVerificationCompleted =
+    progress.selfie &&
+    progress.location;
+
+  const correctionRequired =
+    correctionRequest?.required === true &&
+    correctionRequest.resolved !== true &&
+    !correctionResolved;
+
+  const correctionCompleted =
+    correctionRequired &&
+    isCorrectionStepCompleted();
+
+  // ===================================================
+  // RENDER
+  // ===================================================
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-4xl">
+
         {/* =================================================
             BACK
         ================================================= */}
@@ -581,27 +896,142 @@ export default function VerificationPage() {
 
         <div className="overflow-hidden rounded-3xl bg-gradient-to-r from-[#1565d8] to-[#2878ed] p-8 text-white shadow-xl">
           <div className="flex items-start gap-4">
+
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15">
               <ShieldCheck size={30} />
             </div>
 
             <div>
-              <h1 className="text-3xl font-bold">Seller Verification</h1>
+              <h1 className="text-3xl font-bold">
+                Seller Verification
+              </h1>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">
-                Complete the verification steps below to become a trusted DealUp
-                Verified Seller.
+                Complete the verification steps below
+                to become a trusted DealUp Verified Seller.
               </p>
             </div>
+
           </div>
         </div>
+
+        {/* =================================================
+            ADMIN CORRECTION REQUEST
+        ================================================= */}
+
+        {correctionRequired && (
+          <section className="mt-6 overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-sm">
+
+            <div className="border-b border-orange-200 bg-orange-50 p-6">
+
+              <div className="flex items-start gap-4">
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+                  <ShieldCheck size={25} />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold text-orange-900">
+                    Verification Correction Required
+                  </h2>
+
+                  <p className="mt-1 text-sm leading-6 text-orange-700">
+                    DealUp admin has requested you to
+                    correct your seller verification.
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="p-6">
+
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Required Correction
+              </p>
+
+              <span className="mt-2 inline-flex rounded-full bg-orange-100 px-4 py-2 text-sm font-bold text-orange-700">
+                {getCorrectionTypeLabel(
+                  correctionRequest?.type,
+                )}
+              </span>
+
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Message from DealUp Admin
+                </p>
+
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                  {correctionRequest?.message ||
+                    "Please review and correct your verification information."}
+                </p>
+
+              </div>
+
+              {correctionRequest?.requestedBy?.name && (
+                <p className="mt-4 text-xs text-slate-500">
+                  Requested by{" "}
+                  <span className="font-semibold">
+                    {correctionRequest.requestedBy.name}
+                  </span>
+                </p>
+              )}
+
+              <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold leading-6 text-blue-700">
+                  Please complete the requested correction
+                  below. After completing it, submit the
+                  correction for another admin review.
+                </p>
+              </div>
+
+            </div>
+
+          </section>
+        )}
+
+        {/* =================================================
+            CORRECTION COMPLETED / WAITING ADMIN
+        ================================================= */}
+
+        {correctionRequest?.resolved === true ||
+          correctionResolved ? (
+          <section className="mt-6 rounded-3xl border border-green-200 bg-green-50 p-6">
+
+            <div className="flex items-start gap-4">
+
+              <CheckCircle2
+                size={28}
+                className="mt-0.5 shrink-0 text-green-600"
+              />
+
+              <div>
+                <h2 className="font-bold text-green-900">
+                  Correction Submitted
+                </h2>
+
+                <p className="mt-1 text-sm leading-6 text-green-700">
+                  Your verification correction has been
+                  submitted successfully. DealUp admin will
+                  review your updated verification.
+                </p>
+              </div>
+
+            </div>
+
+          </section>
+        ) : null}
 
         {/* =================================================
             PROGRESS
         ================================================= */}
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-center justify-between">
+
             <div>
               <h2 className="text-lg font-bold text-slate-900">
                 Verification Progress
@@ -613,22 +1043,28 @@ export default function VerificationPage() {
             </div>
 
             <div className="text-sm font-bold text-[#1565d8]">
-              {loadingVerification ? "..." : `${progressPercent}%`}
+              {loadingVerification
+                ? "..."
+                : `${progressPercent}%`}
             </div>
+
           </div>
 
           <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+
             <div
               className="h-full rounded-full bg-[#1565d8] transition-all duration-500"
               style={{
                 width: `${progressPercent}%`,
               }}
             />
+
           </div>
 
           <div className="mt-3 text-xs font-medium text-slate-500">
             {completedSteps} of 4 verification steps completed
           </div>
+
         </div>
 
         {/* =================================================
@@ -636,13 +1072,17 @@ export default function VerificationPage() {
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-start gap-4">
+
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-green-50 text-green-600">
               <CheckCircle2 size={25} />
             </div>
 
             <div className="flex-1">
+
               <div className="flex flex-wrap items-center gap-3">
+
                 <h2 className="text-lg font-bold text-slate-900">
                   Phone Verification
                 </h2>
@@ -652,6 +1092,7 @@ export default function VerificationPage() {
                     Completed
                   </span>
                 )}
+
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
@@ -659,8 +1100,11 @@ export default function VerificationPage() {
                   ? "Your phone number is already verified."
                   : "Your phone number has not been verified yet."}
               </p>
+
             </div>
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -668,13 +1112,17 @@ export default function VerificationPage() {
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-start gap-4">
+
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-[#1565d8]">
               <FileCheck2 size={25} />
             </div>
 
             <div className="flex-1">
+
               <div className="flex flex-wrap items-center gap-3">
+
                 <h2 className="text-lg font-bold text-slate-900">
                   Identity Verification
                 </h2>
@@ -688,10 +1136,12 @@ export default function VerificationPage() {
                     Required
                   </span>
                 )}
+
               </div>
 
               <p className="mt-1 text-sm leading-6 text-slate-500">
-                Submit your identity document securely for DealUp admin review.
+                Submit your identity document securely
+                for DealUp admin review.
               </p>
 
               <Link
@@ -706,8 +1156,11 @@ export default function VerificationPage() {
 
                 <ExternalLink size={15} />
               </Link>
+
             </div>
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -715,13 +1168,17 @@ export default function VerificationPage() {
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-start gap-4">
+
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-purple-50 text-purple-600">
               <Camera size={25} />
             </div>
 
             <div className="flex-1">
+
               <div className="flex flex-wrap items-center gap-3">
+
                 <h2 className="text-lg font-bold text-slate-900">
                   Live Selfie Verification
                 </h2>
@@ -731,6 +1188,7 @@ export default function VerificationPage() {
                     Verified
                   </span>
                 )}
+
               </div>
 
               <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -741,7 +1199,11 @@ export default function VerificationPage() {
 
               {progress.selfie && (
                 <div className="mt-5 flex items-center gap-3 rounded-2xl border border-green-200 bg-green-50 p-4">
-                  <CheckCircle2 size={23} className="shrink-0 text-green-600" />
+
+                  <CheckCircle2
+                    size={23}
+                    className="shrink-0 text-green-600"
+                  />
 
                   <div>
                     <p className="text-sm font-bold text-green-800">
@@ -752,10 +1214,14 @@ export default function VerificationPage() {
                       Your mobile selfie was successfully verified.
                     </p>
                   </div>
+
                 </div>
               )}
+
             </div>
+
           </div>
+
         </section>
 
         {/* =================================================
@@ -764,13 +1230,17 @@ export default function VerificationPage() {
         ================================================= */}
 
         <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-start gap-4">
+
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-600">
               <MapPin size={25} />
             </div>
 
             <div className="flex-1">
+
               <div className="flex flex-wrap items-center gap-3">
+
                 <h2 className="text-lg font-bold text-slate-900">
                   Mobile Selfie & Location Verification
                 </h2>
@@ -780,6 +1250,7 @@ export default function VerificationPage() {
                     Completed
                   </span>
                 )}
+
               </div>
 
               <p className="mt-1 text-sm leading-6 text-slate-500">
@@ -787,7 +1258,9 @@ export default function VerificationPage() {
                   ? "Your Live Selfie and mobile GPS location have already been verified."
                   : "Use your mobile phone to securely complete both your live selfie and precise GPS location."}
               </p>
+
             </div>
+
           </div>
 
           {/* =================================================
@@ -796,24 +1269,34 @@ export default function VerificationPage() {
 
           {mobileVerificationCompleted && (
             <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
+
               <div className="flex items-start gap-3">
-                <CheckCircle2 size={27} className="shrink-0 text-green-600" />
+
+                <CheckCircle2
+                  size={27}
+                  className="shrink-0 text-green-600"
+                />
 
                 <div>
+
                   <h3 className="font-bold text-green-800">
                     Selfie & Location Verification Completed
                   </h3>
 
                   <p className="mt-1 text-sm leading-6 text-green-700">
-                    Your Live Selfie and mobile GPS location have both been
-                    successfully verified.
+                    Your Live Selfie and mobile GPS
+                    location have both been successfully
+                    verified.
                   </p>
 
                   <p className="mt-2 text-xs font-semibold text-green-700">
                     You do not need to repeat this verification.
                   </p>
+
                 </div>
+
               </div>
+
             </div>
           )}
 
@@ -825,24 +1308,35 @@ export default function VerificationPage() {
             locationStatus === "idle" &&
             !loadingVerification && (
               <div className="mt-6">
+
                 <button
                   type="button"
-                  onClick={createMobileVerificationSession}
+                  onClick={
+                    createMobileVerificationSession
+                  }
                   disabled={creatingSession}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-5 py-4 font-semibold text-white transition hover:bg-[#0f52ba] disabled:cursor-not-allowed disabled:opacity-60"
                 >
+
                   {creatingSession ? (
                     <>
-                      <Loader2 size={20} className="animate-spin" />
+                      <Loader2
+                        size={20}
+                        className="animate-spin"
+                      />
+
                       Creating secure session...
                     </>
                   ) : (
                     <>
                       <Smartphone size={20} />
+
                       Verify Selfie & Location on Mobile
                     </>
                   )}
+
                 </button>
+
               </div>
             )}
 
@@ -852,8 +1346,14 @@ export default function VerificationPage() {
 
           {locationStatus === "creating" && (
             <div className="mt-6 flex items-center justify-center gap-3 rounded-2xl bg-blue-50 p-5 text-sm font-semibold text-blue-700">
-              <Loader2 size={20} className="animate-spin" />
+
+              <Loader2
+                size={20}
+                className="animate-spin"
+              />
+
               Creating secure mobile verification session...
+
             </div>
           )}
 
@@ -861,181 +1361,251 @@ export default function VerificationPage() {
               QR / WAITING
           ================================================= */}
 
-          {locationStatus === "waiting" && locationSession && (
-            <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5">
-              <div className="grid gap-8 md:grid-cols-[240px_1fr] md:items-center">
-                {/* QR */}
+          {locationStatus === "waiting" &&
+            locationSession && (
+              <div className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-5">
 
-                <div className="flex flex-col items-center">
-                  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-md">
-                    <QRCodeSVG
-                      value={locationSession.mobileUrl}
-                      size={210}
-                      level="H"
-                      includeMargin
-                    />
-                  </div>
+                <div className="grid gap-8 md:grid-cols-[240px_1fr] md:items-center">
 
-                  <p className="mt-4 text-center text-sm font-bold text-slate-700">
-                    Scan with your mobile phone
-                  </p>
+                  {/* QR */}
 
-                  <p className="mt-1 text-center text-xs text-slate-500">
-                    One QR code completes
-                    <br />
-                    selfie + GPS verification
-                  </p>
-                </div>
+                  <div className="flex flex-col items-center">
 
-                {/* Instructions */}
+                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-md">
 
-                <div className="min-w-0">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#1565d8]">
-                      <Smartphone size={22} />
+                      <QRCodeSVG
+                        value={
+                          locationSession.mobileUrl
+                        }
+                        size={210}
+                        level="H"
+                        includeMargin
+                      />
+
                     </div>
 
-                    <div>
-                      <h3 className="font-bold text-slate-900">
-                        Continue on your mobile
-                      </h3>
-
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        Scan this QR code using your mobile camera. The mobile
-                        page will guide you through Live Selfie first and then
-                        precise GPS verification.
-                      </p>
-
-                      <p className="mt-2 text-xs font-bold text-orange-600">
-                        Important: log in to the same DealUp account on your
-                        mobile.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Step Indicators */}
-
-                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                    <div
-                      className={`rounded-xl border p-4 ${
-                        progress.selfie
-                          ? "border-green-200 bg-green-50"
-                          : "border-purple-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {progress.selfie ? (
-                          <CheckCircle2 size={19} className="text-green-600" />
-                        ) : (
-                          <Camera size={19} className="text-purple-600" />
-                        )}
-
-                        <span className="text-sm font-bold text-slate-800">
-                          Live Selfie
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {progress.selfie
-                          ? "Verified successfully"
-                          : "Waiting for mobile selfie"}
-                      </p>
-                    </div>
-
-                    <div
-                      className={`rounded-xl border p-4 ${
-                        progress.location
-                          ? "border-green-200 bg-green-50"
-                          : "border-orange-200 bg-white"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {progress.location ? (
-                          <CheckCircle2 size={19} className="text-green-600" />
-                        ) : (
-                          <MapPin size={19} className="text-orange-600" />
-                        )}
-
-                        <span className="text-sm font-bold text-slate-800">
-                          Mobile GPS
-                        </span>
-                      </div>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {progress.location
-                          ? "Verified successfully"
-                          : progress.selfie
-                            ? "Waiting for GPS"
-                            : "Starts after selfie"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Mobile URL */}
-
-                  <div className="mt-5 rounded-xl border border-blue-200 bg-white p-3">
-                    <p className="break-all text-xs font-medium text-slate-600">
-                      {locationSession.mobileUrl}
+                    <p className="mt-4 text-center text-sm font-bold text-slate-700">
+                      Scan with your mobile phone
                     </p>
+
+                    <p className="mt-1 text-center text-xs text-slate-500">
+                      One QR code completes
+                      <br />
+                      selfie + GPS verification
+                    </p>
+
                   </div>
 
-                  {/* Actions */}
+                  {/* Instructions */}
 
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={copyMobileUrl}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f52ba]"
-                    >
-                      {copied ? (
-                        <>
-                          <CheckCircle2 size={17} />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={17} />
-                          Copy Mobile Link
-                        </>
-                      )}
-                    </button>
+                  <div className="min-w-0">
 
-                    <a
-                      href={locationSession.mobileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      <ExternalLink size={17} />
-                      Open Link
-                    </a>
-                  </div>
+                    <div className="flex items-start gap-3">
 
-                  {/* Waiting */}
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-[#1565d8]">
+                        <Smartphone size={22} />
+                      </div>
 
-                  <div className="mt-5 flex items-start gap-3 rounded-xl bg-white p-4">
-                    <Loader2
-                      size={20}
-                      className="mt-0.5 shrink-0 animate-spin text-[#1565d8]"
-                    />
+                      <div>
 
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">
-                        {progress.selfie
-                          ? "Selfie verified — waiting for mobile GPS..."
-                          : "Waiting for mobile verification..."}
-                      </p>
+                        <h3 className="font-bold text-slate-900">
+                          Continue on your mobile
+                        </h3>
 
-                      <p className="mt-1 text-xs leading-5 text-slate-500">
-                        Keep this desktop page open. It will automatically
-                        update when your mobile verification is complete.
-                      </p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                          Scan this QR code using your
+                          mobile camera. The mobile page
+                          will guide you through Live Selfie
+                          first and then precise GPS
+                          verification.
+                        </p>
+
+                        <p className="mt-2 text-xs font-bold text-orange-600">
+                          Important: log in to the same
+                          DealUp account on your mobile.
+                        </p>
+
+                      </div>
+
                     </div>
+
+                    {/* Step Indicators */}
+
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+
+                      <div
+                        className={`rounded-xl border p-4 ${
+                          progress.selfie
+                            ? "border-green-200 bg-green-50"
+                            : "border-purple-200 bg-white"
+                        }`}
+                      >
+
+                        <div className="flex items-center gap-2">
+
+                          {progress.selfie ? (
+                            <CheckCircle2
+                              size={19}
+                              className="text-green-600"
+                            />
+                          ) : (
+                            <Camera
+                              size={19}
+                              className="text-purple-600"
+                            />
+                          )}
+
+                          <span className="text-sm font-bold text-slate-800">
+                            Live Selfie
+                          </span>
+
+                        </div>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {progress.selfie
+                            ? "Verified successfully"
+                            : "Waiting for mobile selfie"}
+                        </p>
+
+                      </div>
+
+                      <div
+                        className={`rounded-xl border p-4 ${
+                          progress.location
+                            ? "border-green-200 bg-green-50"
+                            : "border-orange-200 bg-white"
+                        }`}
+                      >
+
+                        <div className="flex items-center gap-2">
+
+                          {progress.location ? (
+                            <CheckCircle2
+                              size={19}
+                              className="text-green-600"
+                            />
+                          ) : (
+                            <MapPin
+                              size={19}
+                              className="text-orange-600"
+                            />
+                          )}
+
+                          <span className="text-sm font-bold text-slate-800">
+                            Mobile GPS
+                          </span>
+
+                        </div>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {progress.location
+                            ? "Verified successfully"
+                            : progress.selfie
+                              ? "Waiting for GPS"
+                              : "Starts after selfie"}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+                    {/* Accuracy */}
+
+                    {locationAccuracy !== null && (
+                      <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3">
+
+                        <p className="text-xs font-semibold text-green-700">
+                          GPS Accuracy:{" "}
+                          {Math.round(
+                            locationAccuracy,
+                          )}
+                          m
+                        </p>
+
+                      </div>
+                    )}
+
+                    {/* Mobile URL */}
+
+                    <div className="mt-5 rounded-xl border border-blue-200 bg-white p-3">
+
+                      <p className="break-all text-xs font-medium text-slate-600">
+                        {locationSession.mobileUrl}
+                      </p>
+
+                    </div>
+
+                    {/* Actions */}
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+
+                      <button
+                        type="button"
+                        onClick={copyMobileUrl}
+                        className="flex items-center justify-center gap-2 rounded-xl bg-[#1565d8] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0f52ba]"
+                      >
+
+                        {copied ? (
+                          <>
+                            <CheckCircle2 size={17} />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={17} />
+                            Copy Mobile Link
+                          </>
+                        )}
+
+                      </button>
+
+                      <a
+                        href={
+                          locationSession.mobileUrl
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        <ExternalLink size={17} />
+                        Open Link
+                      </a>
+
+                    </div>
+
+                    {/* Waiting */}
+
+                    <div className="mt-5 flex items-start gap-3 rounded-xl bg-white p-4">
+
+                      <Loader2
+                        size={20}
+                        className="mt-0.5 shrink-0 animate-spin text-[#1565d8]"
+                      />
+
+                      <div>
+
+                        <p className="text-sm font-bold text-slate-900">
+                          {progress.selfie
+                            ? "Selfie verified — waiting for mobile GPS..."
+                            : "Waiting for mobile verification..."}
+                        </p>
+
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Keep this desktop page open.
+                          It will automatically update when
+                          your mobile verification is complete.
+                        </p>
+
+                      </div>
+
+                    </div>
+
                   </div>
+
                 </div>
+
               </div>
-            </div>
-          )}
+            )}
 
           {/* =================================================
               EXPIRED
@@ -1043,18 +1613,22 @@ export default function VerificationPage() {
 
           {locationStatus === "expired" && (
             <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50 p-5">
+
               <p className="text-sm font-semibold text-orange-700">
                 {locationError}
               </p>
 
               <button
                 type="button"
-                onClick={resetMobileVerification}
+                onClick={
+                  resetMobileVerification
+                }
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
               >
                 <RefreshCw size={17} />
                 Create New Session
               </button>
+
             </div>
           )}
 
@@ -1064,20 +1638,91 @@ export default function VerificationPage() {
 
           {locationStatus === "error" && (
             <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+
               <p className="text-sm font-semibold leading-6 text-red-700">
                 {locationError}
               </p>
 
               <button
                 type="button"
-                onClick={resetMobileVerification}
+                onClick={
+                  resetMobileVerification
+                }
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-700"
               >
                 <RefreshCw size={17} />
                 Try Again
               </button>
+
             </div>
           )}
+
+          {/* =================================================
+              SUBMIT CORRECTION
+          ================================================= */}
+
+          {correctionRequired && (
+            <div className="mt-6 rounded-2xl border border-green-200 bg-green-50 p-5">
+
+              <div className="flex items-start gap-3">
+
+                <CheckCircle2
+                  size={25}
+                  className="mt-0.5 shrink-0 text-green-600"
+                />
+
+                <div className="flex-1">
+
+                  <h3 className="font-bold text-green-800">
+                    {correctionCompleted
+                      ? "Correction Completed"
+                      : "Complete the Requested Correction"}
+                  </h3>
+
+                  <p className="mt-1 text-sm leading-6 text-green-700">
+                    {correctionCompleted
+                      ? "You have completed the requested verification step. You can now submit it for another admin review."
+                      : "Complete the verification correction requested by DealUp admin before submitting it for review."}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      resolveCorrection
+                    }
+                    disabled={
+                      resolvingCorrection ||
+                      !correctionCompleted
+                    }
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+
+                    {resolvingCorrection ? (
+                      <>
+                        <Loader2
+                          size={18}
+                          className="animate-spin"
+                        />
+
+                        Sending for Review...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} />
+
+                        Submit Correction for Review
+                      </>
+                    )}
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
         </section>
 
         {/* =================================================
@@ -1095,23 +1740,35 @@ export default function VerificationPage() {
         ================================================= */}
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 shrink-0 text-[#1565d8]" size={22} />
+
+            <ShieldCheck
+              className="mt-0.5 shrink-0 text-[#1565d8]"
+              size={22}
+            />
 
             <div>
+
               <h3 className="font-bold text-slate-900">
                 Why does DealUp require verification?
               </h3>
 
               <p className="mt-2 text-sm leading-6 text-slate-500">
-                Verified sellers help buyers identify trustworthy marketplace
-                members. Your identity, live selfie and mobile location are used
-                for seller verification and admin review.
+                Verified sellers help buyers identify
+                trustworthy marketplace members. Your
+                identity, live selfie and mobile location
+                are used for seller verification and admin
+                review.
               </p>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
+
                 <div className="rounded-xl bg-slate-50 p-3">
-                  <FileCheck2 size={18} className="text-[#1565d8]" />
+                  <FileCheck2
+                    size={18}
+                    className="text-[#1565d8]"
+                  />
 
                   <p className="mt-2 text-xs font-semibold text-slate-700">
                     Identity
@@ -1119,7 +1776,10 @@ export default function VerificationPage() {
                 </div>
 
                 <div className="rounded-xl bg-slate-50 p-3">
-                  <Camera size={18} className="text-purple-600" />
+                  <Camera
+                    size={18}
+                    className="text-purple-600"
+                  />
 
                   <p className="mt-2 text-xs font-semibold text-slate-700">
                     Live Selfie
@@ -1127,16 +1787,24 @@ export default function VerificationPage() {
                 </div>
 
                 <div className="rounded-xl bg-slate-50 p-3">
-                  <MapPin size={18} className="text-orange-600" />
+                  <MapPin
+                    size={18}
+                    className="text-orange-600"
+                  />
 
                   <p className="mt-2 text-xs font-semibold text-slate-700">
                     Mobile GPS
                   </p>
                 </div>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
+
       </div>
     </main>
   );

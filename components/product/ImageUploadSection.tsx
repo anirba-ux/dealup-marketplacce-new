@@ -8,6 +8,7 @@ import ImagePreviewGrid from "./ImagePreviewGrid";
 interface UploadedImage {
   publicId: string;
   url: string;
+  imageHash?: string;
 }
 
 interface Props {

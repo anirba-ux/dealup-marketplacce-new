@@ -15,9 +15,88 @@ export type UserRole =
 export type SellerVerificationStatus =
   | "unverified"
   | "pending"
+  | "action_required"
   | "verified"
   | "rejected"
   | "suspended";
+
+// =====================================================
+// Seller Verification Correction Type
+// =====================================================
+
+export type SellerVerificationCorrectionType =
+  | "identity"
+  | "selfie"
+  | "location"
+  | "multiple";
+
+// =====================================================
+// Seller Verification Correction Request
+// =====================================================
+
+export interface SellerVerificationCorrectionRequest {
+  // =====================================
+  // Whether correction is currently
+  // required from the seller
+  // =====================================
+
+  required?: boolean;
+
+  // =====================================
+  // Verification area requiring correction
+  // =====================================
+
+  type?:
+    | SellerVerificationCorrectionType;
+
+  // =====================================
+  // Admin message / reason
+  // =====================================
+
+  message?: string;
+
+  // =====================================
+  // Admin request timestamp
+  // =====================================
+
+  requestedAt?:
+    | Date
+    | null;
+
+  // =====================================
+  // Admin information
+  // =====================================
+
+  requestedBy?: {
+    userId?: string;
+
+    name?: string;
+
+    email?:
+      | string
+      | null;
+  };
+
+  // =====================================
+  // Seller viewed the request
+  // =====================================
+
+  sellerViewed?: boolean;
+
+  sellerViewedAt?:
+    | Date
+    | null;
+
+  // =====================================
+  // Correction resolution
+  // =====================================
+
+  resolved?: boolean;
+
+  resolvedAt?:
+    | Date
+    | null;
+}
 
 // =====================================================
 // Seller Verification
@@ -95,6 +174,22 @@ export interface SellerVerification {
 
   selfieVerifiedAt?:
     | Date
+    | null;
+
+  // =====================================
+  // Verification Correction
+  // =====================================
+  //
+  // Admin can request the seller to
+  // correct identity, selfie, location,
+  // or multiple verification items.
+  //
+  // This does NOT automatically make
+  // the seller Verified.
+  // =====================================
+
+  correctionRequest?:
+    | SellerVerificationCorrectionRequest
     | null;
 
   // =====================================
@@ -177,7 +272,8 @@ export interface User {
   // Seller Verification
   // =====================================
 
-  sellerVerification?: SellerVerification;
+  sellerVerification?:
+    | SellerVerification;
 
   // =====================================
   // Seller Trust
