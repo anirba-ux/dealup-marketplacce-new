@@ -136,6 +136,10 @@ async function attachSellerVerification(products: any[]) {
           sellerVerification: 1,
           trustScore: 1,
           trustLevel: 1,
+
+          // Seller badge states
+          trustedSeller: 1,
+          verifiedSeller: 1,
         },
       },
     )
@@ -305,7 +309,11 @@ async function attachSellerVerification(products: any[]) {
     // Existing system preserved.
     // =================================================
 
-    const sellerHasSeriousBadHistory = false;
+    const sellerHasSeriousBadHistory = seller.trustSeriousRisk === true;
+
+    const sellerTrustedSeller = seller.trustedSeller === true;
+
+    const sellerVerifiedSeller = seller.verifiedSeller === true;
 
     // =================================================
     // Calculate Seller Badge
@@ -325,6 +333,8 @@ async function attachSellerVerification(products: any[]) {
       trustLevel: sellerTrustLevel,
 
       hasSeriousBadHistory: sellerHasSeriousBadHistory,
+
+      trustedSeller: sellerTrustedSeller,
     });
 
     // =================================================
@@ -377,6 +387,10 @@ async function attachSellerVerification(products: any[]) {
       sellerTrustScore,
 
       sellerTrustLevel,
+
+      sellerTrustedSeller: sellerTrustedSeller,
+
+      sellerVerifiedSeller: sellerVerifiedSeller,
 
       // -----------------------------------------------
       // Badge

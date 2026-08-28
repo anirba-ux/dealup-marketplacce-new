@@ -1,6 +1,15 @@
 import { auth } from "@/auth";
 import Link from "next/link";
-import { ChevronRight, Home } from "lucide-react";
+import {
+  ChevronRight,
+  Home,
+  Tag,
+  Bike,
+  Eye,
+  CalendarDays,
+  MapPin,
+  Star,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 
 import ProductImageGallery from "@/components/products/ProductImageGallery";
@@ -25,23 +34,13 @@ import {
   type SellerVerificationStatus,
 } from "@/lib/risk/sellerTrust";
 
-import {
-  Tag,
-  Bike,
-  Eye,
-  CalendarDays,
-  MapPin,
-} from "lucide-react";
-
 interface Props {
   params: Promise<{
     slug: string;
   }>;
 }
 
-export default async function ProductDetailsPage({
-  params,
-}: Props) {
+export default async function ProductDetailsPage({ params }: Props) {
   // =====================================================
   // GET SLUG
   // =====================================================
@@ -52,9 +51,7 @@ export default async function ProductDetailsPage({
   // FIND PRODUCT
   // =====================================================
 
-  let product =
-    await findProductBySlug(slug);
-    
+  let product = await findProductBySlug(slug);
 
   if (!product) {
     notFound();
@@ -64,16 +61,13 @@ export default async function ProductDetailsPage({
   // INCREASE PRODUCT VIEWS
   // =====================================================
 
-  await increaseProductViews(
-    product._id.toString(),
-  );
+  await increaseProductViews(product._id.toString());
 
   // =====================================================
   // FETCH PRODUCT AGAIN
   // =====================================================
 
-  product =
-    await findProductBySlug(slug);
+  product = await findProductBySlug(slug);
 
   if (!product) {
     notFound();
@@ -83,10 +77,7 @@ export default async function ProductDetailsPage({
   // FIND SELLER
   // =====================================================
 
-  const rawSeller =
-    await findUserById(
-      product.sellerId,
-    );
+  const rawSeller = await findUserById(product.sellerId);
 
   if (!rawSeller) {
     notFound();
@@ -96,62 +87,46 @@ export default async function ProductDetailsPage({
   // SELLER STATISTICS
   // =====================================================
 
-  const sellerStats =
-    await findSellerStats(
-      product.sellerId,
-    );
+  const sellerStats = await findSellerStats(product.sellerId);
 
   // =====================================================
   // SELLER VERIFICATION STATUS
   // =====================================================
 
   const sellerVerificationStatus: SellerVerificationStatus =
-    rawSeller.sellerVerification
-      ?.status ??
-    "unverified";
+    rawSeller.sellerVerification?.status ?? "unverified";
 
   // =====================================================
   // PHONE VERIFICATION
   // =====================================================
 
-  const sellerPhoneVerified =
-    Boolean(
-      rawSeller.sellerVerification
-        ?.phoneVerified ??
-        rawSeller.isPhoneVerified ??
-        false,
-    );
+  const sellerPhoneVerified = Boolean(
+    rawSeller.sellerVerification?.phoneVerified ??
+    rawSeller.isPhoneVerified ??
+    false,
+  );
 
   // =====================================================
   // IDENTITY VERIFICATION
   // =====================================================
 
-  const sellerIdentityVerified =
-    Boolean(
-      rawSeller.sellerVerification
-        ?.identityVerified ??
-        false,
-    );
+  const sellerIdentityVerified = Boolean(
+    rawSeller.sellerVerification?.identityVerified ?? false,
+  );
 
   // =====================================================
   // LOCATION VERIFICATION
   // =====================================================
 
-  const sellerLocationVerified =
-    Boolean(
-      rawSeller.sellerVerification
-        ?.locationVerified ??
-        false,
-    );
+  const sellerLocationVerified = Boolean(
+    rawSeller.sellerVerification?.locationVerified ?? false,
+  );
 
   // =====================================================
   // SELLER TRUST SCORE
   // =====================================================
 
-  const sellerTrustScore =
-    Number(
-      rawSeller.trustScore ?? 0,
-    );
+  const sellerTrustScore = Number(rawSeller.trustScore ?? 0);
 
   // =====================================================
   // SELLER TRUST LEVEL
@@ -162,61 +137,91 @@ export default async function ProductDetailsPage({
 
   const sellerTrustLevel =
     rawSeller.trustLevel ??
+    (sellerTrustScore >= 85
+      ? "highly_trusted"
+      : sellerTrustScore >= 70
+        ? "trusted"
+        : sellerTrustScore >= 40
+          ? "basic"
+          : "low");
+
+  // =====================================================
+  // TRUSTED SELLER
+  //
+  // IMPORTANT:
+  //
+  // refreshSellerTrustScore() calculates this value.
+  //
+  // We must pass it to getSellerBadge().
+  //
+  // Safe cast is used because older User type may not
+  // yet contain trustedSeller.
+  // =====================================================
+
+  const sellerTrustedSeller = Boolean(
     (
-      sellerTrustScore >= 85
-        ? "highly_trusted"
-        : sellerTrustScore >= 70
-          ? "trusted"
-          : sellerTrustScore >= 40
-            ? "basic"
-            : "low"
-    );
+      rawSeller as typeof rawSeller & {
+        trustedSeller?: boolean;
+      }
+    ).trustedSeller,
+  );
 
   // =====================================================
   // SERIOUS BAD HISTORY
   //
-  // Report / moderation history will be connected
-  // here later.
+  // Temporary:
+  // Reports / moderation history will be connected here.
   // =====================================================
 
-  const sellerHasSeriousBadHistory =
-    false;
+  const sellerHasSeriousBadHistory = false;
 
   // =====================================================
-  // CALCULATE SELLER BADGE
+  // CALCULATE FINAL SELLER BADGE
   //
-  // IMPORTANT:
+  // Badge rules:
   //
-  // Admin must approve seller verification.
+  // 1. Seller verification must be admin approved.
+  // 2. Phone must be verified.
+  // 3. Identity must be verified.
+  // 4. Location must be verified.
+  // 5. Serious bad history must be absent.
   //
-  // sellerVerification.status === "verified"
+  // Then:
   //
-  // is required by getSellerBadge().
+  // Trusted Seller
+  //     ↓
+  // trustedSeller === true
+  // score >= 70
+  // trustLevel = trusted / highly_trusted
+  //
+  // Otherwise:
+  //
+  // Verified Seller
   // =====================================================
 
-  const sellerBadge =
-    getSellerBadge({
-      verificationStatus:
-        sellerVerificationStatus,
+  const sellerBadge = getSellerBadge({
+    verificationStatus: sellerVerificationStatus,
 
-      phoneVerified:
-        sellerPhoneVerified,
+    phoneVerified: sellerPhoneVerified,
 
-      identityVerified:
-        sellerIdentityVerified,
+    identityVerified: sellerIdentityVerified,
 
-      locationVerified:
-        sellerLocationVerified,
+    locationVerified: sellerLocationVerified,
 
-      trustScore:
-        sellerTrustScore,
+    trustScore: sellerTrustScore,
 
-      trustLevel:
-        sellerTrustLevel,
+    trustLevel: sellerTrustLevel,
 
-      hasSeriousBadHistory:
-        sellerHasSeriousBadHistory,
-    });
+    // =================================================
+    // IMPORTANT FIX
+    //
+    // This value was previously missing.
+    // =================================================
+
+    trustedSeller: sellerTrustedSeller,
+
+    hasSeriousBadHistory: sellerHasSeriousBadHistory,
+  });
 
   // =====================================================
   // PREPARE SELLER OBJECT
@@ -229,75 +234,119 @@ export default async function ProductDetailsPage({
     // Verification Status
     // ===================================================
 
-    verificationStatus:
-      sellerVerificationStatus,
+    verificationStatus: sellerVerificationStatus,
 
     // ===================================================
     // Verification
     // ===================================================
 
-    phoneVerified:
-      sellerPhoneVerified,
+    phoneVerified: sellerPhoneVerified,
 
-    identityVerified:
-      sellerIdentityVerified,
+    identityVerified: sellerIdentityVerified,
 
-    locationVerified:
-      sellerLocationVerified,
+    locationVerified: sellerLocationVerified,
 
     // ===================================================
     // Trust
     // ===================================================
 
-    trustScore:
-      sellerTrustScore,
+    trustScore: sellerTrustScore,
 
-    trustLevel:
-      sellerTrustLevel,
+    trustLevel: sellerTrustLevel,
+
+    trustedSeller: sellerTrustedSeller,
 
     // ===================================================
-    // Seller Badge
+    // FINAL SELLER BADGE
+    //
+    // IMPORTANT:
+    // Override any old sellerBadge stored in rawSeller.
+    // The badge calculated above is the source of truth.
     // ===================================================
 
-    badge:
-      sellerBadge,
+    sellerBadge: sellerBadge,
+
+    badge: sellerBadge,
   };
+
+  // =====================================================
+  // DEBUG
+  //
+  // Check browser/server terminal:
+  //
+  // trustedSeller = true
+  // badge = trusted
+  // =====================================================
+
+  console.log("PRODUCT PAGE SELLER TRUST:", {
+    sellerId: product.sellerId,
+
+    verificationStatus: sellerVerificationStatus,
+
+    trustScore: sellerTrustScore,
+
+    trustLevel: sellerTrustLevel,
+
+    trustedSeller: sellerTrustedSeller,
+
+    badge: sellerBadge.badge,
+
+    badgeLabel: sellerBadge.label,
+
+    badgeEligible: sellerBadge.eligible,
+  });
 
   // =====================================================
   // CURRENT SESSION
   // =====================================================
 
-  const session =
-    await auth();
+  const session = await auth();
 
-  const currentUserId =
-    (session?.user as any)?.id ??
-    "";
+  const currentUserId = (session?.user as any)?.id ?? "";
 
   // =====================================================
   // RELATED PRODUCTS
   // =====================================================
 
-  const relatedProducts =
-    await findRelatedProducts(
-      product.category.toString(),
-      product._id.toString(),
-    );
+  const relatedProducts = await findRelatedProducts(
+    product.category.toString(),
+    product._id.toString(),
+  );
 
   // =====================================================
   // PAGE
   // =====================================================
 
   return (
-    <main className="min-h-screen bg-slate-50 py-12 dark:bg-slate-950">
-      <div className="mx-auto max-w-7xl px-6">
-
+    <main
+      className="
+        min-h-screen
+        bg-slate-50
+        py-12
+        dark:bg-slate-950
+      "
+    >
+      <div
+        className="
+          mx-auto
+          max-w-7xl
+          px-6
+        "
+      >
         {/* =================================================
             BREADCRUMB
         ================================================= */}
 
-        <div className="mb-8 flex flex-wrap items-center gap-2 text-sm">
-
+        <div
+          className="
+            mb-8
+            flex
+            flex-wrap
+            items-center
+            gap-2
+            text-sm
+          "
+        >
           <Link
             href="/"
             className="
@@ -313,10 +362,7 @@ export default async function ProductDetailsPage({
             Home
           </Link>
 
-          <ChevronRight
-            size={15}
-            className="text-slate-400"
-          />
+          <ChevronRight size={15} className="text-slate-400" />
 
           <Link
             href={`/search?category=${product.subcategory}`}
@@ -329,12 +375,15 @@ export default async function ProductDetailsPage({
             {product.subcategory}
           </Link>
 
-          <ChevronRight
-            size={15}
-            className="text-slate-400"
-          />
+          <ChevronRight size={15} className="text-slate-400" />
 
-          <span className="font-semibold text-slate-900 dark:text-white">
+          <span
+            className="
+              font-semibold
+              text-slate-900
+              dark:text-white
+            "
+          >
             {product.title}
           </span>
         </div>
@@ -343,19 +392,69 @@ export default async function ProductDetailsPage({
             MAIN GRID
         ================================================= */}
 
-        <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr]">
-
+        <div
+          className="
+            grid
+            gap-12
+            lg:grid-cols-[1.2fr_0.8fr]
+          "
+        >
           {/* =================================================
               LEFT SIDE
           ================================================= */}
 
           <div>
+            {/* =================================================
+    PRODUCT IMAGE GALLERY
+================================================= */}
 
-            {/* Product Images */}
+            <div className="relative">
+              {/* =================================================
+      TRUSTED SELLER IMAGE BADGE
 
-            <ProductImageGallery
-              images={product.images}
-            />
+      Only Trusted Seller products get this badge.
+  ================================================= */}
+
+              {sellerBadge.badge === "trusted" && (
+                <div
+                  className="
+        absolute
+        left-4
+        top-4
+        z-50
+        inline-flex
+        items-center
+        gap-1.5
+        rounded-full
+        border
+        border-yellow-400
+        bg-yellow-500
+        px-3.5
+        py-2
+        text-sm
+        font-bold
+        text-white
+        shadow-lg
+        shadow-yellow-500/30
+      "
+                >
+                  <Star
+                    size={16}
+                    strokeWidth={2.8}
+                    fill="white"
+                    className="text-white"
+                  />
+
+                  <span className="text-white">Trusted</span>
+                </div>
+              )}
+
+              {/* =================================================
+      PRODUCT IMAGE GALLERY
+  ================================================= */}
+
+              <ProductImageGallery images={product.images} />
+            </div>
 
             {/* =================================================
                 DESCRIPTION
@@ -374,11 +473,27 @@ export default async function ProductDetailsPage({
                 dark:bg-slate-900
               "
             >
-              <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-white">
+              <h2
+                className="
+                  mb-4
+                  text-2xl
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
                 Description
               </h2>
 
-              <p className="whitespace-pre-line text-[15px] leading-8 text-slate-600 dark:text-slate-300">
+              <p
+                className="
+                  whitespace-pre-line
+                  text-[15px]
+                  leading-8
+                  text-slate-600
+                  dark:text-slate-300
+                "
+              >
                 {product.description}
               </p>
             </div>
@@ -400,45 +515,48 @@ export default async function ProductDetailsPage({
                 dark:bg-slate-900
               "
             >
-              <h2 className="mb-4 text-2xl font-bold text-slate-900 dark:text-white">
+              <h2
+                className="
+                  mb-4
+                  text-2xl
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
                 Product Location
               </h2>
 
               <ProductLocationMap
-                latitude={
-                  product.location
-                    .coordinates.lat
-                }
-                longitude={
-                  product.location
-                    .coordinates.lng
-                }
+                latitude={product.location.coordinates.lat}
+                longitude={product.location.coordinates.lng}
               />
 
-              <p className="leading-8 text-slate-600 dark:text-slate-300">
+              <p
+                className="
+                  leading-8
+                  text-slate-600
+                  dark:text-slate-300
+                "
+              >
                 {product.location.address}
               </p>
 
-              <p className="mt-2 text-slate-500 dark:text-slate-400">
-                {product.location.city},{" "}
-                {product.location.district},{" "}
-                {product.location.state} -{" "}
-                {product.location.pincode}
+              <p
+                className="
+                  mt-2
+                  text-slate-500
+                  dark:text-slate-400
+                "
+              >
+                {product.location.city}, {product.location.district},{" "}
+                {product.location.state} - {product.location.pincode}
               </p>
 
               <ProductLocationActions
-                latitude={
-                  product.location
-                    .coordinates.lat
-                }
-                longitude={
-                  product.location
-                    .coordinates.lng
-                }
-                address={
-                  product.location.address ??
-                  ""
-                }
+                latitude={product.location.coordinates.lat}
+                longitude={product.location.coordinates.lng}
+                address={product.location.address ?? ""}
               />
             </div>
           </div>
@@ -448,12 +566,18 @@ export default async function ProductDetailsPage({
           ================================================= */}
 
           <div className="relative">
-
             {/* =================================================
                 PRODUCT TITLE
             ================================================= */}
 
-            <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white">
+            <h1
+              className="
+                text-4xl
+                font-extrabold
+                text-slate-900
+                dark:text-white
+              "
+            >
               {product.title}
             </h1>
 
@@ -461,19 +585,29 @@ export default async function ProductDetailsPage({
                 PRICE
             ================================================= */}
 
-            <p className="mt-5 text-5xl font-extrabold text-[#1565d8]">
-              ₹{" "}
-              {product.price.toLocaleString(
-                "en-IN",
-              )}
+            <p
+              className="
+                mt-5
+                text-5xl
+                font-extrabold
+                text-[#1565d8]
+              "
+            >
+              ₹ {product.price.toLocaleString("en-IN")}
             </p>
 
             {/* =================================================
                 PRODUCT BADGES
             ================================================= */}
 
-            <div className="mt-6 flex flex-wrap gap-3">
-
+            <div
+              className="
+                mt-6
+                flex
+                flex-wrap
+                gap-3
+              "
+            >
               <span
                 className="
                   rounded-full
@@ -555,38 +689,79 @@ export default async function ProductDetailsPage({
                 dark:bg-slate-900
               "
             >
-              <h2 className="mb-5 text-xl font-bold text-slate-900 dark:text-white">
+              <h2
+                className="
+                  mb-5
+                  text-xl
+                  font-bold
+                  text-slate-900
+                  dark:text-white
+                "
+              >
                 Product Details
               </h2>
 
               <div className="space-y-4">
-
                 {/* Category */}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-slate-500
+                    "
+                  >
                     <Tag size={18} />
-                    <span>
-                      Category
-                    </span>
+
+                    <span>Category</span>
                   </div>
 
-                  <span className="font-semibold capitalize">
+                  <span
+                    className="
+                      font-semibold
+                      capitalize
+                    "
+                  >
                     {product.categoryName}
                   </span>
                 </div>
 
                 {/* Condition */}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-slate-500
+                    "
+                  >
                     <Bike size={18} />
-                    <span>
-                      Condition
-                    </span>
+
+                    <span>Condition</span>
                   </div>
 
-                  <span className="font-semibold capitalize">
+                  <span
+                    className="
+                      font-semibold
+                      capitalize
+                    "
+                  >
                     {product.condition}
                   </span>
                 </div>
@@ -594,78 +769,110 @@ export default async function ProductDetailsPage({
                 {/* Brand */}
 
                 {product.brand && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">
-                      Brand
-                    </span>
+                  <div
+                    className="
+                      flex
+                      items-center
+                      justify-between
+                    "
+                  >
+                    <span className="text-slate-500">Brand</span>
 
-                    <span className="font-semibold">
-                      {product.brand}
-                    </span>
+                    <span className="font-semibold">{product.brand}</span>
                   </div>
                 )}
 
                 {/* Model */}
 
                 {product.model && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">
-                      Model
-                    </span>
+                  <div
+                    className="
+                      flex
+                      items-center
+                      justify-between
+                    "
+                  >
+                    <span className="text-slate-500">Model</span>
 
-                    <span className="font-semibold">
-                      {product.model}
-                    </span>
+                    <span className="font-semibold">{product.model}</span>
                   </div>
                 )}
 
                 {/* Views */}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-slate-500
+                    "
+                  >
                     <Eye size={18} />
-                    <span>
-                      Views
-                    </span>
+
+                    <span>Views</span>
                   </div>
 
-                  <span className="font-semibold">
-                    {product.views}
-                  </span>
+                  <span className="font-semibold">{product.views}</span>
                 </div>
 
                 {/* Posted */}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-slate-500
+                    "
+                  >
                     <CalendarDays size={18} />
-                    <span>
-                      Posted
-                    </span>
+
+                    <span>Posted</span>
                   </div>
 
                   <span className="font-semibold">
-                    {new Date(
-                      product.createdAt,
-                    ).toLocaleDateString(
-                      "en-IN",
-                    )}
+                    {new Date(product.createdAt).toLocaleDateString("en-IN")}
                   </span>
                 </div>
 
                 {/* Location */}
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-slate-500">
+                <div
+                  className="
+                    flex
+                    items-center
+                    justify-between
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-slate-500
+                    "
+                  >
                     <MapPin size={18} />
-                    <span>
-                      Location
-                    </span>
+
+                    <span>Location</span>
                   </div>
 
-                  <span className="font-semibold">
-                    {product.location.city}
-                  </span>
+                  <span className="font-semibold">{product.location.city}</span>
                 </div>
               </div>
             </div>
@@ -686,12 +893,8 @@ export default async function ProductDetailsPage({
             ================================================= */}
 
             <SellerMoreAds
-              sellerId={
-                product.sellerId
-              }
-              currentProductId={
-                product._id.toString()
-              }
+              sellerId={product.sellerId}
+              currentProductId={product._id.toString()}
             />
 
             {/* =================================================
@@ -699,26 +902,18 @@ export default async function ProductDetailsPage({
             ================================================= */}
 
             <div className="mt-10">
-
               <ProductActions
                 product={{
-                  _id:
-                    product._id.toString(),
+                  _id: product._id.toString(),
 
-                  sellerId:
-                    product.sellerId,
+                  sellerId: product.sellerId,
 
-                  title:
-                    product.title,
+                  title: product.title,
 
-                  slug:
-                    product.slug,
+                  slug: product.slug,
                 }}
-                currentUserId={
-                  currentUserId
-                }
+                currentUserId={currentUserId}
               />
-
             </div>
           </div>
         </div>
@@ -728,65 +923,55 @@ export default async function ProductDetailsPage({
         ================================================= */}
 
         <div className="mt-20">
-
-          <h2 className="mb-8 text-3xl font-bold text-slate-900 dark:text-white">
+          <h2
+            className="
+              mb-8
+              text-3xl
+              font-bold
+              text-slate-900
+              dark:text-white
+            "
+          >
             Related Products
           </h2>
 
-          {relatedProducts.length ===
-          0 ? (
-            <p className="text-slate-500 dark:text-slate-400">
+          {relatedProducts.length === 0 ? (
+            <p
+              className="
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
               No related products found.
             </p>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-
-              {relatedProducts.map(
-                (item: any) => (
-                  <ProductCard
-                    key={
-                      item._id.toString()
-                    }
-                    id={
-                      item._id.toString()
-                    }
-                    slug={
-                      item.slug
-                    }
-                    title={
-                      item.title
-                    }
-                    price={
-                      item.price
-                    }
-                    location={
-                      item.location.city
-                    }
-                    image={
-                      item.thumbnail
-                    }
-                    seller={
-                      item.sellerName
-                    }
-                    condition={
-                      item.condition
-                    }
-                    isFeatured={
-                      item.isFeatured
-                    }
-                    isPremium={
-                      item.isPremium
-                    }
-                    createdAt={
-                      item.createdAt
-                    }
-                    views={
-                      item.views
-                    }
-                  />
-                ),
-              )}
-
+            <div
+              className="
+                grid
+                gap-6
+                sm:grid-cols-2
+                lg:grid-cols-4
+              "
+            >
+              {relatedProducts.map((item: any) => (
+                <ProductCard
+                  key={item._id.toString()}
+                  id={item._id.toString()}
+                  slug={item.slug}
+                  title={item.title}
+                  price={item.price}
+                  location={item.location.city}
+                  image={item.thumbnail}
+                  seller={item.sellerName}
+                  condition={item.condition}
+                  isFeatured={item.isFeatured}
+                  isPremium={item.isPremium}
+                  createdAt={item.createdAt}
+                  views={item.views}
+                  sellerIsPhoneVerified={item.sellerIsPhoneVerified}
+                  sellerBadge={item.sellerBadge}
+                />
+              ))}
             </div>
           )}
         </div>

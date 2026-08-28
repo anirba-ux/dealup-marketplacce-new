@@ -44,7 +44,7 @@ function getLocationStatus(
 function isValidCoordinate(
   latitude: number,
   longitude: number,
-) {
+): boolean {
   return (
     Number.isFinite(latitude) &&
     Number.isFinite(longitude) &&
@@ -52,10 +52,7 @@ function isValidCoordinate(
     latitude <= 90 &&
     longitude >= -180 &&
     longitude <= 180 &&
-    !(
-      latitude === 0 &&
-      longitude === 0
-    )
+    !(latitude === 0 && longitude === 0)
   );
 }
 
@@ -78,14 +75,17 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message:
-            "Unauthorized.",
+          message: "Unauthorized.",
         },
         {
           status: 401,
         },
       );
     }
+
+    // =================================================
+    // Seller ID
+    // =================================================
 
     const sellerId =
       String(
@@ -143,10 +143,15 @@ export async function POST(
     }
 
     // =================================================
-    // Product Coordinates
+    // Product Location
     //
-    // These represent the actual location
-    // of the product selected on the map.
+    // Product location selected by:
+    //
+    // 1. Map
+    // 2. Address → Find on Map
+    // 3. Current location
+    //
+    // Product location is mandatory.
     // =================================================
 
     const productLatitude =
@@ -180,12 +185,19 @@ export async function POST(
     // =================================================
     // Seller Live GPS
     //
-    // CREATE PRODUCT:
+    // IMPORTANT:
     //
-    // Current product flow requires seller live GPS.
+    // Seller's current device GPS is OPTIONAL.
     //
-    // Mobile QR / desktop GPS should provide
-    // sellerLocation before this API is called.
+    // Product location is mandatory.
+    //
+    // If seller GPS exists:
+    //   calculate distance
+    //
+    // If seller GPS does not exist:
+    //   save product location only
+    //   status = unverified
+    //   method = map
     // =================================================
 
     const sellerLatitude =
@@ -204,36 +216,29 @@ export async function POST(
       );
 
     // =================================================
-    // Validate Seller Live GPS
+    // Detect Seller Live GPS
     // =================================================
 
-    if (
-      !isValidCoordinate(
+    const hasSellerLiveLocation =
+      isValidCoordinate(
         sellerLatitude,
         sellerLongitude,
-      )
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Your current device location is required before publishing this product.",
-        },
-        {
-          status: 400,
-        },
       );
-    }
 
     // =================================================
     // Validate GPS Accuracy
+    //
+    // Only validate when seller GPS exists.
     // =================================================
 
     if (
-      !Number.isFinite(
-        sellerAccuracy,
-      ) ||
-      sellerAccuracy <= 0
+      hasSellerLiveLocation &&
+      (
+        !Number.isFinite(
+          sellerAccuracy,
+        ) ||
+        sellerAccuracy <= 0
+      )
     ) {
       return NextResponse.json(
         {
@@ -299,25 +304,53 @@ export async function POST(
     }
 
     // =================================================
-    // SERVER-SIDE DISTANCE CALCULATION
+    // Server-Side Distance Calculation
+    //
+    // IMPORTANT:
+    //
+    // distanceKm can be:
+    //
+    // number
+    // OR
+    // null
+    //
+    // because seller GPS is optional.
     // =================================================
 
-    const distanceKm =
-      calculateDistance(
-        sellerLatitude,
-        sellerLongitude,
-        productLatitude,
-        productLongitude,
-      );
+    const distanceKm:
+      | number
+      | null =
+      hasSellerLiveLocation
+        ? calculateDistance(
+            sellerLatitude,
+            sellerLongitude,
+            productLatitude,
+            productLongitude,
+          )
+        : null;
 
     // =================================================
     // Location Status
+    //
+    // IMPORTANT:
+    //
+    // getLocationStatus() accepts ONLY number.
+    //
+    // Therefore distanceKm !== null is checked before
+    // calling it.
     // =================================================
 
-    const locationStatus =
-      getLocationStatus(
-        distanceKm,
-      );
+    const locationStatus:
+      | "nearby"
+      | "different"
+      | "far"
+      | "unverified" =
+      hasSellerLiveLocation &&
+      distanceKm !== null
+        ? getLocationStatus(
+            distanceKm,
+          )
+        : "unverified";
 
     // =================================================
     // UNIQUE SLUG
@@ -327,16 +360,18 @@ export async function POST(
     // Pulsar 220
     // → pulsar-220
     //
-    // If already exists:
+    // Duplicate:
     // → pulsar-220-2
     //
-    // Again:
+    // Another duplicate:
     // → pulsar-220-3
     // =================================================
 
     const slug =
       await generateUniqueProductSlug(
-        body.title,
+        String(
+          body.title,
+        ),
       );
 
     // =================================================
@@ -351,24 +386,62 @@ export async function POST(
     // =================================================
 
     const locationVerification = {
-      sellerLatitude,
+      // -------------------------------------------------
+      // Seller Live GPS
+      // -------------------------------------------------
 
-      sellerLongitude,
+      sellerLatitude:
+        hasSellerLiveLocation
+          ? sellerLatitude
+          : null,
+
+      sellerLongitude:
+        hasSellerLiveLocation
+          ? sellerLongitude
+          : null,
+
+      // -------------------------------------------------
+      // Product Location
+      // -------------------------------------------------
 
       productLatitude,
 
       productLongitude,
 
+      // -------------------------------------------------
+      // Distance
+      // -------------------------------------------------
+
       distanceKm,
 
+      // -------------------------------------------------
+      // GPS Accuracy
+      // -------------------------------------------------
+
       accuracy:
-        sellerAccuracy,
+        hasSellerLiveLocation
+          ? sellerAccuracy
+          : null,
+
+      // -------------------------------------------------
+      // Status
+      // -------------------------------------------------
 
       status:
         locationStatus,
 
+      // -------------------------------------------------
+      // Method
+      // -------------------------------------------------
+
       method:
-        "device-gps" as const,
+        hasSellerLiveLocation
+          ? ("device-gps" as const)
+          : ("map" as const),
+
+      // -------------------------------------------------
+      // Timestamp
+      // -------------------------------------------------
 
       capturedAt:
         now,
@@ -379,13 +452,21 @@ export async function POST(
     // =================================================
 
     const product: Product = {
+      // =================================================
+      // Basic Product Information
+      // =================================================
+
       title:
-        body.title,
+        String(
+          body.title,
+        ).trim(),
 
       slug,
 
       description:
-        body.description,
+        String(
+          body.description,
+        ).trim(),
 
       price:
         Number(
@@ -396,8 +477,14 @@ export async function POST(
         "INR",
 
       negotiable:
-        body.negotiable ??
-        false,
+        Boolean(
+          body.negotiable ??
+          false,
+        ),
+
+      // =================================================
+      // Category
+      // =================================================
 
       category:
         body.category,
@@ -405,6 +492,10 @@ export async function POST(
       subcategory:
         body.subcategory ??
         "",
+
+      // =================================================
+      // Product Details
+      // =================================================
 
       brand:
         body.brand ??
@@ -417,14 +508,26 @@ export async function POST(
       condition:
         body.condition,
 
+      // =================================================
+      // Images
+      // =================================================
+
       images:
         body.images ??
         [],
 
       thumbnail:
-        body.images?.length > 0
-          ? body.images[0].url
+        Array.isArray(
+          body.images,
+        ) &&
+        body.images.length > 0
+          ? body.images[0]?.url ??
+            ""
           : "",
+
+      // =================================================
+      // Seller
+      // =================================================
 
       sellerId,
 
@@ -481,7 +584,7 @@ export async function POST(
       locationVerification,
 
       // =================================================
-      // Status
+      // Product Status
       // =================================================
 
       status:
@@ -530,7 +633,7 @@ export async function POST(
       );
 
     // =================================================
-    // Success
+    // Success Response
     // =================================================
 
     return NextResponse.json(
@@ -546,20 +649,45 @@ export async function POST(
         slug,
 
         locationVerification: {
+          // ---------------------------------------------
+          // Distance
+          // ---------------------------------------------
+
           distanceKm:
-            Number(
-              distanceKm.toFixed(
-                2,
-              ),
-            ),
+            distanceKm !== null
+              ? Number(
+                  distanceKm.toFixed(
+                    2,
+                  ),
+                )
+              : null,
+
+          // ---------------------------------------------
+          // Status
+          // ---------------------------------------------
 
           status:
             locationStatus,
 
+          // ---------------------------------------------
+          // Accuracy
+          // ---------------------------------------------
+
           accuracy:
-            Math.round(
-              sellerAccuracy,
-            ),
+            hasSellerLiveLocation
+              ? Math.round(
+                  sellerAccuracy,
+                )
+              : null,
+
+          // ---------------------------------------------
+          // Method
+          // ---------------------------------------------
+
+          method:
+            hasSellerLiveLocation
+              ? "device-gps"
+              : "map",
         },
       },
       {

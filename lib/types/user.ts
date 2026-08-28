@@ -2,11 +2,7 @@
 // User Role
 // =====================================================
 
-export type UserRole =
-  | "user"
-  | "buyer"
-  | "seller"
-  | "admin";
+export type UserRole = "user" | "buyer" | "seller" | "admin";
 
 // =====================================================
 // Seller Verification Status
@@ -46,8 +42,7 @@ export interface SellerVerificationCorrectionRequest {
   // Verification area requiring correction
   // =====================================
 
-  type?:
-    | SellerVerificationCorrectionType;
+  type?: SellerVerificationCorrectionType;
 
   // =====================================
   // Admin message / reason
@@ -59,9 +54,7 @@ export interface SellerVerificationCorrectionRequest {
   // Admin request timestamp
   // =====================================
 
-  requestedAt?:
-    | Date
-    | null;
+  requestedAt?: Date | null;
 
   // =====================================
   // Admin information
@@ -72,9 +65,7 @@ export interface SellerVerificationCorrectionRequest {
 
     name?: string;
 
-    email?:
-      | string
-      | null;
+    email?: string | null;
   };
 
   // =====================================
@@ -83,9 +74,7 @@ export interface SellerVerificationCorrectionRequest {
 
   sellerViewed?: boolean;
 
-  sellerViewedAt?:
-    | Date
-    | null;
+  sellerViewedAt?: Date | null;
 
   // =====================================
   // Correction resolution
@@ -93,9 +82,7 @@ export interface SellerVerificationCorrectionRequest {
 
   resolved?: boolean;
 
-  resolvedAt?:
-    | Date
-    | null;
+  resolvedAt?: Date | null;
 }
 
 // =====================================================
@@ -124,29 +111,19 @@ export interface SellerVerification {
   // identity verification only.
   // =====================================
 
-  identityDocumentType?:
-    | "aadhaar"
-    | null;
+  identityDocumentType?: "aadhaar" | null;
 
   // =====================================
   // Identity Submission
   // =====================================
 
-  identitySubmissionId?:
-    | string
-    | null;
+  identitySubmissionId?: string | null;
 
-  identitySubmittedAt?:
-    | Date
-    | null;
+  identitySubmittedAt?: Date | null;
 
-  identityReviewedAt?:
-    | Date
-    | null;
+  identityReviewedAt?: Date | null;
 
-  identityRejectionReason?:
-    | string
-    | null;
+  identityRejectionReason?: string | null;
 
   // =====================================
   // Location Verification
@@ -154,9 +131,7 @@ export interface SellerVerification {
 
   locationVerified: boolean;
 
-  locationVerifiedAt?:
-    | Date
-    | null;
+  locationVerifiedAt?: Date | null;
 
   // =====================================
   // Live Selfie Verification
@@ -164,17 +139,11 @@ export interface SellerVerification {
 
   selfieVerified: boolean;
 
-  selfieUrl?:
-    | string
-    | null;
+  selfieUrl?: string | null;
 
-  selfiePublicId?:
-    | string
-    | null;
+  selfiePublicId?: string | null;
 
-  selfieVerifiedAt?:
-    | Date
-    | null;
+  selfieVerifiedAt?: Date | null;
 
   // =====================================
   // Verification Correction
@@ -188,37 +157,25 @@ export interface SellerVerification {
   // the seller Verified.
   // =====================================
 
-  correctionRequest?:
-    | SellerVerificationCorrectionRequest
-    | null;
+  correctionRequest?: SellerVerificationCorrectionRequest | null;
 
   // =====================================
   // Verification Timeline
   // =====================================
 
-  submittedAt?:
-    | Date
-    | null;
+  submittedAt?: Date | null;
 
-  verifiedAt?:
-    | Date
-    | null;
+  verifiedAt?: Date | null;
 
-  rejectionReason?:
-    | string
-    | null;
+  rejectionReason?: string | null;
 
   // =====================================
   // Suspension
   // =====================================
 
-  suspendedAt?:
-    | Date
-    | null;
+  suspendedAt?: Date | null;
 
-  suspensionReason?:
-    | string
-    | null;
+  suspensionReason?: string | null;
 }
 
 // =====================================================
@@ -272,8 +229,7 @@ export interface User {
   // Seller Verification
   // =====================================
 
-  sellerVerification?:
-    | SellerVerification;
+  sellerVerification?: SellerVerification;
 
   // =====================================
   // Seller Trust
@@ -281,11 +237,19 @@ export interface User {
 
   trustScore?: number;
 
-  trustLevel?:
-    | "low"
-    | "basic"
-    | "trusted"
-    | "highly_trusted";
+  trustLevel?: "low" | "basic" | "trusted" | "highly_trusted";
+
+  // =====================================
+  // Seller Trust Badge
+  // =====================================
+
+  trustedSeller?: boolean;
+
+  verifiedSeller?: boolean;
+
+  sellerBadge?: "none" | "verified" | "trusted";
+
+  sellerBadgeLabel?: string;
 
   // =====================================
   // Seller Risk
@@ -309,9 +273,7 @@ export interface User {
   // Language
   // =====================================
 
-  language?:
-    | string
-    | null;
+  language?: string | null;
 
   // =====================================
   // Account Dates

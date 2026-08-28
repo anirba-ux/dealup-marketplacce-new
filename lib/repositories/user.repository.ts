@@ -258,17 +258,34 @@ export async function findUserById(
     sellerVerification,
 
     // ================================================
-    // Trust
-    // ================================================
+// Trust
+// ================================================
 
-    trustScore:
-      Number(
-        user.trustScore ?? 0,
-      ),
+trustScore:
+  Number(
+    user.trustScore ?? 0,
+  ),
 
-    trustLevel:
-      user.trustLevel ??
-      undefined,
+trustLevel:
+  user.trustLevel ??
+  undefined,
+
+trustedSeller:
+  user.trustedSeller ??
+  false,
+
+verifiedSeller:
+  user.verifiedSeller ??
+  false,
+
+sellerBadge:
+  user.sellerBadge ??
+  "none",
+
+sellerBadgeLabel:
+  user.sellerBadgeLabel ??
+  "",
+      
 
     // ================================================
     // Risk

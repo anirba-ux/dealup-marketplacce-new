@@ -2,10 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 
-import {
-  MapPin,
-  ShieldCheck,
-} from "lucide-react";
+import { MapPin, ShieldCheck, BadgeCheck, Star } from "lucide-react";
 
 import WishlistButton from "@/components/wishlist/WishlistButton";
 
@@ -17,6 +14,7 @@ interface SellerBadge {
   label?: string;
   name?: string;
   type?: string;
+  badge?: string;
 }
 
 // =====================================================
@@ -32,11 +30,25 @@ interface ProductCardProps {
   image: string;
   seller: string;
 
-  // Phone verification
+  // ===================================================
+  // Phone Verification
+  // ===================================================
+
   sellerIsPhoneVerified?: boolean;
 
-  // Seller verification
+  // ===================================================
+  // Seller Verification
+  // ===================================================
+
   sellerVerificationStatus?: string;
+
+  // ===================================================
+  // Backend Seller Badge
+  //
+  // none
+  // verified
+  // trusted
+  // ===================================================
 
   sellerBadge?: SellerBadge | string | null;
 
@@ -91,39 +103,52 @@ export default function ProductCard({
   onWishlistRemoved,
 }: ProductCardProps) {
   // ===================================================
-  // VERIFIED SELLER LOGIC
+  // NORMALIZE BACKEND BADGE
   //
-  // IMPORTANT:
+  // Backend may return:
   //
-  // Badge appears ONLY when:
+  // 1. "verified"
+  // 2. "trusted"
+  // 3. {
+  //      badge: "verified"
+  //    }
+  // 4. {
+  //      type: "verified"
+  //    }
   //
-  // 1. Seller status is "verified"
-  // 2. Backend returned sellerBadge
-  //
-  // Therefore:
-  //
-  // unverified -> no badge
-  // pending    -> no badge
-  // rejected   -> no badge
-  // suspended  -> no badge
-  // verified   -> badge
+  // ===================================================
+
+  const sellerBadgeType =
+    typeof sellerBadge === "string"
+      ? sellerBadge
+      : (sellerBadge?.type ?? sellerBadge?.badge ?? "none");
+
+  // ===================================================
+  // BADGE STATES
   // ===================================================
 
   const isVerifiedSeller =
-    sellerVerificationStatus === "verified" &&
-    sellerBadge !== null &&
-    sellerBadge !== undefined;
+    sellerBadgeType === "verified" || sellerBadgeType === "trusted";
+
+  const isTrustedSeller = sellerBadgeType === "trusted";
 
   // ===================================================
-  // Verified Seller Label
+  // PHONE BADGE
   // ===================================================
 
-  const verifiedSellerLabel =
-    typeof sellerBadge === "string"
-      ? sellerBadge
-      : sellerBadge?.label ??
-        sellerBadge?.name ??
-        "Verified Seller";
+  const hasPhoneBadge = sellerIsPhoneVerified === true;
+
+  // ===================================================
+  // SELLER BADGE SECTION
+  // ===================================================
+
+  const hasSellerBadge = isVerifiedSeller || isTrustedSeller;
+
+  const showBadgeSection = hasSellerBadge || hasPhoneBadge;
+
+  // ===================================================
+  // RETURN
+  // ===================================================
 
   return (
     <Link
@@ -158,11 +183,43 @@ export default function ProductCard({
           dark:bg-slate-800
         "
       >
+        {/* =================================================
+    TRUSTED SELLER IMAGE BADGE
+================================================= */}
+
+        {isTrustedSeller && (
+          <div
+            className="
+      absolute
+      left-3
+      top-3
+      z-30
+      inline-flex
+      items-center
+      gap-1.5
+      rounded-full
+      bg-yellow-500
+      px-3
+      py-1.5
+      text-xs
+      font-bold
+      text-white
+      shadow-lg
+      shadow-yellow-500/30
+    "
+          >
+            <Star
+              size={14}
+              strokeWidth={2.8}
+              fill="white"
+              className="text-white"
+            />
+
+            <span className="text-white">Trusted</span>
+          </div>
+        )}
         <Image
-          src={
-            image ||
-            "/placeholder-product.jpg"
-          }
+          src={image || "/placeholder-product.jpg"}
           alt={title}
           fill
           sizes="
@@ -182,10 +239,7 @@ export default function ProductCard({
             WISHLIST
         ================================================= */}
 
-        <WishlistButton
-          productId={id}
-          onRemoved={onWishlistRemoved}
-        />
+        <WishlistButton productId={id} onRemoved={onWishlistRemoved} />
 
         {/* =================================================
             FEATURED
@@ -265,7 +319,6 @@ export default function ProductCard({
       ================================================= */}
 
       <div className="p-5">
-
         {/* =================================================
             TITLE
         ================================================= */}
@@ -313,7 +366,6 @@ export default function ProductCard({
           "
         >
           <div className="min-w-0">
-
             <p
               className="
                 text-xs
@@ -335,10 +387,11 @@ export default function ProductCard({
             >
               {seller}
             </p>
-
           </div>
 
-          {/* Condition */}
+          {/* =================================================
+              CONDITION
+          ================================================= */}
 
           <div
             className="
@@ -366,8 +419,7 @@ export default function ProductCard({
             SELLER VERIFICATION BADGES
         ================================================= */}
 
-        {(isVerifiedSeller ||
-          sellerIsPhoneVerified === true) && (
+        {showBadgeSection && (
           <div
             className="
               mt-4
@@ -376,11 +428,13 @@ export default function ProductCard({
               gap-2
             "
           >
-
             {/* =================================================
                 VERIFIED SELLER
 
-                ONLY genuinely verified sellers get this.
+                Trusted Seller is ALSO a Verified Seller.
+
+                Therefore when badge type is "trusted",
+                BOTH badges are shown.
             ================================================= */}
 
             {isVerifiedSeller && (
@@ -428,10 +482,7 @@ export default function ProductCard({
                     shadow-sm
                   "
                 >
-                  <ShieldCheck
-                    size={13}
-                    strokeWidth={2.7}
-                  />
+                  <ShieldCheck size={13} strokeWidth={2.7} />
                 </span>
 
                 {/* Text */}
@@ -445,7 +496,79 @@ export default function ProductCard({
                     dark:text-emerald-300
                   "
                 >
-                  {verifiedSellerLabel}
+                  Verified Seller
+                </span>
+              </div>
+            )}
+
+            {/* =================================================
+                TRUSTED SELLER
+
+                ONLY backend type="trusted"
+
+                can display this badge.
+            ================================================= */}
+
+            {isTrustedSeller && (
+              <div
+                className="
+                  inline-flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  border
+                  border-amber-200
+                  bg-gradient-to-r
+                  from-amber-50
+                  via-yellow-50
+                  to-orange-50
+                  px-3.5
+                  py-1.5
+                  shadow-sm
+                  shadow-amber-100
+                  transition-all
+                  duration-200
+                  hover:shadow-md
+                  dark:border-amber-800
+                  dark:from-amber-950/50
+                  dark:via-yellow-950/50
+                  dark:to-orange-950/50
+                  dark:shadow-none
+                "
+              >
+                {/* Badge Icon */}
+
+                <span
+                  className="
+                    flex
+                    h-5
+                    w-5
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-full
+                    bg-gradient-to-br
+                    from-amber-500
+                    to-orange-600
+                    text-white
+                    shadow-sm
+                  "
+                >
+                  <BadgeCheck size={13} strokeWidth={2.7} />
+                </span>
+
+                {/* Text */}
+
+                <span
+                  className="
+                    text-xs
+                    font-bold
+                    tracking-wide
+                    text-amber-700
+                    dark:text-amber-300
+                  "
+                >
+                  Trusted Seller
                 </span>
               </div>
             )}
@@ -453,10 +576,10 @@ export default function ProductCard({
             {/* =================================================
                 PHONE VERIFIED
 
-                Separate from Seller Verification.
+                This is independent of seller badges.
             ================================================= */}
 
-            {sellerIsPhoneVerified === true && (
+            {hasPhoneBadge && (
               <div
                 className="
                   inline-flex
@@ -476,16 +599,11 @@ export default function ProductCard({
                   dark:text-blue-400
                 "
               >
-                <span>
-                  📞
-                </span>
+                <span>📞</span>
 
-                <span>
-                  Phone Verified
-                </span>
+                <span>Phone Verified</span>
               </div>
             )}
-
           </div>
         )}
 
@@ -505,12 +623,13 @@ export default function ProductCard({
         >
           <MapPin
             size={18}
-            className="shrink-0 text-[#1565d8]"
+            className="
+              shrink-0
+              text-[#1565d8]
+            "
           />
 
-          <span className="truncate">
-            {location}
-          </span>
+          <span className="truncate">{location}</span>
         </div>
 
         {/* =================================================
@@ -526,12 +645,9 @@ export default function ProductCard({
           "
         >
           🕒 Posted{" "}
-          {formatDistanceToNow(
-            new Date(createdAt),
-            {
-              addSuffix: true,
-            },
-          )}
+          {formatDistanceToNow(new Date(createdAt), {
+            addSuffix: true,
+          })}
         </p>
 
         {/* =================================================
@@ -549,9 +665,7 @@ export default function ProductCard({
             dark:text-slate-400
           "
         >
-          <span>
-            👁 {(views ?? 0).toLocaleString("en-IN")} Views
-          </span>
+          <span>👁 {(views ?? 0).toLocaleString("en-IN")} Views</span>
         </div>
 
         {/* =================================================
@@ -579,7 +693,6 @@ export default function ProductCard({
             </span>
           </div>
         )}
-
       </div>
     </Link>
   );

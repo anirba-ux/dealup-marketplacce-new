@@ -858,9 +858,11 @@ export async function refreshSellerTrustScore(
   // ===================================================
 
   const verifiedSeller =
-    adminApproved &&
-    sellerBadge.badge ===
-      "verified";
+  adminApproved &&
+  (
+    sellerBadge.badge === "verified" ||
+    sellerBadge.badge === "trusted"
+  );
 
   // ===================================================
   // Trusted Seller

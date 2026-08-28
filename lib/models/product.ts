@@ -37,6 +37,7 @@ export interface ProductImage {
    */
   imageHash?: string;
 }
+
 // =====================================
 // Product Location
 // =====================================
@@ -61,7 +62,10 @@ export interface ProductLocation {
 
 export interface ProductPriceHistory {
   price: number;
+  previousPrice?: number;
   changedAt: Date;
+  changedBy?: string;
+  changedByName?: string;
 }
 
 // =====================================
@@ -73,13 +77,34 @@ export interface ProductLocationHistory {
   district: string;
   state: string;
   pincode: string;
+  address?: string;
 
   coordinates: {
     lat: number;
     lng: number;
   };
 
+  previousLocation?: {
+    country?: string;
+    state?: string;
+    district?: string;
+    city?: string;
+    pincode?: string;
+    address?: string;
+
+    coordinates?: {
+      lat: number;
+      lng: number;
+    };
+  };
+
+  country?: string;
+
   changedAt: Date;
+
+  changedBy?: string;
+
+  changedByName?: string;
 }
 
 // =====================================
@@ -87,25 +112,67 @@ export interface ProductLocationHistory {
 // =====================================
 
 export interface ProductLocationVerification {
-  sellerLatitude: number;
+  // ===================================
+  // Seller Live GPS
+  //
+  // Optional because the seller can
+  // select the product location
+  // manually on the map.
+  // ===================================
 
-  sellerLongitude: number;
+  sellerLatitude: number | null;
+
+  sellerLongitude: number | null;
+
+  // ===================================
+  // Product Location
+  // ===================================
 
   productLatitude: number;
 
   productLongitude: number;
 
-  distanceKm: number;
+  // ===================================
+  // Distance
+  //
+  // null when seller live GPS is
+  // not available.
+  // ===================================
 
-  accuracy: number;
+  distanceKm: number | null;
 
-    status: string;
+  // ===================================
+  // GPS Accuracy
+  //
+  // null when seller live GPS is
+  // not available.
+  // ===================================
 
+  accuracy: number | null;
 
- method:
-  | "device-gps"
-  | "mobile-qr"
-  | "seller-profile";
+  // ===================================
+  // Location Status
+  // ===================================
+
+  status:
+    | "nearby"
+    | "different"
+    | "far"
+    | "unverified";
+
+  // ===================================
+  // Verification Method
+  // ===================================
+
+  method:
+    | "device-gps"
+    | "mobile-qr"
+    | "seller-profile"
+    | "map";
+
+  // ===================================
+  // Timestamp
+  // ===================================
 
   capturedAt: Date;
 }
@@ -121,7 +188,7 @@ export type ProductRiskStatus =
   | "high";
 
 // =====================================
-// Product Risk Flags
+// Product Risk Flag
 // =====================================
 
 export type ProductRiskFlag =

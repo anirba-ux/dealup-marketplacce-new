@@ -1,4 +1,4 @@
-"use client";
+
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -423,25 +423,123 @@ export default function LocationSection({
   // ===================================================
 
   const findAddressOnMap = useCallback(async () => {
-    const query = [
-      watchedAddress,
-      watchedCity,
-      watchedDistrict,
-      watchedState,
-      watchedPincode,
-      "India",
-    ]
-      .map((value) => String(value ?? "").trim())
-      .filter(Boolean)
-      .join(", ");
+    const address = String(watchedAddress ?? "").trim();
+    const city = String(watchedCity ?? "").trim();
+    const district = String(watchedDistrict ?? "").trim();
+    const state = String(watchedState ?? "").trim();
+    const pincode = String(watchedPincode ?? "").trim();
 
-    if (!query) {
-      setAddressError("Please enter the product address first.");
+    // -------------------------------------------------
+    // Basic validation
+    // -------------------------------------------------
 
+    if (!address && !city && !district && !pincode) {
+      setAddressError(
+        "Please enter the product address, city, district or pincode first.",
+      );
       return;
     }
 
-    if (query === lastGeocodedAddress.current) {
+    // -------------------------------------------------
+    // Build progressively simpler search queries.
+    //
+    // Localities such as "Kalyani ITI More" may not be
+    // directly indexed by the geocoder. In that case,
+    // fall back to city/district/pincode.
+    // -------------------------------------------------
+
+    const queries: string[] = [];
+
+    const addQuery = (...parts: string[]) => {
+      const query = parts
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean)
+        .join(", ");
+
+      if (query && !queries.includes(query)) {
+        queries.push(query);
+      }
+    };
+
+    // 1. Full address
+    addQuery(
+      address,
+      city,
+      district,
+      state,
+      pincode,
+      "India",
+    );
+
+    // 2. Address + city + district + state
+    addQuery(
+      address,
+      city,
+      district,
+      state,
+      "India",
+    );
+
+    // 3. Address + city + state
+    addQuery(
+      address,
+      city,
+      state,
+      "India",
+    );
+
+    // 4. City + district + state
+    addQuery(
+      city,
+      district,
+      state,
+      "India",
+    );
+
+    // 5. City + pincode + state
+    addQuery(
+      city,
+      pincode,
+      state,
+      "India",
+    );
+
+    // 6. Pincode + district + state
+    addQuery(
+      pincode,
+      district,
+      state,
+      "India",
+    );
+
+    // 7. Pincode + state
+    addQuery(
+      pincode,
+      state,
+      "India",
+    );
+
+    // 8. City + state
+    addQuery(
+      city,
+      state,
+      "India",
+    );
+
+    if (!queries.length) {
+      setAddressError(
+        "Please enter a valid product location.",
+      );
+      return;
+    }
+
+    // -------------------------------------------------
+    // Avoid repeating the same successful search.
+    // -------------------------------------------------
+
+    const primaryQuery = queries[0];
+
+    if (primaryQuery === lastGeocodedAddress.current) {
       return;
     }
 
@@ -449,39 +547,146 @@ export default function LocationSection({
       setAddressLoading(true);
       setAddressError("");
 
-      const response = await fetch(
-        `/api/geocode?mode=search&q=${encodeURIComponent(query)}`,
-        {
-          cache: "no-store",
-        },
+      let foundLocation:
+        | {
+            latitude: number;
+            longitude: number;
+          }
+        | null = null;
+
+      let successfulQuery = "";
+
+      // -------------------------------------------------
+      // Try each query until a valid location is found.
+      // -------------------------------------------------
+
+      for (const query of queries) {
+        try {
+          console.log(
+            "[DEALUP] GEOCODING QUERY:",
+            query,
+          );
+
+          const response = await fetch(
+            `/api/geocode?mode=search&q=${encodeURIComponent(query)}`,
+            {
+              cache: "no-store",
+            },
+          );
+
+          const data = await response.json().catch(() => null);
+
+          if (!response.ok || !data?.success) {
+            console.warn(
+              "[DEALUP] GEOCODING QUERY FAILED:",
+              query,
+              data?.message ?? `HTTP ${response.status}`,
+            );
+
+            continue;
+          }
+
+          const lat = Number(data.latitude);
+          const lng = Number(data.longitude);
+
+          if (!isValidCoordinate(lat, lng)) {
+            console.warn(
+              "[DEALUP] INVALID GEOCODING RESULT:",
+              query,
+              {
+                latitude: data.latitude,
+                longitude: data.longitude,
+              },
+            );
+
+            continue;
+          }
+
+          foundLocation = {
+            latitude: lat,
+            longitude: lng,
+          };
+
+          successfulQuery = query;
+
+          console.log(
+            "[DEALUP] GEOCODING SUCCESS:",
+            query,
+            {
+              latitude: lat,
+              longitude: lng,
+            },
+          );
+
+          break;
+        } catch (queryError) {
+          console.warn(
+            "[DEALUP] GEOCODING REQUEST ERROR:",
+            query,
+            queryError,
+          );
+
+          // Try the next fallback query.
+        }
+      }
+
+      // -------------------------------------------------
+      // No query returned a valid location.
+      // -------------------------------------------------
+
+      if (!foundLocation) {
+        setAddressError(
+          "We could not find this address automatically. Please select the exact product location directly on the map.",
+        );
+
+        return;
+      }
+
+      // -------------------------------------------------
+      // Save the coordinates.
+      // -------------------------------------------------
+
+      const saved = saveCoordinates(
+        foundLocation.latitude,
+        foundLocation.longitude,
       );
 
-      const data = await response.json();
+      if (!saved) {
+        setAddressError(
+          "The map location returned by the address search is invalid.",
+        );
 
-      if (!response.ok || !data?.success) {
-        throw new Error(data?.message ?? "Unable to find this address.");
+        return;
       }
-
-      const lat = Number(data.latitude);
-
-      const lng = Number(data.longitude);
-
-      if (!isValidCoordinate(lat, lng)) {
-        throw new Error("The address returned an invalid map location.");
-      }
-
-      saveCoordinates(lat, lng);
 
       setLocationSource("address");
-
       setLocationConfirmed(true);
 
-      lastGeocodedAddress.current = query;
+      // Remember the query that actually succeeded.
+      lastGeocodedAddress.current =
+        successfulQuery || primaryQuery;
+
+      // -------------------------------------------------
+      // Reverse geocode the successful coordinates.
+      //
+      // This synchronizes State / District / City /
+      // Pincode / Address with the actual map location.
+      // -------------------------------------------------
+
+      await reverseGeocode(
+        foundLocation.latitude,
+        foundLocation.longitude,
+      );
     } catch (error) {
-      console.error("ADDRESS GEOCODING ERROR:", error);
+      console.error(
+        "[DEALUP] ADDRESS GEOCODING ERROR:",
+        error,
+      );
 
       setAddressError(
-        error instanceof Error ? error.message : "Unable to find this address.",
+        error instanceof Error
+          ? error.message
+          : "Unable to find this address.",
       );
     } finally {
       setAddressLoading(false);
@@ -493,6 +698,7 @@ export default function LocationSection({
     watchedState,
     watchedPincode,
     saveCoordinates,
+    reverseGeocode,
   ]);
 
   // ===================================================
