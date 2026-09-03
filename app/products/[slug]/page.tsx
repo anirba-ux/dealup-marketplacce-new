@@ -167,6 +167,30 @@ export default async function ProductDetailsPage({ params }: Props) {
   );
 
   // =====================================================
+  // PREMIUM SELLER
+  //
+  // Premium badge is shown only when:
+  // 1. Premium Seller is active
+  // 2. Premium has not expired
+  // 3. Premium badge feature is enabled
+  // =====================================================
+
+  const premiumSeller = rawSeller.premiumSeller;
+
+  const premiumExpiresAt = premiumSeller?.expiresAt
+    ? new Date(premiumSeller.expiresAt)
+    : null;
+
+  const premiumNotExpired =
+    !premiumExpiresAt || premiumExpiresAt.getTime() > Date.now();
+
+  const sellerPremiumSeller =
+    premiumSeller?.active === true && premiumNotExpired;
+
+  const sellerPremiumBadge =
+    sellerPremiumSeller && premiumSeller?.premiumBadge === true;
+
+  // =====================================================
   // SERIOUS BAD HISTORY
   //
   // Temporary:
@@ -453,7 +477,11 @@ export default async function ProductDetailsPage({ params }: Props) {
       PRODUCT IMAGE GALLERY
   ================================================= */}
 
-              <ProductImageGallery images={product.images} />
+              <ProductImageGallery
+                images={product.images}
+                sellerPremiumSeller={sellerPremiumSeller}
+                sellerPremiumBadge={sellerPremiumBadge}
+              />
             </div>
 
             {/* =================================================
@@ -970,6 +998,8 @@ export default async function ProductDetailsPage({ params }: Props) {
                   views={item.views}
                   sellerIsPhoneVerified={item.sellerIsPhoneVerified}
                   sellerBadge={item.sellerBadge}
+                  sellerPremiumSeller={item.sellerPremiumSeller}
+                  sellerPremiumBadge={item.sellerPremiumBadge}
                 />
               ))}
             </div>

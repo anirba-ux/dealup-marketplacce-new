@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { ArrowRight, BadgeCheck, TrendingUp, Zap } from "lucide-react";
 
@@ -24,24 +25,35 @@ export default function PremiumBanner() {
                 and grow your sales with our Premium Seller membership.
               </p>
 
+              {/* Premium Actions */}
               <div className="mt-10 flex flex-wrap gap-4">
-                <button className="flex items-center gap-2 rounded-xl bg-[#f5a623] px-10 py-4 font-semibold text-slate-900 transition-all duration-300 hover:scale-105">
+                {/* Upgrade Now */}
+                <Link
+                  href="/dashboard/premium"
+                  className="flex items-center gap-2 rounded-xl bg-[#f5a623] px-10 py-4 font-semibold text-slate-900 transition-all duration-300 hover:scale-105"
+                >
                   Upgrade Now
                   <ArrowRight size={18} />
-                </button>
+                </Link>
 
-                <button className="rounded-xl border border-white/40 px-10 py-4 font-semibold text-white backdrop-blur transition-all duration-300 hover:bg-white hover:text-[#1565d8] dark:hover:bg-slate-800 dark:hover:text-white">
+                {/* Learn More */}
+                <Link
+                  href="/premium"
+                  className="rounded-xl border border-white/40 px-10 py-4 font-semibold text-white backdrop-blur transition-all duration-300 hover:bg-white hover:text-[#1565d8] dark:hover:bg-slate-800 dark:hover:text-white"
+                >
                   Learn More
-                </button>
+                </Link>
               </div>
             </div>
 
             {/* Right Content */}
             <div className="grid gap-5">
+              {/* Reach More Buyers */}
               <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
                 <TrendingUp size={34} />
+
                 <div>
-                  <h3 className="font-semibold text-xl">Reach More Buyers</h3>
+                  <h3 className="text-xl font-semibold">Reach More Buyers</h3>
 
                   <p className="text-blue-100">
                     Featured listings appear at the top.
@@ -49,11 +61,12 @@ export default function PremiumBanner() {
                 </div>
               </div>
 
+              {/* Sell Faster */}
               <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
                 <Zap size={34} />
 
                 <div>
-                  <h3 className="font-semibold text-xl">Sell Faster</h3>
+                  <h3 className="text-xl font-semibold">Sell Faster</h3>
 
                   <p className="text-blue-100">
                     Increase visibility and receive more enquiries.
@@ -61,11 +74,12 @@ export default function PremiumBanner() {
                 </div>
               </div>
 
+              {/* Premium Badge */}
               <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
                 <BadgeCheck size={34} />
 
                 <div>
-                  <h3 className="font-semibold text-xl">Premium Badge</h3>
+                  <h3 className="text-xl font-semibold">Premium Badge</h3>
 
                   <p className="text-blue-100">
                     Build trust with verified premium seller status.

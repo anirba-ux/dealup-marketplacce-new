@@ -3,42 +3,36 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 
 import {
-  findProductById,
-  boostProduct,
+  featureProduct,
 } from "@/lib/repositories/product.repository";
 
 // =====================================================
-// PATCH — Boost Product
+// PATCH — Feature Product
 // =====================================================
 //
-// Boost Rules:
+// Featured Ad Rules:
 //
-// PREMIUM SELLER
-// ----------------
-// Monthly   → 10 free Boost Ads
-// Quarterly → 30 free Boost Ads
-// Yearly    → 120 free Boost Ads
+// Premium Seller:
+// - Monthly   → 3 free Featured Ads
+// - Quarterly → 9 free Featured Ads
+// - Yearly    → 36 free Featured Ads
 //
-// Free Boost duration → 7 days
+// Free Featured:
+// - Duration = 14 days
 //
-// After free quota:
-// Premium Seller → ₹19 / 7 days
-//
-// NORMAL SELLER
-// ----------------
-// No free Boost quota
-// ₹29 / 7 days
-//
-// IMPORTANT:
-// This route does NOT process payment yet.
-// When payment is required, it returns payment
-// information to the frontend.
+// Free quota exhausted:
+// - Payment required
+// - ₹29 / 14 days
 //
 // =====================================================
 
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  context: {
+    params: Promise<{
+      id: string;
+    }>;
+  },
 ) {
   try {
     // =================================================
@@ -63,78 +57,45 @@ export async function PATCH(
     // Product ID
     // =================================================
 
-    const { id } = await params;
+    const { id } =
+      await context.params;
 
     // =================================================
-    // Find Product
+    // Seller ID
     // =================================================
 
-    const product = await findProductById(id);
-
-    if (!product) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Product not found.",
-        },
-        {
-          status: 404,
-        },
+    const sellerId =
+      String(
+        session.user.id,
       );
-    }
 
     // =================================================
-    // Ownership Check
+    // Feature Product
+    //
+    // All business rules are handled
+    // inside featureProduct().
     // =================================================
 
-    if (product.sellerId !== session.user.id) {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "You are not allowed to boost this product.",
-        },
-        {
-          status: 403,
-        },
+    const result =
+      await featureProduct(
+        id,
+        sellerId,
       );
-    }
-
-    // =================================================
-    // Product Status
-    // =================================================
-
-    if (product.status !== "active") {
-      return NextResponse.json(
-        {
-          success: false,
-          message:
-            "Only active products can be boosted.",
-        },
-        {
-          status: 400,
-        },
-      );
-    }
-
-    // =================================================
-    // Boost Product
-    // =================================================
-
-    const result = await boostProduct(
-      id,
-      session.user.id,
-    );
 
     // =================================================
     // Invalid Product ID
     // =================================================
 
-    if (result.reason === "INVALID_PRODUCT_ID") {
+    if (
+      result.reason ===
+      "INVALID_PRODUCT_ID"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid product ID.",
+
+          message:
+            "Invalid product ID.",
         },
         {
           status: 400,
@@ -146,11 +107,16 @@ export async function PATCH(
     // Invalid Seller ID
     // =================================================
 
-    if (result.reason === "INVALID_SELLER_ID") {
+    if (
+      result.reason ===
+      "INVALID_SELLER_ID"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid seller account.",
+
+          message:
+            "Invalid seller account.",
         },
         {
           status: 400,
@@ -162,11 +128,16 @@ export async function PATCH(
     // Product Not Found
     // =================================================
 
-    if (result.reason === "PRODUCT_NOT_FOUND") {
+    if (
+      result.reason ===
+      "PRODUCT_NOT_FOUND"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Product not found.",
+
+          message:
+            "Product not found.",
         },
         {
           status: 404,
@@ -178,12 +149,16 @@ export async function PATCH(
     // Product Not Active
     // =================================================
 
-    if (result.reason === "PRODUCT_NOT_ACTIVE") {
+    if (
+      result.reason ===
+      "PRODUCT_NOT_ACTIVE"
+    ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Only active products can be boosted.",
+            "Only active products can be featured.",
         },
         {
           status: 400,
@@ -195,11 +170,16 @@ export async function PATCH(
     // Seller Not Found
     // =================================================
 
-    if (result.reason === "SELLER_NOT_FOUND") {
+    if (
+      result.reason ===
+      "SELLER_NOT_FOUND"
+    ) {
       return NextResponse.json(
         {
           success: false,
-          message: "Seller account not found.",
+
+          message:
+            "Seller account not found.",
         },
         {
           status: 404,
@@ -208,13 +188,82 @@ export async function PATCH(
     }
 
     // =================================================
-    // Invalid Premium Plan
+    // Premium Required
     // =================================================
 
-    if (result.reason === "INVALID_PREMIUM_PLAN") {
+    if (
+      result.reason ===
+      "PREMIUM_REQUIRED"
+    ) {
       return NextResponse.json(
         {
           success: false,
+
+          message:
+            "Premium Seller membership is required.",
+
+          premiumRequired: true,
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =================================================
+    // Premium Not Active
+    // =================================================
+
+    if (
+      result.reason ===
+      "PREMIUM_NOT_ACTIVE"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "Your Premium Seller membership is not active.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =================================================
+    // Premium Expired
+    // =================================================
+
+    if (
+      result.reason ===
+      "PREMIUM_EXPIRED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "Your Premium Seller membership has expired.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
+
+    // =================================================
+    // Invalid Premium Plan
+    // =================================================
+
+    if (
+      result.reason ===
+      "INVALID_PREMIUM_PLAN"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
           message:
             "Invalid Premium Seller plan.",
         },
@@ -225,19 +274,44 @@ export async function PATCH(
     }
 
     // =================================================
-    // Already Boosted
+    // Featured Ads Not Enabled
     // =================================================
 
-    if (result.reason === "ALREADY_BOOSTED") {
+    if (
+      result.reason ===
+      "FEATURED_ADS_NOT_ENABLED"
+    ) {
       return NextResponse.json(
         {
           success: false,
 
           message:
-            "This product is already boosted.",
+            "Featured Ads is not enabled for your Premium plan.",
+        },
+        {
+          status: 403,
+        },
+      );
+    }
 
-          boostedUntil:
-            result.boostedUntil ?? null,
+    // =================================================
+    // Already Featured
+    // =================================================
+
+    if (
+      result.reason ===
+      "ALREADY_FEATURED"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          message:
+            "This product is already featured.",
+
+          featuredUntil:
+            result.featuredUntil ??
+            null,
         },
         {
           status: 409,
@@ -246,61 +320,57 @@ export async function PATCH(
     }
 
     // =================================================
-    // PAYMENT REQUIRED
-    // =================================================
-    //
-    // Premium quota exhausted:
-    // ₹19 / 7 days
-    //
-    // Normal Seller:
-    // ₹29 / 7 days
+    // Featured Quota Exhausted
     //
     // IMPORTANT:
-    // Do NOT activate Boost here.
     //
-    // Frontend will use this response to start
-    // the payment flow.
+    // No free quota remains.
     //
+    // Payment flow will be connected later.
+    //
+    // Premium Seller:
+    // ₹29 / 14 days
     // =================================================
 
     if (
       result.reason ===
-      "BOOST_PAYMENT_REQUIRED"
+      "FEATURED_QUOTA_EXHAUSTED"
     ) {
       return NextResponse.json(
         {
           success: false,
 
-          paymentRequired: true,
+          message:
+            "Your free Featured Ad quota has been exhausted.",
+
+          paymentRequired:
+            true,
 
           paymentType:
-            result.paymentType ?? "BOOST_AD",
+            "FEATURED_AD",
 
           price:
             result.price ?? 29,
 
           currency:
-            result.currency ?? "INR",
+            result.currency ??
+            "INR",
 
           durationDays:
-            result.durationDays ?? 7,
+            result.durationDays ??
+            14,
 
-          isPremiumSeller:
-            result.isPremiumSeller ?? false,
+          featuredAdsLimit:
+            result.featuredAdsLimit ??
+            0,
 
-          boostAdsLimit:
-            result.boostAdsLimit ?? 0,
+          featuredAdsUsed:
+            result.featuredAdsUsed ??
+            0,
 
-          boostAdsUsed:
-            result.boostAdsUsed ?? 0,
-
-          boostAdsRemaining:
-            result.boostAdsRemaining ?? 0,
-
-          message:
-            result.isPremiumSeller
-              ? "Your free Boost Ads quota is exhausted. Payment is required for the next 7-day Boost."
-              : "Payment is required to boost this product for 7 days.",
+          featuredAdsRemaining:
+            result.featuredAdsRemaining ??
+            0,
         },
         {
           status: 402,
@@ -309,18 +379,19 @@ export async function PATCH(
     }
 
     // =================================================
-    // Boost Update Failed
+    // Feature Update Failed
     // =================================================
 
     if (
       result.reason ===
-      "BOOST_UPDATE_FAILED"
+      "FEATURE_UPDATE_FAILED"
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Boost could not be activated.",
+            "Failed to feature product.",
         },
         {
           status: 500,
@@ -329,18 +400,21 @@ export async function PATCH(
     }
 
     // =================================================
-    // Premium Quota Update Failed
+    // Quota Update Failed
+    //
+    // Product activation was rolled back.
     // =================================================
 
     if (
       result.reason ===
-      "BOOST_QUOTA_UPDATE_FAILED"
+      "FEATURED_QUOTA_UPDATE_FAILED"
     ) {
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Boost quota could not be updated. Please try again.",
+            "Featured Ad could not be activated. Please try again.",
         },
         {
           status: 500,
@@ -356,8 +430,9 @@ export async function PATCH(
       return NextResponse.json(
         {
           success: false,
+
           message:
-            "Boost failed.",
+            "Failed to feature product.",
         },
         {
           status: 400,
@@ -366,48 +441,50 @@ export async function PATCH(
     }
 
     // =================================================
-    // SUCCESS
+    // Success
     // =================================================
 
     return NextResponse.json(
       {
         success: true,
 
-        paymentRequired:
-          result.paymentRequired ?? false,
-
-        paymentType:
-          result.paymentType ?? "BOOST_AD",
-
-        price:
-          result.price ?? 0,
-
-        currency:
-          result.currency ?? "INR",
-
-        durationDays:
-          result.durationDays ?? 7,
-
-        isPremiumSeller:
-          result.isPremiumSeller ?? true,
-
-        boostAdsLimit:
-          result.boostAdsLimit ?? 0,
-
-        boostAdsUsed:
-          result.boostAdsUsed ?? 0,
-
-        boostAdsRemaining:
-          result.boostAdsRemaining ?? 0,
-
         message:
-          "Product boosted successfully.",
+          "Product featured successfully.",
 
-        boostedAt:
-          result.boostedAt,
+        product: {
+          id,
 
-        boostedUntil:
-          result.boostedUntil,
+          isFeatured:
+            true,
+
+          featuredAt:
+            result.featuredAt,
+
+          featuredUntil:
+            result.featuredUntil,
+        },
+
+        // =================================================
+        // Premium Featured Quota
+        // =================================================
+
+        featuredQuota: {
+          limit:
+            result.featuredAdsLimit,
+
+          used:
+            result.featuredAdsUsed,
+
+          remaining:
+            result.featuredAdsRemaining,
+        },
+
+        // =================================================
+        // Payment
+        // =================================================
+
+        paymentRequired:
+          false,
       },
       {
         status: 200,
@@ -415,13 +492,14 @@ export async function PATCH(
     );
   } catch (error) {
     console.error(
-      "BOOST PRODUCT ERROR:",
+      "FEATURE PRODUCT ERROR:",
       error,
     );
 
     return NextResponse.json(
       {
         success: false,
+
         message:
           "Internal Server Error.",
       },

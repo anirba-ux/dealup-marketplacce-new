@@ -4,21 +4,13 @@ import { ObjectId } from "mongodb";
 // Product Condition
 // =====================================
 
-export type ProductCondition =
-  | "new"
-  | "used"
-  | "refurbished";
+export type ProductCondition = "new" | "used" | "refurbished";
 
 // =====================================
 // Product Status
 // =====================================
 
-export type ProductStatus =
-  | "draft"
-  | "active"
-  | "sold"
-  | "expired"
-  | "blocked";
+export type ProductStatus = "draft" | "active" | "sold" | "expired" | "blocked";
 
 // =====================================
 // Product Image
@@ -154,21 +146,13 @@ export interface ProductLocationVerification {
   // Location Status
   // ===================================
 
-  status:
-    | "nearby"
-    | "different"
-    | "far"
-    | "unverified";
+  status: "nearby" | "different" | "far" | "unverified";
 
   // ===================================
   // Verification Method
   // ===================================
 
-  method:
-    | "device-gps"
-    | "mobile-qr"
-    | "seller-profile"
-    | "map";
+  method: "device-gps" | "mobile-qr" | "seller-profile" | "map";
 
   // ===================================
   // Timestamp
@@ -181,11 +165,7 @@ export interface ProductLocationVerification {
 // Product Risk Status
 // =====================================
 
-export type ProductRiskStatus =
-  | "low"
-  | "watch"
-  | "review"
-  | "high";
+export type ProductRiskStatus = "low" | "watch" | "review" | "high";
 
 // =====================================
 // Product Risk Flag
@@ -306,14 +286,29 @@ export interface Product {
   // Premium / Promotion
   // ===================================
 
+  // Featured Ad
+  //
+  // Featured is a product-level promotion.
+  // It has its own activation and expiry time.
+
   isFeatured: boolean;
 
+  featuredAt?: Date;
+
+  featuredUntil?: Date;
+
+  // Premium Seller product flag
+
   isPremium: boolean;
+
+  // Boost Ad
+  //
+  // Boost is independent from Featured
+  // and Premium Seller.
 
   isBoosted?: boolean;
 
   boostedUntil?: Date;
-
   // ===================================
   // Risk & Trust
   // ===================================

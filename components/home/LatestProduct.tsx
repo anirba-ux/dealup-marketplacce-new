@@ -1,5 +1,7 @@
+
 import Link from "next/link";
 
+import { ArrowRight, Clock3, PackageOpen } from "lucide-react";
 import { WithId } from "mongodb";
 
 import Container from "@/components/ui/Container";
@@ -9,7 +11,6 @@ import { Product } from "@/lib/models/product";
 
 interface ProductWithSellerVerification extends WithId<Product> {
   sellerIsPhoneVerified?: boolean;
-
   sellerVerificationStatus?: string;
 
   sellerBadge?:
@@ -17,9 +18,13 @@ interface ProductWithSellerVerification extends WithId<Product> {
         label?: string;
         name?: string;
         type?: string;
+        badge?: string;
       }
     | string
     | null;
+
+  sellerPremiumSeller?: boolean;
+  sellerPremiumBadge?: boolean;
 }
 
 interface Props {
@@ -28,69 +33,279 @@ interface Props {
 
 export default function LatestProducts({ products }: Props) {
   return (
-    <section className="bg-white dark:bg-slate-900 py-20">
+    <section className="bg-white py-10 dark:bg-slate-950 sm:py-12 lg:py-14">
       <Container>
-        {/* Header */}
+        {/* =================================================
+            HEADER
+        ================================================== */}
 
-        <div className="mb-12 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-4xl font-bold text-slate-900 dark:text-white">
+            <div className="mb-2 flex items-center gap-2">
+              <div
+                className="
+                  flex h-8 w-8 items-center justify-center
+                  rounded-full
+                  bg-blue-50
+                  text-[#1565d8]
+                  dark:bg-blue-950/40
+                  dark:text-blue-400
+                "
+              >
+                <Clock3 size={17} />
+              </div>
+
+              <span
+                className="
+                  text-xs font-bold uppercase tracking-wider
+                  text-[#1565d8]
+                  dark:text-blue-400
+                "
+              >
+                Fresh Listings
+              </span>
+            </div>
+
+            <h2
+              className="
+                text-2xl font-bold tracking-tight
+                text-slate-900
+                dark:text-white
+                sm:text-3xl
+                lg:text-4xl
+              "
+            >
               Latest Products
             </h2>
 
-            <p className="mt-3 text-slate-600">
-              Freshly listed products from nearby sellers.
+            <p
+              className="
+                mt-1 max-w-xl
+                text-sm leading-6
+                text-slate-500
+                dark:text-slate-400
+                sm:text-base
+              "
+            >
+              Discover the newest products recently listed by sellers.
             </p>
           </div>
 
+          {/* =================================================
+              VIEW ALL
+          ================================================== */}
+
           <Link
             href="/products"
-            className="rounded-xl border border-[#1565d8] px-5 py-2 font-semibold text-[#1565d8] transition-all duration-300 hover:bg-[#1565d8] hover:text-white"
+            className="
+              group
+              inline-flex w-fit
+              items-center gap-2
+              rounded-xl
+              border border-[#1565d8]
+              bg-white
+              px-4 py-2.5
+              text-sm font-semibold
+              text-[#1565d8]
+              shadow-sm
+              transition-all
+              duration-200
+              ease-out
+              hover:-translate-y-0.5
+              hover:bg-[#1565d8]
+              hover:text-white
+              hover:shadow-md
+              active:translate-y-0
+              dark:bg-slate-900
+              dark:text-blue-400
+              dark:hover:bg-[#1565d8]
+              dark:hover:text-white
+            "
           >
             View All
+
+            <ArrowRight
+              size={16}
+              className="
+                transition-transform
+                duration-200
+                group-hover:translate-x-0.5
+              "
+            />
           </Link>
         </div>
 
-        {/* Empty State */}
+        {/* =================================================
+            EMPTY STATE
+        ================================================== */}
 
         {products.length === 0 && (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 py-20 text-center">
-            <h3 className="text-2xl font-bold text-slate-700">
-              No Products Found
+          <div
+            className="
+              rounded-2xl
+              border border-dashed
+              border-slate-300
+              bg-slate-50
+              px-5 py-12
+              text-center
+              dark:border-slate-700
+              dark:bg-slate-900/60
+              sm:py-16
+            "
+          >
+            <div
+              className="
+                mx-auto mb-4
+                flex h-14 w-14
+                items-center justify-center
+                rounded-full
+                bg-blue-50
+                text-[#1565d8]
+                dark:bg-blue-950/40
+                dark:text-blue-400
+              "
+            >
+              <PackageOpen size={25} />
+            </div>
+
+            <h3
+              className="
+                text-lg font-semibold
+                text-slate-800
+                dark:text-slate-100
+              "
+            >
+              No Latest Products
             </h3>
 
-            <p className="mt-3 text-slate-500 dark:text-slate-400">
-              Publish your first product to see it here.
+            <p
+              className="
+                mx-auto mt-1 max-w-md
+                text-sm leading-6
+                text-slate-500
+                dark:text-slate-400
+              "
+            >
+              There are no recently listed products available right now.
             </p>
           </div>
         )}
 
+        {/* =================================================
+            PRODUCTS
+        ================================================== */}
+
         {products.length > 0 && (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
-            {products.map((product) => (
-              <ProductCard
-                key={product._id.toString()}
-                id={product._id.toString()}
-                slug={product.slug}
-                title={product.title}
-                price={product.price}
-                image={product.thumbnail}
-                location={product.location.city}
-                condition={product.condition}
-                seller={product.sellerName}
-                sellerIsPhoneVerified={product.sellerIsPhoneVerified}
-                sellerVerificationStatus={product.sellerVerificationStatus}
-                sellerBadge={product.sellerBadge}
-                isFeatured={product.isFeatured}
-                isPremium={product.isPremium}
-                isBoosted={product.isBoosted}
-                createdAt={product.createdAt}
-                views={product.views}
-              />
-            ))}
-          </div>
+          <>
+            <div
+              className="
+                flex
+                snap-x
+                snap-mandatory
+                gap-3
+                overflow-x-auto
+                scroll-smooth
+                pb-4
+
+                [-ms-overflow-style:none]
+                [scrollbar-width:none]
+
+                sm:grid
+                sm:grid-cols-2
+                sm:gap-5
+                sm:overflow-visible
+                sm:pb-0
+
+                lg:grid-cols-4
+                lg:gap-6
+              "
+            >
+              {products.map((product) => (
+                <div
+                  key={product._id.toString()}
+                  className="
+                    w-[78%]
+                    shrink-0
+                    snap-start
+
+                    sm:w-auto
+                  "
+                >
+                  <ProductCard
+                    id={product._id.toString()}
+                    slug={product.slug}
+                    title={product.title}
+                    price={product.price}
+                    image={product.thumbnail}
+                    location={product.location?.city ?? "Unknown"}
+                    condition={product.condition ?? "Used"}
+                    seller={product.sellerName}
+                    sellerIsPhoneVerified={
+                      product.sellerIsPhoneVerified ?? false
+                    }
+                    sellerVerificationStatus={
+                      product.sellerVerificationStatus
+                    }
+                    sellerBadge={product.sellerBadge}
+                    sellerPremiumSeller={
+                      product.sellerPremiumSeller ?? false
+                    }
+                    sellerPremiumBadge={
+                      product.sellerPremiumBadge ?? false
+                    }
+                    isFeatured={product.isFeatured ?? false}
+                    isPremium={product.isPremium ?? false}
+                    isBoosted={product.isBoosted ?? false}
+                    createdAt={product.createdAt ?? new Date()}
+                    views={product.views ?? 0}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* =================================================
+                MOBILE SWIPE HINT
+            ================================================== */}
+
+            {products.length > 1 && (
+              <div
+                className="
+                  mt-1
+                  flex items-center justify-center gap-2
+                  lg:hidden
+                "
+              >
+                <span
+                  className="
+                    h-1.5 w-1.5
+                    rounded-full
+                    bg-[#1565d8]
+                  "
+                />
+
+                <span
+                  className="
+                    text-[11px] font-medium
+                    text-slate-400
+                    dark:text-slate-500
+                  "
+                >
+                  Swipe to explore more
+                </span>
+
+                <ArrowRight
+                  size={13}
+                  className="
+                    text-slate-400
+                    dark:text-slate-500
+                  "
+                />
+              </div>
+            )}
+          </>
         )}
       </Container>
     </section>
   );
 }
+

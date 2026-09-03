@@ -5,6 +5,86 @@
 export type UserRole = "user" | "buyer" | "seller" | "admin";
 
 // =====================================================
+// Premium Seller Plan
+// =====================================================
+
+export type PremiumSellerPlan =
+  | "monthly"
+  | "quarterly"
+  | "yearly";
+
+// =====================================================
+// Premium Seller
+// =====================================================
+//
+// Premium Seller is independent from:
+//
+// - Phone Verified
+// - Verified Seller
+// - Trusted Seller
+//
+// Premium Seller represents a paid/promotional
+// membership for sellers.
+//
+// =====================================================
+
+export interface PremiumSeller {
+  // =====================================
+  // Membership Status
+  // =====================================
+
+  active: boolean;
+
+  // =====================================
+  // Current Plan
+  // =====================================
+
+  plan?: PremiumSellerPlan | null;
+
+  // =====================================
+  // Membership Start
+  // =====================================
+
+  startedAt?: Date | null;
+
+  // =====================================
+  // Membership Expiry
+  // =====================================
+
+  expiresAt?: Date | null;
+
+  // =====================================
+  // Payment
+  //
+  // Reserved for future Razorpay integration.
+  // =====================================
+
+  paymentId?: string | null;
+
+  orderId?: string | null;
+
+  // =====================================
+  // Premium Features
+  // =====================================
+
+  featuredAds?: boolean;
+
+  productBoost?: boolean;
+
+  sellerAnalytics?: boolean;
+
+  premiumBadge?: boolean;
+
+  prioritySupport?: boolean;
+
+  // =====================================
+  // Last Updated
+  // =====================================
+
+  updatedAt?: Date | null;
+}
+
+// =====================================================
 // Seller Verification Status
 // =====================================================
 
@@ -250,6 +330,20 @@ export interface User {
   sellerBadge?: "none" | "verified" | "trusted";
 
   sellerBadgeLabel?: string;
+
+  // =====================================
+// Premium Seller
+// =====================================
+//
+// Premium membership is independent from:
+//
+// Phone Verified
+// Verified Seller
+// Trusted Seller
+//
+// =====================================
+
+premiumSeller?: PremiumSeller;
 
   // =====================================
   // Seller Risk

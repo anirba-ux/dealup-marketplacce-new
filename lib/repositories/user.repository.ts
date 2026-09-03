@@ -285,6 +285,60 @@ sellerBadge:
 sellerBadgeLabel:
   user.sellerBadgeLabel ??
   "",
+
+  // ================================================
+// Premium Seller
+// ================================================
+
+premiumSeller: {
+  active:
+    user.premiumSeller?.active ??
+    false,
+
+  plan:
+    user.premiumSeller?.plan ??
+    null,
+
+  startedAt:
+    user.premiumSeller?.startedAt ??
+    null,
+
+  expiresAt:
+    user.premiumSeller?.expiresAt ??
+    null,
+
+  paymentId:
+    user.premiumSeller?.paymentId ??
+    null,
+
+  orderId:
+    user.premiumSeller?.orderId ??
+    null,
+
+  featuredAds:
+    user.premiumSeller?.featuredAds ??
+    false,
+
+  productBoost:
+    user.premiumSeller?.productBoost ??
+    false,
+
+  sellerAnalytics:
+    user.premiumSeller?.sellerAnalytics ??
+    false,
+
+  premiumBadge:
+    user.premiumSeller?.premiumBadge ??
+    false,
+
+  prioritySupport:
+    user.premiumSeller?.prioritySupport ??
+    false,
+
+  updatedAt:
+    user.premiumSeller?.updatedAt ??
+    null,
+},
       
 
     // ================================================

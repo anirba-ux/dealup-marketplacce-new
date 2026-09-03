@@ -137,9 +137,11 @@ async function attachSellerVerification(products: any[]) {
           trustScore: 1,
           trustLevel: 1,
 
-          // Seller badge states
           trustedSeller: 1,
           verifiedSeller: 1,
+
+          // Premium Seller
+          premiumSeller: 1,
         },
       },
     )
@@ -316,6 +318,30 @@ async function attachSellerVerification(products: any[]) {
     const sellerVerifiedSeller = seller.verifiedSeller === true;
 
     // =================================================
+    // Premium Seller
+    //
+    // Premium badge is shown only when:
+    // 1. Premium Seller is active
+    // 2. Premium has not expired
+    // 3. Premium badge feature is enabled
+    // =================================================
+
+    const premiumSeller = seller.premiumSeller;
+
+    const premiumExpiresAt = premiumSeller?.expiresAt
+      ? new Date(premiumSeller.expiresAt)
+      : null;
+
+    const premiumNotExpired =
+      !premiumExpiresAt || premiumExpiresAt.getTime() > Date.now();
+
+    const sellerPremiumSeller =
+      premiumSeller?.active === true && premiumNotExpired;
+
+    const sellerPremiumBadge =
+      sellerPremiumSeller && premiumSeller?.premiumBadge === true;
+
+    // =================================================
     // Calculate Seller Badge
     // =================================================
 
@@ -391,6 +417,14 @@ async function attachSellerVerification(products: any[]) {
       sellerTrustedSeller: sellerTrustedSeller,
 
       sellerVerifiedSeller: sellerVerifiedSeller,
+
+      // -----------------------------------------------
+      // Premium Seller
+      // -----------------------------------------------
+
+      sellerPremiumSeller: sellerPremiumSeller,
+
+      sellerPremiumBadge: sellerPremiumBadge,
 
       // -----------------------------------------------
       // Badge
@@ -568,40 +602,485 @@ export async function findProductsBySeller(sellerId: string) {
 
   const productsWithSeller = await attachSellerVerification(products);
 
+  const now = new Date();
+
   return Promise.all(
-    productsWithSeller.map(async (product) => ({
-      ...product,
+    productsWithSeller.map(async (product) => {
+      const featuredUntil = product.featuredUntil
+        ? new Date(product.featuredUntil)
+        : null;
 
-      isBoosted: product.isBoosted,
+      const featuredActive =
+        product.isFeatured === true &&
+        featuredUntil !== null &&
+        featuredUntil.getTime() > now.getTime();
 
-      chatCount: await getConversationCountByProduct(product._id!.toString()),
-    })),
+      return {
+        ...product,
+
+        // ===============================================
+        // Featured Ad
+        // ===============================================
+
+        isFeatured: featuredActive,
+
+        featuredAt: product.featuredAt,
+
+        featuredUntil: product.featuredUntil,
+
+        // ===============================================
+        // Boost Ad
+        // ===============================================
+
+        isBoosted: product.isBoosted,
+
+        // ===============================================
+        // Chat Count
+        // ===============================================
+
+        chatCount: await getConversationCountByProduct(product._id!.toString()),
+      };
+    }),
   );
+}
+
+// =====================================================
+// Feature Product
+//
+// Professional Featured Ad Rules:
+//
+// 1. Seller must own the product.
+// 2. Product must be active.
+// 3. Seller must have Premium Seller.
+// 4. Premium membership must be active.
+// 5. Premium membership must not be expired.
+// 6. Premium plan must allow Featured Ads.
+// 7. An active Featured Ad cannot be restarted.
+// 8. Featured duration = 30 days.
+// 9. Expired Featured Ads can be activated again.
+//
+// Featured Ad is independent from:
+// - Boost Ad
+// - Premium Seller badge
+// =====================================================
+
+export async function featureProduct(productId: string, sellerId: string) {
+  const collection = await getCollection();
+
+  const now = new Date();
+
+  // ===================================================
+  // Validate Product ID
+  // ===================================================
+
+  if (!ObjectId.isValid(productId)) {
+    return {
+      success: false,
+      reason: "INVALID_PRODUCT_ID",
+    };
+  }
+
+  // ===================================================
+  // Validate Seller ID
+  // ===================================================
+
+  if (!ObjectId.isValid(sellerId)) {
+    return {
+      success: false,
+      reason: "INVALID_SELLER_ID",
+    };
+  }
+
+  // ===================================================
+  // Find Product
+  // ===================================================
+
+  const product = await collection.findOne({
+    _id: new ObjectId(productId),
+    sellerId,
+  });
+
+  if (!product) {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Product Must Be Active
+  // ===================================================
+
+  if (product.status !== "active") {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_ACTIVE",
+    };
+  }
+
+  // ===================================================
+  // Find Seller
+  // ===================================================
+
+  const client = await clientPromise;
+  const db = client.db(DATABASE_NAME);
+  const users = db.collection("users");
+
+  const seller = await users.findOne(
+    {
+      _id: new ObjectId(sellerId),
+    },
+    {
+      projection: {
+        premiumSeller: 1,
+      },
+    },
+  );
+
+  if (!seller) {
+    return {
+      success: false,
+      reason: "SELLER_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Premium Seller Validation
+  // ===================================================
+
+  const premiumSeller = seller.premiumSeller;
+
+  if (!premiumSeller) {
+    return {
+      success: false,
+      reason: "PREMIUM_REQUIRED",
+    };
+  }
+
+  if (premiumSeller.active !== true) {
+    return {
+      success: false,
+      reason: "PREMIUM_NOT_ACTIVE",
+    };
+  }
+
+  const premiumExpiresAt = premiumSeller.expiresAt
+    ? new Date(premiumSeller.expiresAt)
+    : null;
+
+  if (premiumExpiresAt && premiumExpiresAt.getTime() <= now.getTime()) {
+    return {
+      success: false,
+      reason: "PREMIUM_EXPIRED",
+    };
+  }
+
+  if (premiumSeller.featuredAds !== true) {
+    return {
+      success: false,
+      reason: "FEATURED_ADS_NOT_ENABLED",
+    };
+  }
+
+  // ===================================================
+  // Featured Quota
+  //
+  // Monthly   -> 3
+  // Quarterly -> 9
+  // Yearly    -> 36
+  //
+  // Each free Featured Ad lasts 14 days.
+  // ===================================================
+
+  const plan = premiumSeller.plan;
+
+  let featuredAdsLimit = Number(premiumSeller.featuredAdsLimit ?? 0);
+
+  const featuredAdsUsed = Math.max(
+    0,
+    Number(premiumSeller.featuredAdsUsed ?? 0),
+  );
+
+  // ===================================================
+  // Backward Compatibility
+  // ===================================================
+
+  if (featuredAdsLimit <= 0) {
+    if (plan === "monthly") {
+      featuredAdsLimit = 3;
+    } else if (plan === "quarterly") {
+      featuredAdsLimit = 9;
+    } else if (plan === "yearly") {
+      featuredAdsLimit = 36;
+    } else {
+      return {
+        success: false,
+        reason: "INVALID_PREMIUM_PLAN",
+      };
+    }
+
+    await users.updateOne(
+      {
+        _id: new ObjectId(sellerId),
+      },
+      {
+        $set: {
+          "premiumSeller.featuredAdsLimit": featuredAdsLimit,
+          "premiumSeller.featuredAdsUsed": featuredAdsUsed,
+          "premiumSeller.updatedAt": now,
+        },
+      },
+    );
+  }
+
+  // ===================================================
+  // Existing Active Featured Check
+  // ===================================================
+
+  const existingFeaturedUntil = product.featuredUntil
+    ? new Date(product.featuredUntil)
+    : null;
+
+  const existingFeaturedActive =
+    product.isFeatured === true &&
+    existingFeaturedUntil !== null &&
+    existingFeaturedUntil.getTime() > now.getTime();
+
+  if (existingFeaturedActive) {
+    return {
+      success: false,
+      reason: "ALREADY_FEATURED",
+      featuredUntil: existingFeaturedUntil,
+    };
+  }
+
+  // ===================================================
+  // Free Quota Exhausted
+  //
+  // Paid Featured will be handled by the payment flow.
+  // Premium Seller price = ₹29 / 14 days.
+  // ===================================================
+
+  if (featuredAdsUsed >= featuredAdsLimit) {
+    return {
+      success: false,
+      reason: "FEATURED_QUOTA_EXHAUSTED",
+      paymentRequired: true,
+      price: 29,
+      currency: "INR",
+      durationDays: 14,
+      featuredAdsLimit,
+      featuredAdsUsed,
+      featuredAdsRemaining: 0,
+    };
+  }
+
+  // ===================================================
+  // Featured Duration
+  //
+  // Free Premium Featured = 14 days
+  // ===================================================
+
+  const featuredUntil = new Date(now);
+
+  featuredUntil.setDate(featuredUntil.getDate() + 14);
+
+  // ===================================================
+  // Activate Featured Product
+  //
+  // The query prevents two simultaneous requests from
+  // activating the same product at the same time.
+  // ===================================================
+
+  const productUpdateResult = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
+      sellerId,
+      status: "active",
+      $or: [
+        {
+          isFeatured: {
+            $ne: true,
+          },
+        },
+        {
+          featuredUntil: {
+            $lte: now,
+          },
+        },
+        {
+          featuredUntil: {
+            $exists: false,
+          },
+        },
+      ],
+    },
+    {
+      $set: {
+        isFeatured: true,
+        featuredAt: now,
+        featuredUntil,
+        updatedAt: now,
+      },
+    },
+  );
+
+  if (productUpdateResult.modifiedCount === 0) {
+    return {
+      success: false,
+      reason: "FEATURE_UPDATE_FAILED",
+    };
+  }
+
+  // ===================================================
+  // Consume One Free Featured Quota
+  //
+  // Atomic $inc + $lt prevents the quota from going
+  // beyond the plan limit.
+  // ===================================================
+
+  const quotaResult = await users.updateOne(
+    {
+      _id: new ObjectId(sellerId),
+      "premiumSeller.active": true,
+      "premiumSeller.featuredAds": true,
+      "premiumSeller.expiresAt": {
+        $gt: now,
+      },
+      "premiumSeller.featuredAdsUsed": {
+        $lt: featuredAdsLimit,
+      },
+    },
+    {
+      $inc: {
+        "premiumSeller.featuredAdsUsed": 1,
+      },
+      $set: {
+        "premiumSeller.updatedAt": new Date(),
+      },
+    },
+  );
+
+  // ===================================================
+  // Quota Update Failed
+  //
+  // Roll back this exact Featured activation so the
+  // seller never loses a quota without a valid Featured Ad.
+  // ===================================================
+
+  if (quotaResult.modifiedCount === 0) {
+    await collection.updateOne(
+      {
+        _id: new ObjectId(productId),
+        sellerId,
+        featuredAt: now,
+        featuredUntil,
+      },
+      {
+        $set: {
+          isFeatured: false,
+          updatedAt: new Date(),
+        },
+        $unset: {
+          featuredAt: "",
+          featuredUntil: "",
+        },
+      },
+    );
+
+    return {
+      success: false,
+      reason: "FEATURED_QUOTA_UPDATE_FAILED",
+    };
+  }
+
+  // ===================================================
+  // Remaining Quota
+  // ===================================================
+
+  const featuredAdsUsedAfter = featuredAdsUsed + 1;
+
+  const featuredAdsRemaining = Math.max(
+    0,
+    featuredAdsLimit - featuredAdsUsedAfter,
+  );
+
+  // ===================================================
+  // Success
+  // ===================================================
+
+  return {
+    success: true,
+    featuredAt: now,
+    featuredUntil,
+    featuredAdsLimit,
+    featuredAdsUsed: featuredAdsUsedAfter,
+    featuredAdsRemaining,
+  };
 }
 
 // =====================================================
 // Featured Products
 // =====================================================
+//
+// Only products with an active Featured Ad are shown.
+//
+// Featured Ad is completely independent from:
+// - Boost Ad
+// - Premium Seller badge
+//
+// Expired Featured Ads are automatically removed
+// before fetching the Featured Products.
+// =====================================================
 
 export async function findFeaturedProducts(limit = 8) {
-  await removeExpiredBoosts();
+  // ===================================================
+  // Remove expired Featured Ads
+  // ===================================================
+
+  await removeExpiredFeatured();
+
+  // ===================================================
+  // Database
+  // ===================================================
 
   const collection = await getCollection();
+
+  // ===================================================
+  // Find Active Featured Products
+  // ===================================================
 
   const products = await collection
     .find({
       status: "active",
+
+      isFeatured: true,
+
+      featuredUntil: {
+        $gt: new Date(),
+      },
     })
+
+    // =================================================
+    // Featured priority
+    //
+    // Most recently featured products appear first.
+    // =================================================
+
     .sort({
-      isBoosted: -1,
-      createdAt: -1,
+      featuredAt: -1,
     })
+
     .limit(limit)
+
     .toArray();
+
+  // ===================================================
+  // Attach Seller Verification / Premium data
+  // ===================================================
 
   return attachSellerVerification(products);
 }
-
 // =====================================================
 // Products By Category
 // =====================================================
@@ -627,6 +1106,7 @@ export async function findProductsByCategory(category: string) {
 export async function searchProductsPage({
   keyword,
   category,
+  city,
   sort,
   condition,
   maxPrice,
@@ -637,6 +1117,7 @@ export async function searchProductsPage({
 }: {
   keyword: string;
   category?: string;
+  city?: string;
   sort?: string;
   condition?: string;
   maxPrice?: string;
@@ -650,6 +1131,19 @@ export async function searchProductsPage({
   const query: any = {
     status: "active",
   };
+
+  // ===================================================
+// City
+// ===================================================
+
+if (city?.trim()) {
+  const escapedCity = city.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  query["location.city"] = {
+    $regex: `^${escapedCity}$`,
+    $options: "i",
+  };
+}
 
   // ===================================================
   // Category
@@ -1182,37 +1676,814 @@ export async function markProductSold(productId: string, sellerId: string) {
   return result.modifiedCount > 0;
 }
 
+
 // =====================================================
 // Boost Product
+//
+// Professional Boost Rules:
+//
+// PREMIUM SELLER
+//
+// Monthly:
+//   10 free Boost Ads
+//
+// Quarterly:
+//   30 free Boost Ads
+//
+// Yearly:
+//   120 free Boost Ads
+//
+// Free Boost Duration:
+//   7 days
+//
+// Premium quota exhausted:
+//   ₹19 / 7 days
+//
+// NORMAL SELLER
+//   No free quota
+//   ₹29 / 7 days
+//
 // =====================================================
 
 export async function boostProduct(productId: string, sellerId: string) {
   const collection = await getCollection();
 
-  const boostedUntil = new Date();
+  const now = new Date();
 
-  // 7 days boost
-  boostedUntil.setDate(boostedUntil.getDate() + 7);
+  // ===================================================
+  // Validate Product ID
+  // ===================================================
 
-  const result = await collection.updateOne(
+  if (!ObjectId.isValid(productId)) {
+    return {
+      success: false,
+      reason: "INVALID_PRODUCT_ID",
+    };
+  }
+
+  // ===================================================
+  // Validate Seller ID
+  // ===================================================
+
+  if (!ObjectId.isValid(sellerId)) {
+    return {
+      success: false,
+      reason: "INVALID_SELLER_ID",
+    };
+  }
+
+  // ===================================================
+  // Find Product
+  // ===================================================
+
+  const product = await collection.findOne({
+    _id: new ObjectId(productId),
+
+    sellerId,
+  });
+
+  // ===================================================
+  // Product Not Found
+  // ===================================================
+
+  if (!product) {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Product Must Be Active
+  // ===================================================
+
+  if (product.status !== "active") {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_ACTIVE",
+    };
+  }
+
+  // ===================================================
+  // Existing Boost Check
+  // ===================================================
+
+  const existingBoostedUntil = product.boostedUntil
+    ? new Date(product.boostedUntil)
+    : null;
+
+  const existingBoostActive =
+    product.isBoosted === true &&
+    existingBoostedUntil !== null &&
+    existingBoostedUntil.getTime() > now.getTime();
+
+  // ===================================================
+  // Prevent Duplicate Active Boost
+  // ===================================================
+
+  if (existingBoostActive) {
+    return {
+      success: false,
+
+      reason: "ALREADY_BOOSTED",
+
+      boostedUntil: existingBoostedUntil,
+    };
+  }
+
+  // ===================================================
+  // Database
+  // ===================================================
+
+  const client = await clientPromise;
+
+  const db = client.db(DATABASE_NAME);
+
+  const users = db.collection("users");
+
+  // ===================================================
+  // Find Seller
+  // ===================================================
+
+  const seller = await users.findOne(
     {
-      _id: new ObjectId(productId),
-
-      sellerId,
+      _id: new ObjectId(sellerId),
     },
-
     {
-      $set: {
-        isBoosted: true,
-
-        boostedUntil,
-
-        updatedAt: new Date(),
+      projection: {
+        premiumSeller: 1,
       },
     },
   );
 
-  return result.modifiedCount > 0;
+  // ===================================================
+  // Seller Not Found
+  // ===================================================
+
+  if (!seller) {
+    return {
+      success: false,
+
+      reason: "SELLER_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Premium Seller
+  // ===================================================
+
+  const premiumSeller = seller.premiumSeller;
+
+  // ===================================================
+  // Default Payment Information
+  //
+  // Normal Seller:
+  // ₹29 / 7 days
+  // ===================================================
+
+  let isPremiumSeller = false;
+
+  let boostAdsLimit = 0;
+
+  let boostAdsUsed = 0;
+
+  let boostAdsRemaining = 0;
+
+  let paymentRequired = false;
+
+  let price = 29;
+
+  const currency = "INR";
+
+  const durationDays = 7;
+
+  // ===================================================
+  // Check Premium
+  // ===================================================
+
+  if (premiumSeller) {
+    const premiumExpiresAt = premiumSeller.expiresAt
+      ? new Date(premiumSeller.expiresAt)
+      : null;
+
+    const premiumActive =
+      premiumSeller.active === true &&
+      premiumExpiresAt !== null &&
+      premiumExpiresAt.getTime() > now.getTime();
+
+    // =================================================
+    // Active Premium Seller
+    // =================================================
+
+    if (premiumActive) {
+      isPremiumSeller = true;
+
+      // ===============================================
+      // Determine Boost Limit
+      // ===============================================
+
+      boostAdsLimit = Number(premiumSeller.boostAdsLimit ?? 0);
+
+      // ===============================================
+      // Backward Compatibility
+      // ===============================================
+
+      if (boostAdsLimit <= 0) {
+        if (premiumSeller.plan === "monthly") {
+          boostAdsLimit = 10;
+        } else if (premiumSeller.plan === "quarterly") {
+          boostAdsLimit = 30;
+        } else if (premiumSeller.plan === "yearly") {
+          boostAdsLimit = 120;
+        } else {
+          return {
+            success: false,
+
+            reason: "INVALID_PREMIUM_PLAN",
+          };
+        }
+
+        await users.updateOne(
+          {
+            _id: new ObjectId(sellerId),
+          },
+          {
+            $set: {
+              "premiumSeller.boostAdsLimit": boostAdsLimit,
+
+              "premiumSeller.boostAdsUsed": Number(
+                premiumSeller.boostAdsUsed ?? 0,
+              ),
+
+              "premiumSeller.updatedAt": now,
+            },
+          },
+        );
+      }
+
+      // ===============================================
+      // Used Count
+      // ===============================================
+
+      boostAdsUsed = Math.max(0, Number(premiumSeller.boostAdsUsed ?? 0));
+
+      // ===============================================
+      // Remaining
+      // ===============================================
+
+      boostAdsRemaining = Math.max(0, boostAdsLimit - boostAdsUsed);
+
+      // ===============================================
+      // Premium Quota Exhausted
+      //
+      // ₹19 / 7 days
+      // ===============================================
+
+      if (boostAdsUsed >= boostAdsLimit) {
+        paymentRequired = true;
+
+        price = 19;
+      }
+    } else {
+      // =================================================
+      // Premium Exists But Expired/Inactive
+      //
+      // Treat seller as normal seller.
+      //
+      // Normal paid Boost:
+      // ₹29 / 7 days
+      // =================================================
+
+      isPremiumSeller = false;
+
+      boostAdsLimit = 0;
+
+      boostAdsUsed = 0;
+
+      boostAdsRemaining = 0;
+
+      paymentRequired = true;
+
+      price = 29;
+    }
+  } else {
+    // =================================================
+    // Normal Seller
+    //
+    // No Premium
+    //
+    // ₹29 / 7 days
+    // =================================================
+
+    paymentRequired = true;
+
+    price = 29;
+  }
+
+  // ===================================================
+  // IMPORTANT
+  //
+  // Payment flow is not connected yet.
+  //
+  // If payment is required, DO NOT activate Boost.
+  // Return payment information to the API.
+  // ===================================================
+
+  if (paymentRequired) {
+    return {
+      success: false,
+
+      reason: "BOOST_PAYMENT_REQUIRED",
+
+      paymentRequired: true,
+
+      paymentType: "BOOST_AD",
+
+      price,
+
+      currency,
+
+      durationDays,
+
+      isPremiumSeller,
+
+      boostAdsLimit,
+
+      boostAdsUsed,
+
+      boostAdsRemaining,
+    };
+  }
+
+  // ===================================================
+  // Free Premium Boost
+  //
+  // Duration = 7 days
+  // ===================================================
+
+  const boostedUntil = new Date(now);
+
+  boostedUntil.setDate(boostedUntil.getDate() + durationDays);
+
+  // ===================================================
+  // Activate Boost
+  //
+  // Prevent simultaneous duplicate activation.
+  // ===================================================
+
+  const productUpdateResult = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
+
+      sellerId,
+
+      status: "active",
+
+      $or: [
+        {
+          isBoosted: {
+            $ne: true,
+          },
+        },
+
+        {
+          boostedUntil: {
+            $lte: now,
+          },
+        },
+
+        {
+          boostedUntil: {
+            $exists: false,
+          },
+        },
+      ],
+    },
+    {
+      $set: {
+        isBoosted: true,
+
+        boostedAt: now,
+
+        boostedUntil,
+
+        updatedAt: now,
+      },
+    },
+  );
+
+  // ===================================================
+  // Product Update Failed
+  // ===================================================
+
+  if (productUpdateResult.modifiedCount === 0) {
+    return {
+      success: false,
+
+      reason: "BOOST_UPDATE_FAILED",
+    };
+  }
+
+  // ===================================================
+  // Consume One Premium Free Boost
+  //
+  // Atomic $inc + $lt
+  // ===================================================
+
+  const quotaResult = await users.updateOne(
+    {
+      _id: new ObjectId(sellerId),
+
+      "premiumSeller.active": true,
+
+      "premiumSeller.expiresAt": {
+        $gt: now,
+      },
+
+      "premiumSeller.boostAdsUsed": {
+        $lt: boostAdsLimit,
+      },
+    },
+    {
+      $inc: {
+        "premiumSeller.boostAdsUsed": 1,
+      },
+
+      $set: {
+        "premiumSeller.updatedAt": new Date(),
+      },
+    },
+  );
+
+  // ===================================================
+  // Quota Update Failed
+  //
+  // Roll back Boost.
+  // ===================================================
+
+  if (quotaResult.modifiedCount === 0) {
+    await collection.updateOne(
+      {
+        _id: new ObjectId(productId),
+
+        sellerId,
+
+        boostedAt: now,
+
+        boostedUntil,
+      },
+      {
+        $set: {
+          isBoosted: false,
+
+          updatedAt: new Date(),
+        },
+
+        $unset: {
+          boostedAt: "",
+
+          boostedUntil: "",
+        },
+      },
+    );
+
+    return {
+      success: false,
+
+      reason: "BOOST_QUOTA_UPDATE_FAILED",
+    };
+  }
+
+  // ===================================================
+  // Calculate Remaining Quota
+  // ===================================================
+
+  const boostAdsUsedAfter = boostAdsUsed + 1;
+
+  const boostAdsRemainingAfter = Math.max(0, boostAdsLimit - boostAdsUsedAfter);
+
+  // ===================================================
+  // Success
+  // ===================================================
+
+  return {
+    success: true,
+
+    boostedAt: now,
+
+    boostedUntil,
+
+    isPremiumSeller: true,
+
+    paymentRequired: false,
+
+    price: 0,
+
+    currency,
+
+    durationDays,
+
+    boostAdsLimit,
+
+    boostAdsUsed: boostAdsUsedAfter,
+
+    boostAdsRemaining: boostAdsRemainingAfter,
+  };
+}
+
+// =====================================================
+// Activate Paid Boost
+//
+// Used ONLY after successful Razorpay payment.
+// Does NOT use free Premium quota.
+// =====================================================
+
+export async function activatePaidBoost(
+  productId: string,
+  sellerId: string,
+  paymentId: string,
+) {
+  const collection = await getCollection();
+
+  const now = new Date();
+
+  // ===================================================
+  // Validate IDs
+  // ===================================================
+
+  if (!ObjectId.isValid(productId)) {
+    return {
+      success: false,
+      reason: "INVALID_PRODUCT_ID",
+    };
+  }
+
+  if (!ObjectId.isValid(sellerId)) {
+    return {
+      success: false,
+      reason: "INVALID_SELLER_ID",
+    };
+  }
+
+  // ===================================================
+  // Find Product
+  // ===================================================
+
+  const product = await collection.findOne({
+    _id: new ObjectId(productId),
+    sellerId,
+  });
+
+  if (!product) {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Product Must Be Active
+  // ===================================================
+
+  if (product.status !== "active") {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_ACTIVE",
+    };
+  }
+
+  
+
+  // ===================================================
+  // Prevent Active Boost
+  // ===================================================
+
+  const existingBoostedUntil =
+    product.boostedUntil
+      ? new Date(product.boostedUntil)
+      : null;
+
+  const existingBoostActive =
+    product.isBoosted === true &&
+    existingBoostedUntil !== null &&
+    existingBoostedUntil.getTime() > now.getTime();
+
+  if (existingBoostActive) {
+    return {
+      success: false,
+      reason: "ALREADY_BOOSTED",
+      boostedUntil: existingBoostedUntil,
+    };
+  }
+
+  // ===================================================
+  // Paid Boost Duration
+  // ===================================================
+
+  const boostedUntil = new Date(now);
+
+  boostedUntil.setDate(
+    boostedUntil.getDate() + 7,
+  );
+
+  // ===================================================
+  // Activate Paid Boost
+  // ===================================================
+
+  const result = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
+      sellerId,
+      status: "active",
+
+      $or: [
+        {
+          isBoosted: {
+            $ne: true,
+          },
+        },
+        {
+          boostedUntil: {
+            $lte: now,
+          },
+        },
+        {
+          boostedUntil: {
+            $exists: false,
+          },
+        },
+      ],
+    },
+    {
+      $set: {
+        isBoosted: true,
+        boostedAt: now,
+        boostedUntil,
+        updatedAt: now,
+      },
+    },
+  );
+
+  if (result.modifiedCount === 0) {
+    return {
+      success: false,
+      reason: "BOOST_UPDATE_FAILED",
+    };
+  }
+
+  return {
+    success: true,
+    boostedAt: now,
+    boostedUntil,
+  };
+}
+
+
+// =====================================================
+// Activate Paid Featured
+//
+// Used ONLY after successful Razorpay payment.
+// Does NOT use free Premium quota.
+// =====================================================
+
+export async function activatePaidFeatured(
+  productId: string,
+  sellerId: string,
+  paymentId: string,
+) {
+  const collection = await getCollection();
+
+  const now = new Date();
+
+  // ===================================================
+  // Validate IDs
+  // ===================================================
+
+  if (!ObjectId.isValid(productId)) {
+    return {
+      success: false,
+      reason: "INVALID_PRODUCT_ID",
+    };
+  }
+
+  if (!ObjectId.isValid(sellerId)) {
+    return {
+      success: false,
+      reason: "INVALID_SELLER_ID",
+    };
+  }
+
+  // ===================================================
+  // Find Product
+  // ===================================================
+
+  const product = await collection.findOne({
+    _id: new ObjectId(productId),
+    sellerId,
+  });
+
+  if (!product) {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_FOUND",
+    };
+  }
+
+  // ===================================================
+  // Product Must Be Active
+  // ===================================================
+
+  if (product.status !== "active") {
+    return {
+      success: false,
+      reason: "PRODUCT_NOT_ACTIVE",
+    };
+  }
+
+  
+
+  // ===================================================
+  // Prevent Active Featured
+  // ===================================================
+
+  const existingFeaturedUntil =
+    product.featuredUntil
+      ? new Date(product.featuredUntil)
+      : null;
+
+  const existingFeaturedActive =
+    product.isFeatured === true &&
+    existingFeaturedUntil !== null &&
+    existingFeaturedUntil.getTime() > now.getTime();
+
+  if (existingFeaturedActive) {
+    return {
+      success: false,
+      reason: "ALREADY_FEATURED",
+      featuredUntil: existingFeaturedUntil,
+    };
+  }
+
+  // ===================================================
+  // Paid Featured Duration
+  // ===================================================
+
+  const featuredUntil = new Date(now);
+
+  featuredUntil.setDate(
+    featuredUntil.getDate() + 14,
+  );
+
+  // ===================================================
+  // Activate Paid Featured
+  // ===================================================
+
+  const result = await collection.updateOne(
+    {
+      _id: new ObjectId(productId),
+      sellerId,
+      status: "active",
+
+      $or: [
+        {
+          isFeatured: {
+            $ne: true,
+          },
+        },
+        {
+          featuredUntil: {
+            $lte: now,
+          },
+        },
+        {
+          featuredUntil: {
+            $exists: false,
+          },
+        },
+      ],
+    },
+    {
+      $set: {
+        isFeatured: true,
+        featuredAt: now,
+        featuredUntil,
+        updatedAt: now,
+      },
+    },
+  );
+
+  if (result.modifiedCount === 0) {
+    return {
+      success: false,
+      reason: "FEATURE_UPDATE_FAILED",
+    };
+  }
+
+  return {
+    success: true,
+    featuredAt: now,
+    featuredUntil,
+  };
 }
 
 // =====================================================
@@ -1234,6 +2505,29 @@ export async function removeExpiredBoosts() {
     {
       $set: {
         isBoosted: false,
+      },
+    },
+  );
+}
+
+// =====================================================
+// Remove Expired Featured Ads
+// =====================================================
+
+export async function removeExpiredFeatured() {
+  const collection = await getCollection();
+
+  await collection.updateMany(
+    {
+      isFeatured: true,
+
+      featuredUntil: {
+        $lte: new Date(),
+      },
+    },
+    {
+      $set: {
+        isFeatured: false,
       },
     },
   );

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import Container from "@/components/ui/Container";
 import { ArrowRight, MapPin } from "lucide-react";
 
@@ -68,21 +69,22 @@ export default function PopularCities() {
         {/* Cities Grid */}
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {cities.map((city) => (
-            <button
+            <Link
               key={city.name}
+              href={`/search?city=${encodeURIComponent(city.name)}`}
               className="group relative h-[340px] overflow-hidden rounded-3xl border-2 border-transparent shadow-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#1565d8] hover:shadow-[0_20px_50px_rgba(21,101,216,0.25)]"
             >
               {/* Background Image */}
               <Image
                 src={city.image}
-                alt={city.name}
+                alt={`${city.name} marketplace`}
                 fill
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
                 className="object-cover transition-transform duration-500 group-hover:scale-110"
               />
 
               {/* Dark Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
 
               {/* Content */}
               <div className="absolute inset-0 flex flex-col justify-end p-6 text-white">
@@ -96,13 +98,14 @@ export default function PopularCities() {
 
                 <div className="mt-6 flex items-center gap-2 font-semibold text-[#f5a623]">
                   Browse City
+
                   <ArrowRight
                     size={18}
                     className="transition-transform duration-300 group-hover:translate-x-2"
                   />
                 </div>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       </Container>

@@ -23,17 +23,19 @@ export default function CategoryMenu() {
     <div className="border-b border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900">
       <div
         className="
-          mx-auto
-          flex
-          max-w-7xl
-          items-center
-          gap-3
-          overflow-x-auto
-          px-4
-          py-3
-
-          scrollbar-hide
-        "
+    mx-auto
+    flex
+    max-w-7xl
+    items-center
+    gap-3
+    overflow-x-auto
+    px-1
+    py-2
+    md:px-4
+    [-ms-overflow-style:none]
+    [scrollbar-width:none]
+    [&::-webkit-scrollbar]:hidden
+  "
       >
         {categories.map((category) => (
           <Link

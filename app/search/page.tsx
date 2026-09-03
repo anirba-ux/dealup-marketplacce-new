@@ -75,6 +75,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       const searchResult = await searchProductsPage({
         keyword: q ?? "",
         category,
+        city,
         sort,
         condition,
         maxPrice,
