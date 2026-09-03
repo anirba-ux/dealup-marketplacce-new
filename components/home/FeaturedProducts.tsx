@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useState } from "react";
@@ -95,14 +96,10 @@ export default function FeaturedProducts({
 
     if (!carousel) return;
 
-    const scrollAmount =
-      window.innerWidth < 640 ? 290 : 350;
+    const scrollAmount = window.innerWidth < 640 ? 290 : 350;
 
     carousel.scrollBy({
-      left:
-        direction === "right"
-          ? scrollAmount
-          : -scrollAmount,
+      left: direction === "right" ? scrollAmount : -scrollAmount,
       behavior: "smooth",
     });
   };
@@ -112,13 +109,14 @@ export default function FeaturedProducts({
   ======================================================= */
 
   const handlePointerDown = (
-    event: React.PointerEvent<HTMLDivElement>
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
     const carousel = carouselRef.current;
 
     if (!carousel) return;
 
-    // Only mouse drag
+    // Mouse drag only.
+    // Touch scrolling remains fully native.
     if (event.pointerType !== "mouse") return;
 
     isDragging.current = true;
@@ -137,25 +135,21 @@ export default function FeaturedProducts({
   ======================================================= */
 
   const handlePointerMove = (
-    event: React.PointerEvent<HTMLDivElement>
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
     const carousel = carouselRef.current;
 
     if (!carousel || !isDragging.current) return;
 
-    // Only mouse drag
     if (event.pointerType !== "mouse") return;
 
-    const distance =
-      event.clientX - startX.current;
+    const distance = event.clientX - startX.current;
 
-    // Prevent tiny accidental movement
     if (Math.abs(distance) > 5) {
       hasDragged.current = true;
     }
 
-    carousel.scrollLeft =
-      startScrollLeft.current - distance;
+    carousel.scrollLeft = startScrollLeft.current - distance;
   };
 
   /* =======================================================
@@ -163,7 +157,7 @@ export default function FeaturedProducts({
   ======================================================= */
 
   const handlePointerUp = (
-    event: React.PointerEvent<HTMLDivElement>
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
     const carousel = carouselRef.current;
 
@@ -176,9 +170,7 @@ export default function FeaturedProducts({
     setDragging(false);
 
     if (carousel.hasPointerCapture(event.pointerId)) {
-      carousel.releasePointerCapture(
-        event.pointerId
-      );
+      carousel.releasePointerCapture(event.pointerId);
     }
   };
 
@@ -187,7 +179,7 @@ export default function FeaturedProducts({
   ======================================================= */
 
   const handlePointerCancel = (
-    event: React.PointerEvent<HTMLDivElement>
+    event: React.PointerEvent<HTMLDivElement>,
   ) => {
     const carousel = carouselRef.current;
 
@@ -198,18 +190,16 @@ export default function FeaturedProducts({
     setDragging(false);
 
     if (carousel.hasPointerCapture(event.pointerId)) {
-      carousel.releasePointerCapture(
-        event.pointerId
-      );
+      carousel.releasePointerCapture(event.pointerId);
     }
   };
 
   /* =======================================================
-     PREVENT CLICK AFTER DRAG
+     PREVENT CLICK AFTER MOUSE DRAG
   ======================================================= */
 
   const handleClickCapture = (
-    event: React.MouseEvent<HTMLDivElement>
+    event: React.MouseEvent<HTMLDivElement>,
   ) => {
     if (hasDragged.current) {
       event.preventDefault();
@@ -244,7 +234,6 @@ export default function FeaturedProducts({
       "
     >
       <Container>
-
         {/* =================================================
             HEADER
         ================================================== */}
@@ -262,13 +251,11 @@ export default function FeaturedProducts({
             lg:mb-10
           "
         >
-
           {/* =================================================
               TITLE
-          ================================================= */}
+          ================================================== */}
 
           <div className="min-w-0">
-
             <h2
               className="
                 whitespace-nowrap
@@ -300,7 +287,6 @@ export default function FeaturedProducts({
             >
               Discover trending products from trusted sellers.
             </p>
-
           </div>
 
           {/* =================================================
@@ -315,7 +301,6 @@ export default function FeaturedProducts({
               gap-2
             "
           >
-
             {/* =================================================
                 PREVIOUS
             ================================================== */}
@@ -323,9 +308,7 @@ export default function FeaturedProducts({
             <button
               type="button"
               aria-label="Previous products"
-              onClick={() =>
-                scrollCarousel("left")
-              }
+              onClick={() => scrollCarousel("left")}
               className="
                 hidden
                 h-10
@@ -340,16 +323,19 @@ export default function FeaturedProducts({
                 shadow-sm
                 transition-all
                 duration-200
+                hover:-translate-y-0.5
                 hover:border-[#1565D8]
-                hover:bg-blue-50
-                hover:text-[#1565D8]
+                hover:bg-[#1565D8]
+                hover:text-white
+                hover:shadow-md
+                active:translate-y-0
                 active:scale-95
                 dark:border-slate-700
                 dark:bg-slate-900
                 dark:text-slate-300
                 dark:hover:border-[#1976F3]
-                dark:hover:bg-blue-950/40
-                dark:hover:text-[#4d9aff]
+                dark:hover:bg-[#1976F3]
+                dark:hover:text-white
                 sm:flex
               "
             >
@@ -363,9 +349,7 @@ export default function FeaturedProducts({
             <button
               type="button"
               aria-label="Next products"
-              onClick={() =>
-                scrollCarousel("right")
-              }
+              onClick={() => scrollCarousel("right")}
               className="
                 hidden
                 h-10
@@ -380,16 +364,19 @@ export default function FeaturedProducts({
                 shadow-sm
                 transition-all
                 duration-200
+                hover:-translate-y-0.5
                 hover:border-[#1565D8]
-                hover:bg-blue-50
-                hover:text-[#1565D8]
+                hover:bg-[#1565D8]
+                hover:text-white
+                hover:shadow-md
+                active:translate-y-0
                 active:scale-95
                 dark:border-slate-700
                 dark:bg-slate-900
                 dark:text-slate-300
                 dark:hover:border-[#1976F3]
-                dark:hover:bg-blue-950/40
-                dark:hover:text-[#4d9aff]
+                dark:hover:bg-[#1976F3]
+                dark:hover:text-white
                 sm:flex
               "
             >
@@ -415,10 +402,14 @@ export default function FeaturedProducts({
                 text-sm
                 font-semibold
                 text-[#1565D8]
+                shadow-sm
                 transition-all
                 duration-200
+                hover:-translate-y-0.5
                 hover:bg-[#1565D8]
                 hover:text-white
+                hover:shadow-md
+                active:translate-y-0
                 active:scale-95
                 dark:border-[#1976F3]
                 dark:text-[#4d9aff]
@@ -435,7 +426,6 @@ export default function FeaturedProducts({
                 View All Products
               </span>
             </Link>
-
           </div>
         </div>
 
@@ -453,13 +443,10 @@ export default function FeaturedProducts({
           className={`
             -mx-4
             flex
-            snap-x
-            snap-mandatory
             gap-4
             overflow-x-auto
             overscroll-x-contain
             touch-pan-x
-            scroll-smooth
             px-4
             pb-4
             select-none
@@ -482,7 +469,6 @@ export default function FeaturedProducts({
             }
           `}
         >
-
           {featuredProducts.map((product) => (
             <div
               key={product.id}
@@ -491,7 +477,6 @@ export default function FeaturedProducts({
                 min-w-[78vw]
                 max-w-[340px]
                 shrink-0
-                snap-start
                 touch-pan-x
 
                 sm:w-[290px]
@@ -501,73 +486,36 @@ export default function FeaturedProducts({
                 lg:min-w-[300px]
               "
             >
-
               <ProductCard
-
                 id={product.id}
-
                 slug={product.slug}
-
                 title={product.title}
-
                 price={product.price}
-
                 location={product.location}
-
                 image={product.image}
-
                 seller={product.seller}
-
                 sellerIsPhoneVerified={
-                  product.sellerIsPhoneVerified
+                  product.sellerIsPhoneVerified ?? false
                 }
-
                 sellerVerificationStatus={
-                  product.sellerVerificationStatus ??
-                  undefined
+                  product.sellerVerificationStatus ?? undefined
                 }
-
-                sellerBadge={
-                  product.sellerBadge
-                }
-
-                condition={
-                  product.condition
-                }
-
+                sellerBadge={product.sellerBadge}
+                condition={product.condition}
                 sellerPremiumSeller={
-                  product.sellerPremiumSeller
+                  product.sellerPremiumSeller ?? false
                 }
-
                 sellerPremiumBadge={
-                  product.sellerPremiumBadge
+                  product.sellerPremiumBadge ?? false
                 }
-
-                createdAt={
-                  product.createdAt
-                }
-
-                isFeatured={
-                  product.isFeatured
-                }
-
-                isPremium={
-                  product.isPremium
-                }
-
-                isBoosted={
-                  product.isBoosted
-                }
-
-                views={
-                  product.views
-                }
-
+                createdAt={product.createdAt}
+                isFeatured={product.isFeatured ?? false}
+                isPremium={product.isPremium ?? false}
+                isBoosted={product.isBoosted ?? false}
+                views={product.views ?? 0}
               />
-
             </div>
           ))}
-
         </div>
 
         {/* =================================================
@@ -584,7 +532,6 @@ export default function FeaturedProducts({
             sm:hidden
           "
         >
-
           <span
             className="
               h-1.5
@@ -634,7 +581,6 @@ export default function FeaturedProducts({
               dark:bg-slate-700
             "
           />
-
         </div>
 
         {/* =================================================
@@ -654,8 +600,8 @@ export default function FeaturedProducts({
         >
           ← Swipe to explore products →
         </p>
-
       </Container>
     </section>
   );
 }
+

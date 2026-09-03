@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 
 import { ArrowRight, Clock3, PackageOpen } from "lucide-react";
@@ -123,7 +122,6 @@ export default function LatestProducts({ products }: Props) {
             "
           >
             View All
-
             <ArrowRight
               size={16}
               className="
@@ -199,26 +197,27 @@ export default function LatestProducts({ products }: Props) {
           <>
             <div
               className="
-                flex
-                snap-x
-                snap-mandatory
-                gap-3
-                overflow-x-auto
-                scroll-smooth
-                pb-4
+    flex
+    snap-x
+    snap-proximity
+    gap-3
+    overflow-x-auto
+    overscroll-x-contain
+    touch-pan-x
+    pb-4
 
-                [-ms-overflow-style:none]
-                [scrollbar-width:none]
+    [-ms-overflow-style:none]
+    [scrollbar-width:none]
 
-                sm:grid
-                sm:grid-cols-2
-                sm:gap-5
-                sm:overflow-visible
-                sm:pb-0
+    sm:grid
+    sm:grid-cols-2
+    sm:gap-5
+    sm:overflow-visible
+    sm:pb-0
 
-                lg:grid-cols-4
-                lg:gap-6
-              "
+    lg:grid-cols-4
+    lg:gap-6
+  "
             >
               {products.map((product) => (
                 <div
@@ -243,16 +242,10 @@ export default function LatestProducts({ products }: Props) {
                     sellerIsPhoneVerified={
                       product.sellerIsPhoneVerified ?? false
                     }
-                    sellerVerificationStatus={
-                      product.sellerVerificationStatus
-                    }
+                    sellerVerificationStatus={product.sellerVerificationStatus}
                     sellerBadge={product.sellerBadge}
-                    sellerPremiumSeller={
-                      product.sellerPremiumSeller ?? false
-                    }
-                    sellerPremiumBadge={
-                      product.sellerPremiumBadge ?? false
-                    }
+                    sellerPremiumSeller={product.sellerPremiumSeller ?? false}
+                    sellerPremiumBadge={product.sellerPremiumBadge ?? false}
                     isFeatured={product.isFeatured ?? false}
                     isPremium={product.isPremium ?? false}
                     isBoosted={product.isBoosted ?? false}
@@ -308,4 +301,3 @@ export default function LatestProducts({ products }: Props) {
     </section>
   );
 }
-
