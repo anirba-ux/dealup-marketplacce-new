@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useRef, useState } from "react";
@@ -33,15 +32,12 @@ interface FeaturedProduct {
   seller: string;
 
   sellerIsPhoneVerified?: boolean;
-
   sellerVerificationStatus?: string | null;
-
   sellerBadge?: SellerBadge | string | null;
 
   condition: string;
 
   sellerPremiumSeller?: boolean;
-
   sellerPremiumBadge?: boolean;
 
   createdAt: string;
@@ -71,7 +67,7 @@ export default function FeaturedProducts({
   const carouselRef = useRef<HTMLDivElement>(null);
 
   /* =======================================================
-     MOUSE DRAG STATE
+     DESKTOP MOUSE DRAG STATE
   ======================================================= */
 
   const isDragging = useRef(false);
@@ -105,19 +101,19 @@ export default function FeaturedProducts({
   };
 
   /* =======================================================
-     MOUSE DRAG START
+     DESKTOP MOUSE DRAG START
   ======================================================= */
 
   const handlePointerDown = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    // IMPORTANT:
+    // Never interfere with mobile/tablet touch scrolling.
+    if (event.pointerType !== "mouse") return;
+
     const carousel = carouselRef.current;
 
     if (!carousel) return;
-
-    // Mouse drag only.
-    // Touch scrolling remains fully native.
-    if (event.pointerType !== "mouse") return;
 
     isDragging.current = true;
     hasDragged.current = false;
@@ -131,17 +127,18 @@ export default function FeaturedProducts({
   };
 
   /* =======================================================
-     MOUSE DRAG MOVE
+     DESKTOP MOUSE DRAG MOVE
   ======================================================= */
 
   const handlePointerMove = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    // Touch / pen = native browser scrolling
+    if (event.pointerType !== "mouse") return;
+
     const carousel = carouselRef.current;
 
     if (!carousel || !isDragging.current) return;
-
-    if (event.pointerType !== "mouse") return;
 
     const distance = event.clientX - startX.current;
 
@@ -153,20 +150,19 @@ export default function FeaturedProducts({
   };
 
   /* =======================================================
-     MOUSE DRAG END
+     DESKTOP MOUSE DRAG END
   ======================================================= */
 
   const handlePointerUp = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    if (event.pointerType !== "mouse") return;
+
     const carousel = carouselRef.current;
 
     if (!carousel) return;
 
-    if (event.pointerType !== "mouse") return;
-
     isDragging.current = false;
-
     setDragging(false);
 
     if (carousel.hasPointerCapture(event.pointerId)) {
@@ -181,12 +177,13 @@ export default function FeaturedProducts({
   const handlePointerCancel = (
     event: React.PointerEvent<HTMLDivElement>,
   ) => {
+    if (event.pointerType !== "mouse") return;
+
     const carousel = carouselRef.current;
 
     if (!carousel) return;
 
     isDragging.current = false;
-
     setDragging(false);
 
     if (carousel.hasPointerCapture(event.pointerId)) {
@@ -195,18 +192,18 @@ export default function FeaturedProducts({
   };
 
   /* =======================================================
-     PREVENT CLICK AFTER MOUSE DRAG
+     PREVENT CLICK AFTER DESKTOP DRAG
   ======================================================= */
 
   const handleClickCapture = (
     event: React.MouseEvent<HTMLDivElement>,
   ) => {
-    if (hasDragged.current) {
-      event.preventDefault();
-      event.stopPropagation();
+    if (!hasDragged.current) return;
 
-      hasDragged.current = false;
-    }
+    event.preventDefault();
+    event.stopPropagation();
+
+    hasDragged.current = false;
   };
 
   /* =======================================================
@@ -251,10 +248,6 @@ export default function FeaturedProducts({
             lg:mb-10
           "
         >
-          {/* =================================================
-              TITLE
-          ================================================== */}
-
           <div className="min-w-0">
             <h2
               className="
@@ -290,7 +283,7 @@ export default function FeaturedProducts({
           </div>
 
           {/* =================================================
-              RIGHT CONTROLS
+              CONTROLS
           ================================================== */}
 
           <div
@@ -301,10 +294,6 @@ export default function FeaturedProducts({
               gap-2
             "
           >
-            {/* =================================================
-                PREVIOUS
-            ================================================== */}
-
             <button
               type="button"
               aria-label="Previous products"
@@ -341,10 +330,6 @@ export default function FeaturedProducts({
             >
               <ChevronLeft size={20} />
             </button>
-
-            {/* =================================================
-                NEXT
-            ================================================== */}
 
             <button
               type="button"
@@ -383,10 +368,6 @@ export default function FeaturedProducts({
               <ChevronRight size={20} />
             </button>
 
-            {/* =================================================
-                VIEW ALL
-            ================================================== */}
-
             <Link
               href="/search"
               className="
@@ -418,9 +399,7 @@ export default function FeaturedProducts({
                 sm:px-5
               "
             >
-              <span className="sm:hidden">
-                View All
-              </span>
+              <span className="sm:hidden">View All</span>
 
               <span className="hidden sm:inline">
                 View All Products
@@ -431,6 +410,12 @@ export default function FeaturedProducts({
 
         {/* =================================================
             PRODUCT CAROUSEL
+
+            MOBILE:
+            - Native horizontal touch scrolling
+            - No snap
+            - No scroll-smooth
+            - No pointer manipulation
         ================================================== */}
 
         <div
@@ -449,7 +434,6 @@ export default function FeaturedProducts({
             touch-pan-x
             px-4
             pb-4
-            select-none
             [scrollbar-width:none]
             [-ms-overflow-style:none]
             [&::-webkit-scrollbar]:hidden
@@ -477,7 +461,6 @@ export default function FeaturedProducts({
                 min-w-[78vw]
                 max-w-[340px]
                 shrink-0
-                touch-pan-x
 
                 sm:w-[290px]
                 sm:min-w-[290px]
@@ -519,7 +502,7 @@ export default function FeaturedProducts({
         </div>
 
         {/* =================================================
-            MOBILE SWIPE INDICATOR
+            MOBILE INDICATOR
         ================================================== */}
 
         <div
@@ -532,60 +515,12 @@ export default function FeaturedProducts({
             sm:hidden
           "
         >
-          <span
-            className="
-              h-1.5
-              w-5
-              rounded-full
-              bg-[#1565D8]
-              dark:bg-[#1976F3]
-            "
-          />
-
-          <span
-            className="
-              h-1.5
-              w-1.5
-              rounded-full
-              bg-slate-300
-              dark:bg-slate-700
-            "
-          />
-
-          <span
-            className="
-              h-1.5
-              w-1.5
-              rounded-full
-              bg-slate-300
-              dark:bg-slate-700
-            "
-          />
-
-          <span
-            className="
-              h-1.5
-              w-1.5
-              rounded-full
-              bg-slate-300
-              dark:bg-slate-700
-            "
-          />
-
-          <span
-            className="
-              h-1.5
-              w-1.5
-              rounded-full
-              bg-slate-300
-              dark:bg-slate-700
-            "
-          />
+          <span className="h-1.5 w-5 rounded-full bg-[#1565D8] dark:bg-[#1976F3]" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
+          <span className="h-1.5 w-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
         </div>
-
-        {/* =================================================
-            SWIPE HINT
-        ================================================== */}
 
         <p
           className="
@@ -604,4 +539,3 @@ export default function FeaturedProducts({
     </section>
   );
 }
-

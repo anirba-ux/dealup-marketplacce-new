@@ -32,18 +32,41 @@ interface Props {
 
 export default function LatestProducts({ products }: Props) {
   return (
-    <section className="bg-white py-10 dark:bg-slate-950 sm:py-12 lg:py-14">
+    <section
+      className="
+        bg-white
+        py-10
+        dark:bg-slate-950
+        sm:py-12
+        lg:py-14
+      "
+    >
       <Container>
         {/* =================================================
             HEADER
         ================================================== */}
 
-        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
+        <div
+          className="
+            mb-6
+            flex
+            flex-col
+            gap-4
+            sm:mb-8
+            sm:flex-row
+            sm:items-end
+            sm:justify-between
+          "
+        >
           <div>
             <div className="mb-2 flex items-center gap-2">
               <div
                 className="
-                  flex h-8 w-8 items-center justify-center
+                  flex
+                  h-8
+                  w-8
+                  items-center
+                  justify-center
                   rounded-full
                   bg-blue-50
                   text-[#1565d8]
@@ -56,7 +79,10 @@ export default function LatestProducts({ products }: Props) {
 
               <span
                 className="
-                  text-xs font-bold uppercase tracking-wider
+                  text-xs
+                  font-bold
+                  uppercase
+                  tracking-wider
                   text-[#1565d8]
                   dark:text-blue-400
                 "
@@ -67,7 +93,9 @@ export default function LatestProducts({ products }: Props) {
 
             <h2
               className="
-                text-2xl font-bold tracking-tight
+                text-2xl
+                font-bold
+                tracking-tight
                 text-slate-900
                 dark:text-white
                 sm:text-3xl
@@ -79,8 +107,10 @@ export default function LatestProducts({ products }: Props) {
 
             <p
               className="
-                mt-1 max-w-xl
-                text-sm leading-6
+                mt-1
+                max-w-xl
+                text-sm
+                leading-6
                 text-slate-500
                 dark:text-slate-400
                 sm:text-base
@@ -98,13 +128,18 @@ export default function LatestProducts({ products }: Props) {
             href="/products"
             className="
               group
-              inline-flex w-fit
-              items-center gap-2
+              inline-flex
+              w-fit
+              items-center
+              gap-2
               rounded-xl
-              border border-[#1565d8]
+              border
+              border-[#1565d8]
               bg-white
-              px-4 py-2.5
-              text-sm font-semibold
+              px-4
+              py-2.5
+              text-sm
+              font-semibold
               text-[#1565d8]
               shadow-sm
               transition-all
@@ -122,6 +157,7 @@ export default function LatestProducts({ products }: Props) {
             "
           >
             View All
+
             <ArrowRight
               size={16}
               className="
@@ -141,10 +177,12 @@ export default function LatestProducts({ products }: Props) {
           <div
             className="
               rounded-2xl
-              border border-dashed
+              border
+              border-dashed
               border-slate-300
               bg-slate-50
-              px-5 py-12
+              px-5
+              py-12
               text-center
               dark:border-slate-700
               dark:bg-slate-900/60
@@ -153,9 +191,13 @@ export default function LatestProducts({ products }: Props) {
           >
             <div
               className="
-                mx-auto mb-4
-                flex h-14 w-14
-                items-center justify-center
+                mx-auto
+                mb-4
+                flex
+                h-14
+                w-14
+                items-center
+                justify-center
                 rounded-full
                 bg-blue-50
                 text-[#1565d8]
@@ -168,7 +210,8 @@ export default function LatestProducts({ products }: Props) {
 
             <h3
               className="
-                text-lg font-semibold
+                text-lg
+                font-semibold
                 text-slate-800
                 dark:text-slate-100
               "
@@ -178,8 +221,11 @@ export default function LatestProducts({ products }: Props) {
 
             <p
               className="
-                mx-auto mt-1 max-w-md
-                text-sm leading-6
+                mx-auto
+                mt-1
+                max-w-md
+                text-sm
+                leading-6
                 text-slate-500
                 dark:text-slate-400
               "
@@ -197,37 +243,37 @@ export default function LatestProducts({ products }: Props) {
           <>
             <div
               className="
-    flex
-    snap-x
-    snap-proximity
-    gap-3
-    overflow-x-auto
-    overscroll-x-contain
-    touch-pan-x
-    pb-4
+                flex
+                gap-3
+                overflow-x-auto
+                overscroll-x-contain
+                touch-pan-x
+                pb-4
 
-    [-ms-overflow-style:none]
-    [scrollbar-width:none]
+                [scrollbar-width:none]
+                [-ms-overflow-style:none]
+                [&::-webkit-scrollbar]:hidden
 
-    sm:grid
-    sm:grid-cols-2
-    sm:gap-5
-    sm:overflow-visible
-    sm:pb-0
+                sm:grid
+                sm:grid-cols-2
+                sm:gap-5
+                sm:overflow-visible
+                sm:pb-0
 
-    lg:grid-cols-4
-    lg:gap-6
-  "
+                lg:grid-cols-4
+                lg:gap-6
+              "
             >
               {products.map((product) => (
                 <div
                   key={product._id.toString()}
                   className="
-                    w-[78%]
+                    w-[78vw]
+                    min-w-[78vw]
                     shrink-0
-                    snap-start
 
                     sm:w-auto
+                    sm:min-w-0
                   "
                 >
                   <ProductCard
@@ -242,14 +288,22 @@ export default function LatestProducts({ products }: Props) {
                     sellerIsPhoneVerified={
                       product.sellerIsPhoneVerified ?? false
                     }
-                    sellerVerificationStatus={product.sellerVerificationStatus}
+                    sellerVerificationStatus={
+                      product.sellerVerificationStatus
+                    }
                     sellerBadge={product.sellerBadge}
-                    sellerPremiumSeller={product.sellerPremiumSeller ?? false}
-                    sellerPremiumBadge={product.sellerPremiumBadge ?? false}
+                    sellerPremiumSeller={
+                      product.sellerPremiumSeller ?? false
+                    }
+                    sellerPremiumBadge={
+                      product.sellerPremiumBadge ?? false
+                    }
                     isFeatured={product.isFeatured ?? false}
                     isPremium={product.isPremium ?? false}
                     isBoosted={product.isBoosted ?? false}
-                    createdAt={product.createdAt ?? new Date()}
+                    createdAt={
+                      product.createdAt ?? new Date()
+                    }
                     views={product.views ?? 0}
                   />
                 </div>
@@ -264,13 +318,17 @@ export default function LatestProducts({ products }: Props) {
               <div
                 className="
                   mt-1
-                  flex items-center justify-center gap-2
+                  flex
+                  items-center
+                  justify-center
+                  gap-2
                   lg:hidden
                 "
               >
                 <span
                   className="
-                    h-1.5 w-1.5
+                    h-1.5
+                    w-1.5
                     rounded-full
                     bg-[#1565d8]
                   "
@@ -278,7 +336,8 @@ export default function LatestProducts({ products }: Props) {
 
                 <span
                   className="
-                    text-[11px] font-medium
+                    text-[11px]
+                    font-medium
                     text-slate-400
                     dark:text-slate-500
                   "
