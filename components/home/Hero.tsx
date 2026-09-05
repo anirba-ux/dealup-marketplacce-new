@@ -28,28 +28,51 @@ export default function Hero() {
             </p>
 
             {/* Buttons */}
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div
+              className="
+    mt-8
+    flex
+    w-full
+    items-center
+    gap-3
+
+    sm:mt-10
+    sm:w-auto
+    sm:gap-4
+  "
+            >
               {/* Start Selling */}
               <Link
                 href="/sell"
                 className="
-                  inline-flex
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-[#1565d8]
-                  px-10
-                  py-4
-                  font-semibold
-                  text-white
-                  shadow-lg
-                  transition-all
-                  duration-300
-                  hover:-translate-y-1
-                  hover:bg-[#0f52ba]
-                  hover:shadow-xl
-                  active:scale-95
-                "
+      inline-flex
+      min-w-0
+      flex-1
+      items-center
+      justify-center
+      rounded-xl
+      bg-[#1565d8]
+      px-3
+      py-3
+      text-center
+      text-sm
+      font-semibold
+      text-white
+      shadow-lg
+      transition-all
+      duration-300
+      hover:-translate-y-1
+      hover:bg-[#0f52ba]
+      hover:shadow-xl
+      active:scale-95
+
+      sm:flex-none
+      sm:px-8
+      sm:py-4
+      sm:text-base
+
+      lg:px-10
+    "
               >
                 Start Selling
               </Link>
@@ -58,30 +81,43 @@ export default function Hero() {
               <Link
                 href="/search"
                 className="
-                  inline-flex
-                  items-center
-                  justify-center
-                  rounded-xl
-                  border
-                  border-slate-300
-                  bg-white
-                  px-10
-                  py-4
-                  font-semibold
-                  text-slate-700
-                  shadow-sm
-                  transition-all
-                  duration-300
-                  hover:-translate-y-1
-                  hover:border-[#1565d8]
-                  hover:text-[#1565d8]
-                  hover:shadow-md
-                  dark:border-slate-700
-                  dark:bg-slate-900
-                  dark:text-slate-200
-                  dark:hover:border-[#1976F3]
-                  dark:hover:text-[#1976F3]
-                "
+      inline-flex
+      min-w-0
+      flex-1
+      items-center
+      justify-center
+      rounded-xl
+      border
+      border-slate-300
+      bg-white
+      px-3
+      py-3
+      text-center
+      text-sm
+      font-semibold
+      text-slate-700
+      shadow-sm
+      transition-all
+      duration-300
+      hover:-translate-y-1
+      hover:border-[#1565d8]
+      hover:text-[#1565d8]
+      hover:shadow-md
+      active:scale-95
+
+      sm:flex-none
+      sm:px-8
+      sm:py-4
+      sm:text-base
+
+      lg:px-10
+
+      dark:border-slate-700
+      dark:bg-slate-900
+      dark:text-slate-200
+      dark:hover:border-[#1976F3]
+      dark:hover:text-[#1976F3]
+    "
               >
                 Browse Products
               </Link>
@@ -91,16 +127,12 @@ export default function Hero() {
             <div className="mt-16 flex gap-12">
               <div>
                 <h3 className="text-4xl font-bold text-[#1565d8]">10K+</h3>
-                <p className="text-slate-500 dark:text-slate-400">
-                  Products
-                </p>
+                <p className="text-slate-500 dark:text-slate-400">Products</p>
               </div>
 
               <div>
                 <h3 className="text-4xl font-bold text-[#1565d8]">5K+</h3>
-                <p className="text-slate-500 dark:text-slate-400">
-                  Sellers
-                </p>
+                <p className="text-slate-500 dark:text-slate-400">Sellers</p>
               </div>
 
               <div>

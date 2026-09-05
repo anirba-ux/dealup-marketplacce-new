@@ -97,9 +97,7 @@ export default function PremiumBanner() {
               >
                 Sell Faster with
                 <br />
-                <span className="text-yellow-300">
-                  DealUp Premium
-                </span>
+                <span className="text-yellow-300">DealUp Premium</span>
               </h2>
 
               {/* Description */}
@@ -121,67 +119,75 @@ export default function PremiumBanner() {
                   lg:leading-8
                 "
               >
-                Get featured listings, reach more buyers, boost
-                your visibility, and grow your sales with our
-                Premium Seller membership.
+                Get featured listings, reach more buyers, boost your visibility,
+                and grow your sales with our Premium Seller membership.
               </p>
 
               {/* =================================================
-                  ACTIONS
-              ================================================== */}
+    ACTIONS
+================================================== */}
 
               <div
                 className="
-                  mt-6
-                  flex
-                  flex-col
-                  gap-3
+    mt-6
+    flex
+    w-full
+    items-center
+    gap-3
 
-                  sm:mt-8
-                  sm:flex-row
-                  sm:flex-wrap
-                  sm:gap-4
+    sm:mt-8
+    sm:w-auto
+    sm:flex-row
+    sm:gap-4
 
-                  lg:mt-10
-                "
+    lg:mt-10
+  "
               >
                 {/* Upgrade Now */}
 
                 <Link
                   href="/dashboard/premium"
                   className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-[#f5a623]
-                    px-6
-                    py-3
-                    text-sm
-                    font-semibold
-                    text-slate-900
-                    shadow-lg
-                    transition-all
-                    duration-300
-                    ease-out
-                    hover:-translate-y-0.5
-                    hover:scale-[1.02]
-                    hover:bg-[#ffb52e]
-                    hover:shadow-xl
-                    active:translate-y-0
+  inline-flex
+  min-w-0
+  flex-1
+  items-center
+  justify-center
+  gap-1.5
+  whitespace-nowrap
+  rounded-xl
+  bg-[#f5a623]
+  px-3
+  py-3
+  text-center
+  text-sm
+  font-semibold
+  text-slate-900
+  shadow-lg
+  transition-all
+  duration-300
+  ease-out
+  hover:-translate-y-0.5
+  hover:scale-[1.02]
+  hover:bg-[#ffb52e]
+  hover:shadow-xl
+  active:translate-y-0
 
-                    sm:px-8
-                    sm:py-3.5
-                    sm:text-base
+  sm:flex-none
+  sm:gap-2
+  sm:px-8
+  sm:py-3.5
+  sm:text-base
 
-                    lg:px-10
-                    lg:py-4
-                  "
+  lg:px-10
+  lg:py-4
+"
                 >
                   Upgrade Now
-
-                  <ArrowRight size={18} />
+                  <ArrowRight
+                    size={17}
+                    className="shrink-0 sm:h-[18px] sm:w-[18px]"
+                  />
                 </Link>
 
                 {/* Learn More */}
@@ -189,37 +195,41 @@ export default function PremiumBanner() {
                 <Link
                   href="/premium"
                   className="
-                    inline-flex
-                    items-center
-                    justify-center
-                    rounded-xl
-                    border
-                    border-white/40
-                    px-6
-                    py-3
-                    text-sm
-                    font-semibold
-                    text-white
-                    backdrop-blur
-                    transition-all
-                    duration-300
-                    ease-out
-                    hover:-translate-y-0.5
-                    hover:bg-white
-                    hover:text-[#1565d8]
-                    hover:shadow-lg
-                    active:translate-y-0
+      inline-flex
+      min-w-0
+      flex-1
+      items-center
+      justify-center
+      rounded-xl
+      border
+      border-white/40
+      px-3
+      py-3
+      text-center
+      text-sm
+      font-semibold
+      text-white
+      backdrop-blur
+      transition-all
+      duration-300
+      ease-out
+      hover:-translate-y-0.5
+      hover:bg-white
+      hover:text-[#1565d8]
+      hover:shadow-lg
+      active:translate-y-0
 
-                    sm:px-8
-                    sm:py-3.5
-                    sm:text-base
+      sm:flex-none
+      sm:px-8
+      sm:py-3.5
+      sm:text-base
 
-                    lg:px-10
-                    lg:py-4
+      lg:px-10
+      lg:py-4
 
-                    dark:hover:bg-slate-800
-                    dark:hover:text-white
-                  "
+      dark:hover:bg-slate-800
+      dark:hover:text-white
+    "
                 >
                   Learn More
                 </Link>
@@ -368,10 +378,7 @@ export default function PremiumBanner() {
                     lg:w-12
                   "
                 >
-                  <Zap
-                    size={24}
-                    className="sm:h-7 sm:w-7 lg:h-8 lg:w-8"
-                  />
+                  <Zap size={24} className="sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
                 </div>
 
                 <div className="min-w-0">
@@ -399,8 +406,7 @@ export default function PremiumBanner() {
                       sm:leading-6
                     "
                   >
-                    Increase visibility and receive more
-                    enquiries.
+                    Increase visibility and receive more enquiries.
                   </p>
                 </div>
               </div>
@@ -482,8 +488,7 @@ export default function PremiumBanner() {
                       sm:leading-6
                     "
                   >
-                    Build trust with verified premium seller
-                    status.
+                    Build trust with verified premium seller status.
                   </p>
                 </div>
               </div>

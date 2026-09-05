@@ -1,17 +1,21 @@
 "use client";
 
-import * as React from "react";
 import {
   ThemeProvider as NextThemesProvider,
   type ThemeProviderProps,
-} from "next-themes";
+} from "@teispace/next-themes";
 
 export default function ThemeProvider({
   children,
   ...props
 }: ThemeProviderProps) {
   return (
-    <NextThemesProvider {...props}>
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      {...props}
+    >
       {children}
     </NextThemesProvider>
   );
