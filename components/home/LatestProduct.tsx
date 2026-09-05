@@ -58,6 +58,10 @@ export default function LatestProducts({ products }: Props) {
             sm:justify-between
           "
         >
+          {/* =================================================
+              TITLE
+          ================================================== */}
+
           <div>
             <div className="mb-2 flex items-center gap-2">
               <div
@@ -247,7 +251,6 @@ export default function LatestProducts({ products }: Props) {
                 gap-3
                 overflow-x-auto
                 overscroll-x-contain
-                touch-pan-x
                 pb-4
 
                 [scrollbar-width:none]
@@ -322,7 +325,7 @@ export default function LatestProducts({ products }: Props) {
                   items-center
                   justify-center
                   gap-2
-                  lg:hidden
+                  sm:hidden
                 "
               >
                 <span
