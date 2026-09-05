@@ -4,85 +4,486 @@ import { ArrowRight, BadgeCheck, TrendingUp, Zap } from "lucide-react";
 
 export default function PremiumBanner() {
   return (
-    <section className="bg-[#f8fafc] py-20 dark:bg-slate-950">
+    <section
+      className="
+        bg-[#f8fafc]
+        py-10
+        dark:bg-slate-950
+        sm:py-12
+        lg:py-16
+      "
+    >
       <Container>
-        <div className="overflow-hidden rounded-[36px] bg-gradient-to-r from-[#1565d8] to-[#0f52ba] px-8 py-16 text-white shadow-2xl lg:px-16">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            {/* Left Content */}
-            <div>
-              <span className="inline-flex items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 backdrop-blur dark:bg-white/10 dark:text-white">
+        <div
+          className="
+            overflow-hidden
+            rounded-2xl
+            bg-gradient-to-r
+            from-[#1565d8]
+            to-[#0f52ba]
+            px-5
+            py-8
+            text-white
+            shadow-2xl
+
+            sm:rounded-[28px]
+            sm:px-8
+            sm:py-10
+
+            lg:rounded-[36px]
+            lg:px-16
+            lg:py-14
+          "
+        >
+          <div
+            className="
+              grid
+              items-center
+              gap-8
+
+              sm:gap-10
+
+              lg:grid-cols-2
+              lg:gap-12
+            "
+          >
+            {/* =================================================
+                LEFT CONTENT
+            ================================================== */}
+
+            <div className="min-w-0">
+              {/* Premium Label */}
+
+              <span
+                className="
+                  inline-flex
+                  items-center
+                  rounded-full
+                  bg-white
+                  px-3
+                  py-1.5
+                  text-xs
+                  font-semibold
+                  text-slate-900
+                  backdrop-blur
+
+                  sm:px-4
+                  sm:py-2
+                  sm:text-sm
+
+                  dark:bg-white/10
+                  dark:text-white
+                "
+              >
                 ⭐ Premium Seller
               </span>
 
-              <h2 className="mt-6 text-4xl font-extrabold leading-tight lg:text-5xl">
+              {/* Heading */}
+
+              <h2
+                className="
+                  mt-4
+                  text-3xl
+                  font-extrabold
+                  leading-[1.12]
+                  tracking-tight
+
+                  sm:mt-5
+                  sm:text-4xl
+
+                  lg:mt-6
+                  lg:text-5xl
+                "
+              >
                 Sell Faster with
                 <br />
-                <span className="text-yellow-300">DealUp Premium</span>
+                <span className="text-yellow-300">
+                  DealUp Premium
+                </span>
               </h2>
 
-              <p className="mt-6 max-w-xl text-lg leading-8 text-blue-100">
-                Get featured listings, reach more buyers, boost your visibility,
-                and grow your sales with our Premium Seller membership.
+              {/* Description */}
+
+              <p
+                className="
+                  mt-4
+                  max-w-xl
+                  text-sm
+                  leading-6
+                  text-blue-100
+
+                  sm:mt-5
+                  sm:text-base
+                  sm:leading-7
+
+                  lg:mt-6
+                  lg:text-lg
+                  lg:leading-8
+                "
+              >
+                Get featured listings, reach more buyers, boost
+                your visibility, and grow your sales with our
+                Premium Seller membership.
               </p>
 
-              {/* Premium Actions */}
-              <div className="mt-10 flex flex-wrap gap-4">
+              {/* =================================================
+                  ACTIONS
+              ================================================== */}
+
+              <div
+                className="
+                  mt-6
+                  flex
+                  flex-col
+                  gap-3
+
+                  sm:mt-8
+                  sm:flex-row
+                  sm:flex-wrap
+                  sm:gap-4
+
+                  lg:mt-10
+                "
+              >
                 {/* Upgrade Now */}
+
                 <Link
                   href="/dashboard/premium"
-                  className="flex items-center gap-2 rounded-xl bg-[#f5a623] px-10 py-4 font-semibold text-slate-900 transition-all duration-300 hover:scale-105"
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-xl
+                    bg-[#f5a623]
+                    px-6
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-slate-900
+                    shadow-lg
+                    transition-all
+                    duration-300
+                    ease-out
+                    hover:-translate-y-0.5
+                    hover:scale-[1.02]
+                    hover:bg-[#ffb52e]
+                    hover:shadow-xl
+                    active:translate-y-0
+
+                    sm:px-8
+                    sm:py-3.5
+                    sm:text-base
+
+                    lg:px-10
+                    lg:py-4
+                  "
                 >
                   Upgrade Now
+
                   <ArrowRight size={18} />
                 </Link>
 
                 {/* Learn More */}
+
                 <Link
                   href="/premium"
-                  className="rounded-xl border border-white/40 px-10 py-4 font-semibold text-white backdrop-blur transition-all duration-300 hover:bg-white hover:text-[#1565d8] dark:hover:bg-slate-800 dark:hover:text-white"
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    rounded-xl
+                    border
+                    border-white/40
+                    px-6
+                    py-3
+                    text-sm
+                    font-semibold
+                    text-white
+                    backdrop-blur
+                    transition-all
+                    duration-300
+                    ease-out
+                    hover:-translate-y-0.5
+                    hover:bg-white
+                    hover:text-[#1565d8]
+                    hover:shadow-lg
+                    active:translate-y-0
+
+                    sm:px-8
+                    sm:py-3.5
+                    sm:text-base
+
+                    lg:px-10
+                    lg:py-4
+
+                    dark:hover:bg-slate-800
+                    dark:hover:text-white
+                  "
                 >
                   Learn More
                 </Link>
               </div>
             </div>
 
-            {/* Right Content */}
-            <div className="grid gap-5">
-              {/* Reach More Buyers */}
-              <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
-                <TrendingUp size={34} />
+            {/* =================================================
+                RIGHT CONTENT
+            ================================================== */}
 
-                <div>
-                  <h3 className="text-xl font-semibold">Reach More Buyers</h3>
+            <div
+              className="
+                grid
+                gap-3
 
-                  <p className="text-blue-100">
+                sm:gap-4
+
+                lg:gap-5
+              "
+            >
+              {/* =================================================
+                  REACH MORE BUYERS
+              ================================================== */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-xl
+                  bg-white/10
+                  p-4
+                  backdrop-blur
+                  transition-all
+                  duration-300
+                  hover:-translate-y-1
+                  hover:bg-white/20
+                  hover:shadow-xl
+
+                  sm:gap-4
+                  sm:rounded-2xl
+                  sm:p-5
+
+                  lg:hover:-translate-y-2
+                  lg:hover:scale-[1.02]
+                  lg:hover:shadow-2xl
+                "
+              >
+                <div
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-white/10
+
+                    sm:h-11
+                    sm:w-11
+
+                    lg:h-12
+                    lg:w-12
+                  "
+                >
+                  <TrendingUp
+                    size={24}
+                    className="sm:h-7 sm:w-7 lg:h-8 lg:w-8"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <h3
+                    className="
+                      text-base
+                      font-semibold
+
+                      sm:text-lg
+
+                      lg:text-xl
+                    "
+                  >
+                    Reach More Buyers
+                  </h3>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-xs
+                      leading-5
+                      text-blue-100
+
+                      sm:text-sm
+                      sm:leading-6
+                    "
+                  >
                     Featured listings appear at the top.
                   </p>
                 </div>
               </div>
 
-              {/* Sell Faster */}
-              <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
-                <Zap size={34} />
+              {/* =================================================
+                  SELL FASTER
+              ================================================== */}
 
-                <div>
-                  <h3 className="text-xl font-semibold">Sell Faster</h3>
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-xl
+                  bg-white/10
+                  p-4
+                  backdrop-blur
+                  transition-all
+                  duration-300
+                  hover:-translate-y-1
+                  hover:bg-white/20
+                  hover:shadow-xl
 
-                  <p className="text-blue-100">
-                    Increase visibility and receive more enquiries.
+                  sm:gap-4
+                  sm:rounded-2xl
+                  sm:p-5
+
+                  lg:hover:-translate-y-2
+                  lg:hover:scale-[1.02]
+                  lg:hover:shadow-2xl
+                "
+              >
+                <div
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-white/10
+
+                    sm:h-11
+                    sm:w-11
+
+                    lg:h-12
+                    lg:w-12
+                  "
+                >
+                  <Zap
+                    size={24}
+                    className="sm:h-7 sm:w-7 lg:h-8 lg:w-8"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <h3
+                    className="
+                      text-base
+                      font-semibold
+
+                      sm:text-lg
+
+                      lg:text-xl
+                    "
+                  >
+                    Sell Faster
+                  </h3>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-xs
+                      leading-5
+                      text-blue-100
+
+                      sm:text-sm
+                      sm:leading-6
+                    "
+                  >
+                    Increase visibility and receive more
+                    enquiries.
                   </p>
                 </div>
               </div>
 
-              {/* Premium Badge */}
-              <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-2 hover:scale-[1.02] hover:bg-white/20 hover:shadow-2xl">
-                <BadgeCheck size={34} />
+              {/* =================================================
+                  PREMIUM BADGE
+              ================================================== */}
 
-                <div>
-                  <h3 className="text-xl font-semibold">Premium Badge</h3>
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                  rounded-xl
+                  bg-white/10
+                  p-4
+                  backdrop-blur
+                  transition-all
+                  duration-300
+                  hover:-translate-y-1
+                  hover:bg-white/20
+                  hover:shadow-xl
 
-                  <p className="text-blue-100">
-                    Build trust with verified premium seller status.
+                  sm:gap-4
+                  sm:rounded-2xl
+                  sm:p-5
+
+                  lg:hover:-translate-y-2
+                  lg:hover:scale-[1.02]
+                  lg:hover:shadow-2xl
+                "
+              >
+                <div
+                  className="
+                    flex
+                    h-10
+                    w-10
+                    shrink-0
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-white/10
+
+                    sm:h-11
+                    sm:w-11
+
+                    lg:h-12
+                    lg:w-12
+                  "
+                >
+                  <BadgeCheck
+                    size={24}
+                    className="sm:h-7 sm:w-7 lg:h-8 lg:w-8"
+                  />
+                </div>
+
+                <div className="min-w-0">
+                  <h3
+                    className="
+                      text-base
+                      font-semibold
+
+                      sm:text-lg
+
+                      lg:text-xl
+                    "
+                  >
+                    Premium Badge
+                  </h3>
+
+                  <p
+                    className="
+                      mt-0.5
+                      text-xs
+                      leading-5
+                      text-blue-100
+
+                      sm:text-sm
+                      sm:leading-6
+                    "
+                  >
+                    Build trust with verified premium seller
+                    status.
                   </p>
                 </div>
               </div>
