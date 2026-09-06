@@ -16,6 +16,8 @@ import {
   MessageCircle,
   Star,
   Rocket,
+  ExternalLink,
+  CheckCircle2,
 } from "lucide-react";
 
 // =====================================================
@@ -65,22 +67,15 @@ interface MyProductCardProps {
 
   views: number;
   favorites: number;
+  chatCount: number;
 
   status: ProductStatus;
 
-  chatCount: number;
-
-  // ===================================================
   // Boost
-  // ===================================================
-
   isBoosted?: boolean;
   boostedUntil?: Date | string;
 
-  // ===================================================
   // Featured
-  // ===================================================
-
   isFeatured?: boolean;
   featuredAt?: Date | string;
   featuredUntil?: Date | string;
@@ -97,43 +92,67 @@ export default function MyProductCard({
   price,
   image,
   location,
-
   views,
   favorites,
-
-  status,
-
   chatCount,
-
+  status,
   isBoosted,
   boostedUntil,
-
   isFeatured,
-  featuredAt,
   featuredUntil,
 }: MyProductCardProps) {
   const router = useRouter();
 
   const [loading, setLoading] = useState(false);
 
-  // ===================================================
-  // Status Color
-  // ===================================================
+  // =====================================================
+  // Status
+  // =====================================================
 
-  const statusColor: Record<
+  const statusConfig: Record<
     ProductStatus,
-    string
+    {
+      label: string;
+      className: string;
+    }
   > = {
-    draft: "bg-slate-500",
-    active: "bg-green-500",
-    sold: "bg-gray-500",
-    expired: "bg-orange-500",
-    blocked: "bg-red-500",
+    draft: {
+      label: "Draft",
+      className:
+        "bg-slate-700 text-white dark:bg-slate-600",
+    },
+
+    active: {
+      label: "Active",
+      className:
+        "bg-emerald-500 text-white",
+    },
+
+    sold: {
+      label: "Sold",
+      className:
+        "bg-slate-600 text-white",
+    },
+
+    expired: {
+      label: "Expired",
+      className:
+        "bg-orange-500 text-white",
+    },
+
+    blocked: {
+      label: "Blocked",
+      className:
+        "bg-red-500 text-white",
+    },
   };
 
-  // ===================================================
-  // Load Razorpay Checkout
-  // ===================================================
+  const currentStatus =
+    statusConfig[status] ?? statusConfig.active;
+
+  // =====================================================
+  // Razorpay Script
+  // =====================================================
 
   function loadRazorpayScript(): Promise<boolean> {
     return new Promise((resolve) => {
@@ -142,27 +161,23 @@ export default function MyProductCard({
         return;
       }
 
-      const existingScript =
-        document.querySelector(
-          'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-        );
+      const existingScript = document.querySelector(
+        'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+      );
 
       if (existingScript) {
-        existingScript.addEventListener(
-          "load",
-          () => resolve(true),
+        existingScript.addEventListener("load", () =>
+          resolve(true),
         );
 
-        existingScript.addEventListener(
-          "error",
-          () => resolve(false),
+        existingScript.addEventListener("error", () =>
+          resolve(false),
         );
 
         return;
       }
 
-      const script =
-        document.createElement("script");
+      const script = document.createElement("script");
 
       script.src =
         "https://checkout.razorpay.com/v1/checkout.js";
@@ -181,38 +196,33 @@ export default function MyProductCard({
     });
   }
 
-  // ===================================================
-  // Verify Razorpay Payment
-  // ===================================================
+  // =====================================================
+  // Verify Payment
+  // =====================================================
 
   async function verifyPayment(
     razorpayOrderId: string,
     razorpayPaymentId: string,
     razorpaySignature: string,
   ) {
-    const response =
-      await fetch(
-        "/api/payment/verify",
-        {
-          method: "POST",
+    const response = await fetch(
+      "/api/payment/verify",
+      {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            razorpayOrderId,
-
-            razorpayPaymentId,
-
-            razorpaySignature,
-          }),
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
 
-    const data =
-      await response.json();
+        body: JSON.stringify({
+          razorpayOrderId,
+          razorpayPaymentId,
+          razorpaySignature,
+        }),
+      },
+    );
+
+    const data = await response.json();
 
     if (!response.ok) {
       throw new Error(
@@ -224,26 +234,22 @@ export default function MyProductCard({
     return data;
   }
 
-  // ===================================================
-  // Open Razorpay Checkout
-  // ===================================================
+  // =====================================================
+  // Razorpay Checkout
+  // =====================================================
 
-  async function openRazorpayCheckout(
-    options: {
-      type:
-        | "BOOST_AD"
-        | "FEATURED_AD";
+  async function openRazorpayCheckout(options: {
+    type:
+      | "BOOST_AD"
+      | "FEATURED_AD";
 
-      price: number;
-
-      durationDays: number;
-
-      description: string;
-    },
-  ) {
-    // =================================================
+    price: number;
+    durationDays: number;
+    description: string;
+  }) {
+    // -----------------------------------------------------
     // Load Razorpay
-    // =================================================
+    // -----------------------------------------------------
 
     const loaded =
       await loadRazorpayScript();
@@ -254,28 +260,25 @@ export default function MyProductCard({
       );
     }
 
-    // =================================================
+    // -----------------------------------------------------
     // Create Order
-    // =================================================
+    // -----------------------------------------------------
 
-    const orderResponse =
-      await fetch(
-        "/api/payment/create-order",
-        {
-          method: "POST",
+    const orderResponse = await fetch(
+      "/api/payment/create-order",
+      {
+        method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            type: options.type,
-
-            productId: id,
-          }),
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+
+        body: JSON.stringify({
+          type: options.type,
+          productId: id,
+        }),
+      },
+    );
 
     const orderData =
       await orderResponse.json();
@@ -287,9 +290,9 @@ export default function MyProductCard({
       );
     }
 
-    // =================================================
-    // Key
-    // =================================================
+    // -----------------------------------------------------
+    // Razorpay Key
+    // -----------------------------------------------------
 
     const keyId =
       orderData.razorpayKeyId ||
@@ -302,12 +305,11 @@ export default function MyProductCard({
       );
     }
 
-    // =================================================
+    // -----------------------------------------------------
     // Order
-    // =================================================
+    // -----------------------------------------------------
 
-    const order =
-      orderData.order;
+    const order = orderData.order;
 
     if (!order?.id) {
       throw new Error(
@@ -315,105 +317,90 @@ export default function MyProductCard({
       );
     }
 
-    // =================================================
-    // Open Checkout
-    // =================================================
+    // -----------------------------------------------------
+    // Checkout
+    // -----------------------------------------------------
 
     await new Promise<void>(
       (resolve, reject) => {
         let settled = false;
 
-        const finishSuccess =
-          () => {
-            if (settled) return;
+        const finishSuccess = () => {
+          if (settled) return;
 
-            settled = true;
+          settled = true;
+          resolve();
+        };
 
-            resolve();
-          };
+        const finishFailure = (
+          error: Error,
+        ) => {
+          if (settled) return;
 
-        const finishFailure =
-          (error: Error) => {
-            if (settled) return;
-
-            settled = true;
-
-            reject(error);
-          };
+          settled = true;
+          reject(error);
+        };
 
         const razorpay =
           new window.Razorpay({
             key: keyId,
 
-            amount:
-              order.amount,
+            amount: order.amount,
 
             currency:
-              order.currency ||
-              "INR",
+              order.currency || "INR",
 
-            name:
-              "DealUp Marketplace",
+            name: "DealUp Marketplace",
 
             description:
               options.description,
 
-            order_id:
-              order.id,
+            order_id: order.id,
 
-            handler:
-              async (
-                response,
-              ) => {
-                try {
-                  // ===================================
-                  // Server-side Verification
-                  // ===================================
+            handler: async (
+              response,
+            ) => {
+              try {
+                // -----------------------------------------
+                // Server-side verification
+                // -----------------------------------------
 
-                  const verification =
-                    await verifyPayment(
-                      response.razorpay_order_id,
-
-                      response.razorpay_payment_id,
-
-                      response.razorpay_signature,
-                    );
-
-                  // ===================================
-                  // Verified
-                  // ===================================
-
-                  if (
-                    verification.success
-                  ) {
-                    alert(
-                      "Payment verified successfully.\n\n" +
-                        "Your payment has been recorded. " +
-                        "The service activation will be completed next.",
-                    );
-
-                    router.refresh();
-
-                    finishSuccess();
-
-                    return;
-                  }
-
-                  finishFailure(
-                    new Error(
-                      "Payment verification failed.",
-                    ),
+                const verification =
+                  await verifyPayment(
+                    response.razorpay_order_id,
+                    response.razorpay_payment_id,
+                    response.razorpay_signature,
                   );
-                } catch (error) {
-                  finishFailure(
-                    error instanceof Error
-                      ? error
-                      : new Error(
-                          "Payment verification failed.",
-                        ),
+
+                if (verification.success) {
+                  alert(
+                    "Payment verified successfully.\n\n" +
+                      "Your payment has been recorded. " +
+                      "The service activation will be completed next.",
                   );
+
+                  router.refresh();
+
+                  finishSuccess();
+
+                  return;
                 }
-              },
+
+                finishFailure(
+                  new Error(
+                    "Payment verification failed.",
+                  ),
+                );
+              } catch (error) {
+                finishFailure(
+                  error instanceof Error
+                    ? error
+                    : new Error(
+                        "Payment verification failed.",
+                      ),
+                );
+              }
+            },
 
             modal: {
               ondismiss: () => {
@@ -422,8 +409,7 @@ export default function MyProductCard({
             },
 
             theme: {
-              color:
-                "#1565d8",
+              color: "#1565d8",
             },
           });
 
@@ -432,9 +418,9 @@ export default function MyProductCard({
     );
   }
 
-  // ===================================================
+  // =====================================================
   // Delete Product
-  // ===================================================
+  // =====================================================
 
   async function handleDelete() {
     const confirmed =
@@ -447,13 +433,12 @@ export default function MyProductCard({
     try {
       setLoading(true);
 
-      const response =
-        await fetch(
-          `/api/products/${id}`,
-          {
-            method: "DELETE",
-          },
-        );
+      const response = await fetch(
+        `/api/products/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
 
       const data =
         await response.json();
@@ -486,9 +471,9 @@ export default function MyProductCard({
     }
   }
 
-  // ===================================================
+  // =====================================================
   // Mark Sold
-  // ===================================================
+  // =====================================================
 
   async function handleMarkSold() {
     const confirmed =
@@ -501,13 +486,12 @@ export default function MyProductCard({
     try {
       setLoading(true);
 
-      const response =
-        await fetch(
-          `/api/products/${id}`,
-          {
-            method: "PATCH",
-          },
-        );
+      const response = await fetch(
+        `/api/products/${id}`,
+        {
+          method: "PATCH",
+        },
+      );
 
       const data =
         await response.json();
@@ -540,37 +524,35 @@ export default function MyProductCard({
     }
   }
 
-  // ===================================================
+  // =====================================================
   // Boost Product
-  // ===================================================
+  // =====================================================
 
   async function handleBoost() {
     try {
       setLoading(true);
 
-      const response =
-        await fetch(
-          `/api/products/${id}/boost`,
-          {
-            method: "PATCH",
-          },
-        );
+      const response = await fetch(
+        `/api/products/${id}/boost`,
+        {
+          method: "PATCH",
+        },
+      );
 
       const data =
         await response.json();
 
-      // =================================================
-      // PAYMENT REQUIRED
-      // =================================================
+      // ---------------------------------------------------
+      // Payment required
+      // ---------------------------------------------------
 
       if (
         response.status === 402 &&
         data.paymentRequired === true
       ) {
-        const price =
-          Number(
-            data.price ?? 29,
-          );
+        const price = Number(
+          data.price ?? 29,
+        );
 
         const durationDays =
           Number(
@@ -578,16 +560,9 @@ export default function MyProductCard({
           );
 
         const isPremiumSeller =
-          data.isPremiumSeller ===
-          true;
+          data.isPremiumSeller === true;
 
-        // ===============================================
-        // IMPORTANT SECURITY CHECK
-        //
-        // The server is the source of truth for price.
-        // We only display the server-provided price.
-        // ===============================================
-
+        // Server remains the source of truth
         const confirmed =
           window.confirm(
             isPremiumSeller
@@ -606,10 +581,6 @@ export default function MyProductCard({
           return;
         }
 
-        // ===============================================
-        // Razorpay Payment
-        // ===============================================
-
         await openRazorpayCheckout({
           type: "BOOST_AD",
 
@@ -626,14 +597,11 @@ export default function MyProductCard({
         return;
       }
 
-      // =================================================
-      // ALREADY BOOSTED
-      // =================================================
+      // ---------------------------------------------------
+      // Already boosted
+      // ---------------------------------------------------
 
-      if (
-        response.status ===
-        409
-      ) {
+      if (response.status === 409) {
         alert(
           data.message ||
             "This product is already boosted.",
@@ -642,9 +610,9 @@ export default function MyProductCard({
         return;
       }
 
-      // =================================================
-      // NORMAL ERROR
-      // =================================================
+      // ---------------------------------------------------
+      // Normal error
+      // ---------------------------------------------------
 
       if (!response.ok) {
         throw new Error(
@@ -653,21 +621,19 @@ export default function MyProductCard({
         );
       }
 
-      // =================================================
-      // SUCCESS — FREE BOOST
-      // =================================================
+      // ---------------------------------------------------
+      // Free boost success
+      // ---------------------------------------------------
 
       const isPremiumSeller =
-        data.isPremiumSeller ===
-        true;
+        data.isPremiumSeller === true;
 
       const boostAdsRemaining =
         data.boostAdsRemaining;
 
       if (
         isPremiumSeller &&
-        typeof boostAdsRemaining ===
-          "number"
+        typeof boostAdsRemaining === "number"
       ) {
         alert(
           `Product boosted successfully.\n\n` +
@@ -697,46 +663,40 @@ export default function MyProductCard({
     }
   }
 
-  // ===================================================
+  // =====================================================
   // Feature Product
-  // ===================================================
+  // =====================================================
 
   async function handleFeature() {
     try {
       setLoading(true);
 
-      const response =
-        await fetch(
-          `/api/products/${id}/feature`,
-          {
-            method: "PATCH",
-          },
-        );
+      const response = await fetch(
+        `/api/products/${id}/feature`,
+        {
+          method: "PATCH",
+        },
+      );
 
       const data =
         await response.json();
 
-      // =================================================
-      // PAYMENT REQUIRED
-      // =================================================
+      // ---------------------------------------------------
+      // Payment required
+      // ---------------------------------------------------
 
       if (
         response.status === 402 &&
         data.paymentRequired === true
       ) {
-        const price =
-          Number(
-            data.price ?? 29,
-          );
+        const price = Number(
+          data.price ?? 29,
+        );
 
         const durationDays =
           Number(
             data.durationDays ?? 14,
           );
-
-        // ===============================================
-        // ONE confirmation
-        // ===============================================
 
         const confirmed =
           window.confirm(
@@ -750,10 +710,6 @@ export default function MyProductCard({
         if (!confirmed) {
           return;
         }
-
-        // ===============================================
-        // Razorpay Payment
-        // ===============================================
 
         await openRazorpayCheckout({
           type: "FEATURED_AD",
@@ -769,14 +725,11 @@ export default function MyProductCard({
         return;
       }
 
-      // =================================================
-      // ALREADY FEATURED
-      // =================================================
+      // ---------------------------------------------------
+      // Already featured
+      // ---------------------------------------------------
 
-      if (
-        response.status ===
-        409
-      ) {
+      if (response.status === 409) {
         alert(
           data.message ||
             "This product is already featured.",
@@ -785,9 +738,9 @@ export default function MyProductCard({
         return;
       }
 
-      // =================================================
-      // NORMAL ERROR
-      // =================================================
+      // ---------------------------------------------------
+      // Normal error
+      // ---------------------------------------------------
 
       if (!response.ok) {
         throw new Error(
@@ -796,9 +749,9 @@ export default function MyProductCard({
         );
       }
 
-      // =================================================
-      // SUCCESS — FREE FEATURED
-      // =================================================
+      // ---------------------------------------------------
+      // Free featured success
+      // ---------------------------------------------------
 
       const featuredAdsRemaining =
         data.featuredAdsRemaining;
@@ -835,17 +788,16 @@ export default function MyProductCard({
     }
   }
 
-  // ===================================================
+  // =====================================================
   // Date Formatter
-  // ===================================================
+  // =====================================================
 
   function formatDate(
     date?: Date | string,
   ) {
     if (!date) return "--";
 
-    const parsedDate =
-      new Date(date);
+    const parsedDate = new Date(date);
 
     if (
       Number.isNaN(
@@ -865,42 +817,43 @@ export default function MyProductCard({
     );
   }
 
-  // ===================================================
+  // =====================================================
   // Render
-  // ===================================================
+  // =====================================================
 
   return (
-    <div
+    <article
       className="
+        group
         overflow-hidden
-        rounded-3xl
+        rounded-2xl
         border
         border-slate-200
         bg-white
         shadow-sm
         transition-all
         duration-300
-        hover:-translate-y-2
-        hover:shadow-2xl
+        hover:-translate-y-1
+        hover:shadow-xl
         dark:border-slate-700
         dark:bg-slate-900
+        sm:rounded-3xl
       "
     >
-      {/* =================================================
+      {/* ===================================================
           IMAGE
-      ================================================= */}
+      =================================================== */}
 
       <div
         className="
           relative
-          h-56
+          aspect-[4/3]
           overflow-hidden
+          bg-slate-100
+          dark:bg-slate-800
+          sm:aspect-[16/10]
         "
       >
-        {/* =================================================
-            PRODUCT IMAGE
-        ================================================= */}
-
         <Image
           src={
             image ||
@@ -909,39 +862,66 @@ export default function MyProductCard({
           alt={title}
           fill
           sizes="
-            (max-width:768px) 100vw,
-            (max-width:1200px) 50vw,
+            (max-width: 640px) 100vw,
+            (max-width: 1024px) 50vw,
             33vw
           "
           className="
             object-cover
             transition-transform
             duration-500
-            hover:scale-110
+            group-hover:scale-[1.04]
+          "
+        />
+
+        {/* Image overlay */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/30
+            via-transparent
+            to-black/10
           "
         />
 
         {/* =================================================
-            STATUS
+            STATUS BADGE
         ================================================= */}
 
         <span
           className={`
             absolute
-            left-4
-            top-4
-            z-30
+            left-3
+            top-3
+            z-20
+            inline-flex
+            items-center
+            gap-1.5
             rounded-full
-            px-3
+            px-2.5
             py-1
-            text-xs
-            font-semibold
-            text-white
+            text-[10px]
+            font-bold
+            uppercase
+            tracking-wide
             shadow-md
-            ${statusColor[status]}
+            sm:left-4
+            sm:top-4
+            sm:px-3
+            sm:py-1.5
+            sm:text-xs
+            ${currentStatus.className}
           `}
         >
-          {status}
+          {status === "active" && (
+            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+          )}
+
+          {currentStatus.label}
         </span>
 
         {/* =================================================
@@ -954,37 +934,37 @@ export default function MyProductCard({
               absolute
               right-3
               top-3
-              z-50
+              z-30
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
               bg-amber-400
-              px-3
+              px-2.5
               py-1
-              text-xs
-              font-bold
-              text-slate-900
+              text-[10px]
+              font-extrabold
+              tracking-wide
+              text-slate-950
               shadow-lg
+              sm:right-4
+              sm:top-4
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
             "
           >
-            <Rocket size={13} />
+            <Rocket
+              size={12}
+              strokeWidth={2.5}
+            />
 
-            <span>
-              BOOSTED
-            </span>
+            <span>BOOSTED</span>
           </div>
         )}
 
         {/* =================================================
             FEATURED BADGE
-        =================================================
-
-        If Boosted:
-          Featured appears below Boosted.
-
-        If not Boosted:
-          Featured remains top-right.
         ================================================= */}
 
         {isFeatured && (
@@ -992,64 +972,68 @@ export default function MyProductCard({
             className={`
               absolute
               right-3
-              z-40
-              pointer-events-none
+              z-20
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
               border
-              border-[#1565d8]/20
+              border-blue-100
               bg-white/95
-              px-3
-              py-1.5
-              text-xs
+              px-2.5
+              py-1
+              text-[10px]
               font-bold
               text-[#1565d8]
               shadow-lg
               backdrop-blur-sm
+              sm:right-4
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
               ${
                 isBoosted
-                  ? "top-11"
-                  : "top-3"
+                  ? "top-10 sm:top-12"
+                  : "top-3 sm:top-4"
               }
             `}
           >
             <Star
-              size={14}
+              size={12}
               strokeWidth={2.5}
               fill="#1565d8"
-              className="text-[#1565d8]"
             />
 
-            <span>
-              Featured
-            </span>
+            <span>Featured</span>
           </div>
         )}
       </div>
 
-      {/* =================================================
+      {/* ===================================================
           CONTENT
-      ================================================= */}
+      =================================================== */}
 
-      <div className="space-y-4 p-5">
-
+      <div className="p-4 sm:p-5">
         {/* =================================================
             TITLE
         ================================================= */}
 
-        <h2
-          className="
-            line-clamp-2
-            text-xl
-            font-bold
-            text-slate-900
-            dark:text-white
-          "
-        >
-          {title}
-        </h2>
+        <div className="min-h-[42px]">
+          <h2
+            className="
+              line-clamp-2
+              text-base
+              font-bold
+              leading-5
+              text-slate-900
+              dark:text-white
+              sm:text-lg
+              sm:leading-6
+            "
+          >
+            {title}
+          </h2>
+        </div>
 
         {/* =================================================
             PRICE
@@ -1057,9 +1041,13 @@ export default function MyProductCard({
 
         <p
           className="
-            text-3xl
+            mt-2
+            text-2xl
             font-extrabold
+            tracking-tight
             text-[#1565d8]
+            sm:mt-3
+            sm:text-3xl
           "
         >
           ₹{price.toLocaleString("en-IN")}
@@ -1071,16 +1059,24 @@ export default function MyProductCard({
 
         <div
           className="
+            mt-2
             flex
+            min-w-0
             items-center
-            gap-2
+            gap-1.5
+            text-xs
             text-slate-500
             dark:text-slate-400
+            sm:mt-3
+            sm:text-sm
           "
         >
-          <MapPin size={18} />
+          <MapPin
+            size={15}
+            className="shrink-0 text-slate-400"
+          />
 
-          <span>
+          <span className="truncate">
             {location}
           </span>
         </div>
@@ -1091,13 +1087,18 @@ export default function MyProductCard({
 
         <div
           className="
+            mt-4
             grid
             grid-cols-3
-            gap-4
-            rounded-2xl
+            overflow-hidden
+            rounded-xl
+            border
+            border-slate-200
             bg-slate-50
-            p-4
+            dark:border-slate-700
             dark:bg-slate-800
+            sm:mt-5
+            sm:rounded-2xl
           "
         >
           {/* Views */}
@@ -1105,21 +1106,32 @@ export default function MyProductCard({
           <div
             className="
               flex
+              min-w-0
               items-center
-              gap-2
+              justify-center
+              gap-1.5
+              border-r
+              border-slate-200
+              px-2
+              py-3
+              dark:border-slate-700
+              sm:gap-2
+              sm:py-3.5
             "
           >
             <Eye
-              size={18}
-              className="text-[#1565d8]"
+              size={15}
+              className="shrink-0 text-[#1565d8]"
             />
 
-            <div>
+            <div className="min-w-0">
               <p
                 className="
-                  text-xs
+                  truncate
+                  text-[9px]
                   text-slate-500
                   dark:text-slate-400
+                  sm:text-[10px]
                 "
               >
                 Views
@@ -1127,9 +1139,11 @@ export default function MyProductCard({
 
               <p
                 className="
+                  text-xs
                   font-bold
                   text-slate-900
                   dark:text-white
+                  sm:text-sm
                 "
               >
                 {views}
@@ -1142,21 +1156,32 @@ export default function MyProductCard({
           <div
             className="
               flex
+              min-w-0
               items-center
-              gap-2
+              justify-center
+              gap-1.5
+              border-r
+              border-slate-200
+              px-2
+              py-3
+              dark:border-slate-700
+              sm:gap-2
+              sm:py-3.5
             "
           >
             <Heart
-              size={18}
-              className="text-red-500"
+              size={15}
+              className="shrink-0 text-red-500"
             />
 
-            <div>
+            <div className="min-w-0">
               <p
                 className="
-                  text-xs
+                  truncate
+                  text-[9px]
                   text-slate-500
                   dark:text-slate-400
+                  sm:text-[10px]
                 "
               >
                 Favorites
@@ -1164,9 +1189,11 @@ export default function MyProductCard({
 
               <p
                 className="
+                  text-xs
                   font-bold
                   text-slate-900
                   dark:text-white
+                  sm:text-sm
                 "
               >
                 {favorites}
@@ -1180,25 +1207,32 @@ export default function MyProductCard({
             href="/messages"
             className="
               flex
+              min-w-0
               items-center
-              gap-2
-              rounded-lg
+              justify-center
+              gap-1.5
+              px-2
+              py-3
               transition
-              hover:bg-slate-100
+              hover:bg-white
               dark:hover:bg-slate-700
+              sm:gap-2
+              sm:py-3.5
             "
           >
             <MessageCircle
-              size={18}
-              className="text-green-600"
+              size={15}
+              className="shrink-0 text-green-500"
             />
 
-            <div>
+            <div className="min-w-0">
               <p
                 className="
-                  text-xs
+                  truncate
+                  text-[9px]
                   text-slate-500
                   dark:text-slate-400
+                  sm:text-[10px]
                 "
               >
                 Chats
@@ -1206,9 +1240,11 @@ export default function MyProductCard({
 
               <p
                 className="
+                  text-xs
                   font-bold
                   text-slate-900
                   dark:text-white
+                  sm:text-sm
                 "
               >
                 {chatCount}
@@ -1218,14 +1254,17 @@ export default function MyProductCard({
         </div>
 
         {/* =================================================
-            ACTION BUTTONS
+            PRIMARY ACTIONS
         ================================================= */}
 
         <div
           className="
+            mt-4
             grid
             grid-cols-3
-            gap-3
+            gap-2
+            sm:mt-5
+            sm:gap-3
           "
         >
           {/* View */}
@@ -1235,23 +1274,41 @@ export default function MyProductCard({
             target="_blank"
             rel="noopener noreferrer"
             className="
-              flex
+              inline-flex
+              min-w-0
               items-center
               justify-center
+              gap-1
               rounded-xl
               border
               border-slate-300
-              bg-[var(--secondary)]
-              py-3
-              text-sm
+              bg-slate-50
+              px-2
+              py-2.5
+              text-[11px]
               font-semibold
               text-slate-700
-              transition
-              hover:bg-slate-100
+              transition-all
+              hover:border-blue-300
+              hover:bg-blue-50
               hover:text-[#1565d8]
+              active:scale-95
+              dark:border-slate-600
+              dark:bg-slate-800
+              dark:text-slate-200
+              dark:hover:border-blue-700
+              dark:hover:bg-blue-950/40
+              sm:gap-1.5
+              sm:py-3
+              sm:text-xs
             "
           >
-            View
+            <ExternalLink
+              size={14}
+              className="shrink-0"
+            />
+
+            <span>View</span>
           </Link>
 
           {/* Active */}
@@ -1263,23 +1320,33 @@ export default function MyProductCard({
               <Link
                 href={`/dashboard/my-ads/${id}/edit`}
                 className="
-                  flex
+                  inline-flex
+                  min-w-0
                   items-center
                   justify-center
-                  gap-2
+                  gap-1
                   rounded-xl
                   bg-[#1565d8]
-                  py-3
-                  text-sm
+                  px-2
+                  py-2.5
+                  text-[11px]
                   font-semibold
                   text-white
-                  transition
+                  transition-all
                   hover:bg-[#0f52ba]
+                  hover:shadow-md
+                  active:scale-95
+                  sm:gap-1.5
+                  sm:py-3
+                  sm:text-xs
                 "
               >
-                <Pencil size={16} />
+                <Pencil
+                  size={14}
+                  className="shrink-0"
+                />
 
-                Edit
+                <span>Edit</span>
               </Link>
 
               {/* Delete */}
@@ -1289,27 +1356,39 @@ export default function MyProductCard({
                 onClick={handleDelete}
                 disabled={loading}
                 className="
-                  flex
+                  inline-flex
+                  min-w-0
                   items-center
                   justify-center
-                  gap-2
+                  gap-1
                   rounded-xl
                   bg-red-500
-                  py-3
-                  text-sm
+                  px-2
+                  py-2.5
+                  text-[11px]
                   font-semibold
                   text-white
-                  transition
+                  transition-all
                   hover:bg-red-600
+                  hover:shadow-md
+                  active:scale-95
                   disabled:cursor-not-allowed
                   disabled:opacity-50
+                  sm:gap-1.5
+                  sm:py-3
+                  sm:text-xs
                 "
               >
-                <Trash2 size={16} />
+                <Trash2
+                  size={14}
+                  className="shrink-0"
+                />
 
-                {loading
-                  ? "Deleting..."
-                  : "Delete"}
+                <span>
+                  {loading
+                    ? "..."
+                    : "Delete"}
+                </span>
               </button>
             </>
           ) : (
@@ -1318,18 +1397,35 @@ export default function MyProductCard({
 
               <div
                 className="
-                  flex
+                  inline-flex
+                  min-w-0
                   items-center
                   justify-center
+                  gap-1
                   rounded-xl
                   bg-slate-200
-                  py-3
-                  text-sm
+                  px-2
+                  py-2.5
+                  text-[11px]
                   font-semibold
                   text-slate-600
+                  dark:bg-slate-700
+                  dark:text-slate-300
+                  sm:gap-1.5
+                  sm:py-3
+                  sm:text-xs
                 "
               >
-                ✓ SOLD
+                <CheckCircle2
+                  size={14}
+                  className="shrink-0"
+                />
+
+                <span>
+                  {status === "sold"
+                    ? "SOLD"
+                    : currentStatus.label}
+                </span>
               </div>
 
               {/* Delete */}
@@ -1339,25 +1435,38 @@ export default function MyProductCard({
                 onClick={handleDelete}
                 disabled={loading}
                 className="
-                  flex
+                  inline-flex
+                  min-w-0
                   items-center
                   justify-center
-                  gap-2
+                  gap-1
                   rounded-xl
                   bg-red-500
-                  py-3
-                  text-sm
+                  px-2
+                  py-2.5
+                  text-[11px]
                   font-semibold
                   text-white
-                  transition
+                  transition-all
                   hover:bg-red-600
+                  active:scale-95
                   disabled:cursor-not-allowed
                   disabled:opacity-50
+                  sm:gap-1.5
+                  sm:py-3
+                  sm:text-xs
                 "
               >
-                <Trash2 size={16} />
+                <Trash2
+                  size={14}
+                  className="shrink-0"
+                />
 
-                Delete
+                <span>
+                  {loading
+                    ? "..."
+                    : "Delete"}
+                </span>
               </button>
             </>
           )}
@@ -1368,12 +1477,7 @@ export default function MyProductCard({
         ================================================= */}
 
         {status === "active" && (
-          <div
-            className="
-              mt-3
-              space-y-3
-            "
-          >
+          <div className="mt-3 space-y-3">
             {/* =================================================
                 MARK SOLD
             ================================================= */}
@@ -1383,26 +1487,42 @@ export default function MyProductCard({
               onClick={handleMarkSold}
               disabled={loading}
               className="
+                inline-flex
                 w-full
+                items-center
+                justify-center
+                gap-2
                 rounded-xl
                 bg-green-600
-                py-3
-                text-sm
-                font-semibold
+                px-4
+                py-2.5
+                text-xs
+                font-bold
                 text-white
-                transition
+                shadow-sm
+                transition-all
                 hover:bg-green-700
+                hover:shadow-md
+                active:scale-[0.99]
                 disabled:cursor-not-allowed
                 disabled:opacity-50
+                sm:py-3
+                sm:text-sm
               "
             >
-              {loading
-                ? "Processing..."
-                : "✓ Mark Sold"}
+              <CheckCircle2
+                size={16}
+              />
+
+              <span>
+                {loading
+                  ? "Processing..."
+                  : "Mark Sold"}
+              </span>
             </button>
 
             {/* =================================================
-                BOOST AD
+                BOOST
             ================================================= */}
 
             {isBoosted ? (
@@ -1412,8 +1532,11 @@ export default function MyProductCard({
                   border
                   border-amber-300
                   bg-amber-50
-                  p-4
+                  px-4
+                  py-3
                   text-center
+                  dark:border-amber-800
+                  dark:bg-amber-950/30
                 "
               >
                 <div
@@ -1425,14 +1548,16 @@ export default function MyProductCard({
                   "
                 >
                   <Rocket
-                    size={18}
+                    size={17}
                     className="text-amber-600"
                   />
 
                   <p
                     className="
-                      font-semibold
+                      text-sm
+                      font-bold
                       text-amber-700
+                      dark:text-amber-400
                     "
                   >
                     Boost Active
@@ -1441,9 +1566,10 @@ export default function MyProductCard({
 
                 <p
                   className="
-                    mt-2
-                    text-sm
-                    text-slate-600
+                    mt-1.5
+                    text-[11px]
+                    text-slate-500
+                    dark:text-slate-400
                   "
                 >
                   Active until
@@ -1451,8 +1577,11 @@ export default function MyProductCard({
 
                 <p
                   className="
+                    mt-0.5
+                    text-sm
                     font-bold
                     text-slate-800
+                    dark:text-slate-200
                   "
                 >
                   {formatDate(
@@ -1466,27 +1595,41 @@ export default function MyProductCard({
                 onClick={handleBoost}
                 disabled={loading}
                 className="
+                  inline-flex
                   w-full
+                  items-center
+                  justify-center
+                  gap-2
                   rounded-xl
                   bg-amber-500
-                  py-3
-                  text-sm
-                  font-semibold
+                  px-4
+                  py-2.5
+                  text-xs
+                  font-bold
                   text-white
-                  transition
+                  shadow-sm
+                  transition-all
                   hover:bg-amber-600
+                  hover:shadow-md
+                  active:scale-[0.99]
                   disabled:cursor-not-allowed
                   disabled:opacity-50
+                  sm:py-3
+                  sm:text-sm
                 "
               >
-                {loading
-                  ? "Processing..."
-                  : "🚀 Boost Ad"}
+                <Rocket size={16} />
+
+                <span>
+                  {loading
+                    ? "Processing..."
+                    : "Boost This Ad"}
+                </span>
               </button>
             )}
 
             {/* =================================================
-                FEATURED AD
+                FEATURED
             ================================================= */}
 
             {isFeatured ? (
@@ -1496,7 +1639,8 @@ export default function MyProductCard({
                   border
                   border-blue-200
                   bg-blue-50
-                  p-4
+                  px-4
+                  py-3
                   text-center
                   dark:border-blue-900
                   dark:bg-blue-950/40
@@ -1511,7 +1655,7 @@ export default function MyProductCard({
                   "
                 >
                   <Star
-                    size={18}
+                    size={17}
                     strokeWidth={2.5}
                     fill="#1565d8"
                     className="text-[#1565d8]"
@@ -1519,7 +1663,8 @@ export default function MyProductCard({
 
                   <p
                     className="
-                      font-semibold
+                      text-sm
+                      font-bold
                       text-[#1565d8]
                     "
                   >
@@ -1529,9 +1674,10 @@ export default function MyProductCard({
 
                 <p
                   className="
-                    mt-1
-                    text-sm
-                    text-slate-600
+                    mt-1.5
+                    text-[11px]
+                    leading-5
+                    text-slate-500
                     dark:text-slate-400
                   "
                 >
@@ -1542,8 +1688,8 @@ export default function MyProductCard({
                 {featuredUntil && (
                   <p
                     className="
-                      mt-2
-                      text-sm
+                      mt-1
+                      text-xs
                       font-semibold
                       text-slate-700
                       dark:text-slate-300
@@ -1562,22 +1708,39 @@ export default function MyProductCard({
                 onClick={handleFeature}
                 disabled={loading}
                 className="
+                  inline-flex
                   w-full
+                  items-center
+                  justify-center
+                  gap-2
                   rounded-xl
                   bg-[#1565d8]
-                  py-3
-                  text-sm
-                  font-semibold
+                  px-4
+                  py-2.5
+                  text-xs
+                  font-bold
                   text-white
-                  transition
+                  shadow-sm
+                  transition-all
                   hover:bg-[#0f52ba]
+                  hover:shadow-md
+                  active:scale-[0.99]
                   disabled:cursor-not-allowed
                   disabled:opacity-50
+                  sm:py-3
+                  sm:text-sm
                 "
               >
-                {loading
-                  ? "Processing..."
-                  : "💎 Feature This Ad"}
+                <Star
+                  size={16}
+                  fill="currentColor"
+                />
+
+                <span>
+                  {loading
+                    ? "Processing..."
+                    : "Feature This Ad"}
+                </span>
               </button>
             )}
           </div>
@@ -1595,24 +1758,45 @@ export default function MyProductCard({
               border
               border-green-200
               bg-green-50
-              p-4
+              px-4
+              py-3
               text-center
+              dark:border-green-900
+              dark:bg-green-950/30
             "
           >
-            <p
+            <div
               className="
-                font-semibold
-                text-green-700
+                flex
+                items-center
+                justify-center
+                gap-2
               "
             >
-              ✓ This product has been sold
-            </p>
+              <CheckCircle2
+                size={16}
+                className="text-green-600"
+              />
+
+              <p
+                className="
+                  text-sm
+                  font-bold
+                  text-green-700
+                  dark:text-green-400
+                "
+              >
+                This product has been sold
+              </p>
+            </div>
 
             <p
               className="
                 mt-1
-                text-sm
-                text-slate-600
+                text-[11px]
+                leading-5
+                text-slate-500
+                dark:text-slate-400
               "
             >
               Buyers can no longer contact
@@ -1621,6 +1805,6 @@ export default function MyProductCard({
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }

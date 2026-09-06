@@ -1,0 +1,563 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Check,
+  CheckCircle2,
+  Home,
+  Phone,
+  ShieldCheck,
+  Sparkles,
+  UserCheck,
+} from "lucide-react";
+
+const steps = [
+  {
+    number: "01",
+    title: "Phone",
+    subtitle: "Verification",
+    description:
+      "A verified phone number adds an important trust signal to your seller account.",
+    icon: Phone,
+  },
+  {
+    number: "02",
+    title: "Seller",
+    subtitle: "Profile",
+    description:
+      "Keep your seller profile clear and up to date so buyers can better understand you.",
+    icon: UserCheck,
+  },
+  {
+    number: "03",
+    title: "Trust",
+    subtitle: "Signals",
+    description:
+      "Available verification information creates a stronger and more transparent profile.",
+    icon: ShieldCheck,
+  },
+  {
+    number: "04",
+    title: "Verified",
+    subtitle: "Seller",
+    description:
+      "Completed verification signals can allow your profile to display Verified Seller status.",
+    icon: BadgeCheck,
+  },
+];
+
+const trustPoints = [
+  "Verified phone number",
+  "Clear seller profile",
+  "Available verification signals",
+  "Responsible marketplace behaviour",
+];
+
+function ScrollReveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const element = ref.current;
+
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.unobserve(element);
+        }
+      },
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -80px 0px",
+      },
+    );
+
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        visible
+          ? "translate-y-0 scale-100 opacity-100"
+          : "translate-y-16 scale-[0.94] opacity-0"
+      } ${className}`}
+      style={{
+        transitionDelay: `${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function FloatingShape({
+  className,
+  delay = "0s",
+}: {
+  className: string;
+  delay?: string;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute rounded-full border border-white/10 ${className}`}
+      style={{
+        animation: "floatShape 7s ease-in-out infinite",
+        animationDelay: delay,
+      }}
+    />
+  );
+}
+
+export default function VerifiedSellersPage() {
+  return (
+    <main className="min-h-screen overflow-hidden bg-[#07111f] text-white">
+      {/* =====================================================
+          HERO
+      ====================================================== */}
+      <section className="relative min-h-screen overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(21,101,216,0.20),transparent_38%)]" />
+
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.08),transparent_30%)]" />
+
+        {/* Moving shapes */}
+        <FloatingShape
+          className="left-[8%] top-[28%] h-32 w-32"
+          delay="0s"
+        />
+
+        <FloatingShape
+          className="right-[8%] top-[22%] h-20 w-20"
+          delay="1.5s"
+        />
+
+        <FloatingShape
+          className="bottom-[20%] left-[20%] h-12 w-12"
+          delay="2s"
+        />
+
+        {/* Animated line */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[140%] -translate-x-1/2 rotate-[-18deg] bg-gradient-to-r from-transparent via-[#1565d8]/40 to-transparent animate-[lineMove_6s_ease-in-out_infinite]" />
+
+        <div className="relative mx-auto min-h-screen max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          {/* =================================================
+              TOP NAV
+          ================================================== */}
+          <div className="flex items-center justify-between">
+            {/* Back */}
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 backdrop-blur-md transition-all duration-300 hover:-translate-x-1 hover:border-white/20 hover:bg-white/10 hover:text-white sm:px-4"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" />
+              Back
+            </button>
+
+            {/* Home */}
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 backdrop-blur-md transition-all duration-300 hover:border-white/20 hover:bg-white/10 hover:text-white sm:px-4"
+            >
+              <Home className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
+              Home
+            </Link>
+          </div>
+
+          {/* =================================================
+              HERO CONTENT
+          ================================================== */}
+          <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center text-center">
+            {/* Badge animation */}
+            <div className="relative mb-10 flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
+              {/* Rings */}
+              <div className="absolute inset-0 animate-[spin_18s_linear_infinite] rounded-full border border-[#1565d8]/30" />
+
+              <div className="absolute inset-4 animate-[spin_12s_linear_infinite_reverse] rounded-full border border-dashed border-[#f5a623]/25" />
+
+              {/* Orbit dots */}
+              <span className="absolute left-1 top-1/2 h-2 w-2 -translate-y-1/2 animate-pulse rounded-full bg-[#1565d8]" />
+
+              <span className="absolute right-1 top-1/2 h-2 w-2 -translate-y-1/2 animate-pulse rounded-full bg-[#f5a623]" />
+
+              {/* Badge */}
+              <div className="relative flex h-20 w-20 animate-[heroFloat_4s_ease-in-out_infinite] items-center justify-center rounded-[26px] border border-[#1565d8]/30 bg-[#0d1a2d] shadow-[0_0_60px_rgba(21,101,216,0.20)] sm:h-24 sm:w-24">
+                <BadgeCheck className="h-11 w-11 text-[#3b82f6] sm:h-13 sm:w-13" />
+
+                <div className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#16a34a] text-white shadow-lg">
+                  <Check className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+
+            <ScrollReveal>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1565d8]/20 bg-[#1565d8]/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-blue-400 sm:text-xs">
+                <Sparkles className="h-3.5 w-3.5" />
+                DealUp Verification
+              </div>
+            </ScrollReveal>
+
+            <ScrollReveal delay={100}>
+              <h1 className="mt-6 text-5xl font-black leading-[0.95] tracking-[-0.04em] sm:text-7xl lg:text-8xl">
+                Become a
+                <span className="block bg-gradient-to-r from-white via-blue-400 to-[#f5a623] bg-clip-text text-transparent">
+                  Trusted Seller
+                </span>
+              </h1>
+            </ScrollReveal>
+
+            <ScrollReveal delay={250}>
+              <p className="mt-7 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
+                Build trust with clear seller information and available
+                verification signals on DealUp.
+              </p>
+            </ScrollReveal>
+
+            {/* Scroll indicator */}
+            <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-500">
+              <span>Scroll</span>
+
+              <div className="h-10 w-px overflow-hidden bg-white/10">
+                <div className="h-1/2 w-full animate-[scrollLine_2s_ease-in-out_infinite] bg-[#1565d8]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          INTRO SCENE
+      ====================================================== */}
+      <section className="relative overflow-hidden bg-[#091526] px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-[#1565d8]/10 blur-[120px]" />
+
+        <div className="relative mx-auto max-w-6xl">
+          <ScrollReveal>
+            <div className="max-w-4xl">
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f5a623]">
+                Why Verification Matters
+              </p>
+
+              <h2 className="mt-6 text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+                Trust starts
+                <span className="block text-[#3b82f6]">
+                  before the first
+                </span>
+                conversation.
+              </h2>
+
+              <p className="mt-8 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+                Buyers use available seller information and verification
+                signals to make more informed marketplace decisions.
+              </p>
+            </div>
+          </ScrollReveal>
+
+          {/* Moving horizontal line */}
+          <div className="mt-16 h-px w-full overflow-hidden bg-white/10">
+            <div className="h-full w-1/3 animate-[horizontalMove_5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#1565d8] to-transparent" />
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          VERIFICATION JOURNEY
+      ====================================================== */}
+      <section className="relative bg-[#07111f] px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <ScrollReveal className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#1565d8]">
+              How It Works
+            </p>
+
+            <h2 className="mt-5 text-4xl font-black leading-tight sm:text-6xl">
+              Four steps.
+              <span className="block text-slate-500">
+                One stronger profile.
+              </span>
+            </h2>
+          </ScrollReveal>
+
+          {/* Steps */}
+          <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+
+              return (
+                <ScrollReveal key={step.number} delay={index * 140}>
+                  <div className="group relative h-full overflow-hidden rounded-3xl border border-white/10 bg-[#0b192b] p-6 transition-all duration-500 hover:-translate-y-3 hover:border-[#1565d8]/50 hover:bg-[#0d1d32]">
+                    {/* Number */}
+                    <div className="absolute right-5 top-3 text-6xl font-black text-white/[0.025] transition-all duration-500 group-hover:text-[#1565d8]/10">
+                      {step.number}
+                    </div>
+
+                    {/* Icon */}
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1565d8]/10 text-[#3b82f6] transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:bg-[#1565d8] group-hover:text-white">
+                      <Icon className="h-6 w-6" />
+                    </div>
+
+                    <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#f5a623]">
+                      {step.number}
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-black">
+                      {step.title}
+                    </h3>
+
+                    <p className="text-xl font-bold text-[#3b82f6]">
+                      {step.subtitle}
+                    </p>
+
+                    <p className="mt-5 text-sm leading-6 text-slate-400">
+                      {step.description}
+                    </p>
+
+                    <div className="mt-7 h-px w-8 bg-[#1565d8] transition-all duration-500 group-hover:w-full" />
+                  </div>
+                </ScrollReveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          SELLER PROFILE SCENE
+      ====================================================== */}
+      <section className="relative overflow-hidden bg-[#091526] px-4 py-24 sm:px-6 sm:py-32 lg:px-8">
+        <div className="absolute right-[-120px] top-1/4 h-80 w-80 rounded-full bg-[#1565d8]/10 blur-[100px]" />
+
+        <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-24">
+          {/* Profile visual */}
+          <ScrollReveal>
+            <div className="relative mx-auto w-full max-w-md">
+              <div className="absolute -inset-4 rounded-[40px] border border-[#1565d8]/10 animate-pulse" />
+
+              <div className="relative rounded-[32px] border border-white/10 bg-[#0b192b] p-6 shadow-2xl sm:p-8">
+                {/* Header */}
+                <div className="flex items-center gap-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1565d8] text-white">
+                    <UserCheck className="h-7 w-7" />
+                  </div>
+
+                  <div>
+                    <p className="font-bold">Seller Profile</p>
+
+                    <div className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-[#22c55e]">
+                      <BadgeCheck className="h-4 w-4" />
+                      Verified Seller
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div className="mt-8 space-y-3">
+                  {trustPoints.map((point, index) => (
+                    <div
+                      key={point}
+                      className="flex items-center gap-3 rounded-2xl border border-white/5 bg-[#07111f] px-4 py-3 transition-all duration-300 hover:translate-x-2 hover:border-[#1565d8]/30"
+                    >
+                      <CheckCircle2
+                        className="h-5 w-5 shrink-0 text-[#22c55e]"
+                        style={{
+                          animation: "checkPop 2.5s ease-in-out infinite",
+                          animationDelay: `${index * 300}ms`,
+                        }}
+                      />
+
+                      <span className="text-sm text-slate-300">
+                        {point}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Badge */}
+                <div className="mt-6 flex items-center justify-center rounded-2xl border border-[#1565d8]/20 bg-[#1565d8]/5 py-4">
+                  <div className="flex items-center gap-2 font-bold text-[#60a5fa]">
+                    <BadgeCheck className="h-5 w-5" />
+                    Verified Seller
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          {/* Text */}
+          <ScrollReveal delay={180}>
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f5a623]">
+                Your Trust Profile
+              </p>
+
+              <h2 className="mt-6 text-4xl font-black leading-[1.05] sm:text-6xl">
+                Make your
+                <span className="block text-[#3b82f6]">
+                  profile speak
+                </span>
+                for itself.
+              </h2>
+
+              <p className="mt-7 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
+                A complete and transparent seller profile gives buyers useful
+                information when deciding who they want to contact.
+              </p>
+
+              <div className="mt-8 space-y-4">
+                {[
+                  "Show available verification signals",
+                  "Help buyers identify verified profiles",
+                  "Make your seller information easier to evaluate",
+                  "Create a more transparent marketplace experience",
+                ].map((item, index) => (
+                  <ScrollReveal key={item} delay={300 + index * 100}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#22c55e]/10 text-[#22c55e]">
+                        <Check className="h-4 w-4" />
+                      </div>
+
+                      <span className="text-sm text-slate-300">
+                        {item}
+                      </span>
+                    </div>
+                  </ScrollReveal>
+                ))}
+              </div>
+            </div>
+          </ScrollReveal>
+        </div>
+      </section>
+
+      {/* =====================================================
+          FINAL SCENE
+      ====================================================== */}
+      <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-[#07111f] px-4 py-24 sm:px-6 lg:px-8">
+        {/* Animated circles */}
+        <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1565d8]/10 animate-[spin_20s_linear_infinite]" />
+
+        <div className="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f5a623]/10 animate-[spin_14s_linear_infinite_reverse]" />
+
+        <ScrollReveal className="relative max-w-4xl text-center">
+          <BadgeCheck className="mx-auto h-14 w-14 animate-[heroFloat_4s_ease-in-out_infinite] text-[#3b82f6]" />
+
+          <p className="mt-8 text-xs font-bold uppercase tracking-[0.35em] text-[#f5a623]">
+            The Result
+          </p>
+
+          <h2 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl">
+            Trust is built
+            <span className="block bg-gradient-to-r from-[#3b82f6] to-[#f5a623] bg-clip-text text-transparent">
+              step by step.
+            </span>
+          </h2>
+
+          <p className="mx-auto mt-8 max-w-2xl text-sm leading-7 text-slate-400 sm:text-base">
+            Keep your seller information clear, complete available
+            verification steps, and give buyers more confidence when choosing
+            who to contact.
+          </p>
+
+          <div className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-white/80">
+            <ShieldCheck className="h-5 w-5 text-[#3b82f6]" />
+            Build trust. Sell with confidence.
+          </div>
+        </ScrollReveal>
+      </section>
+
+      {/* =====================================================
+          ANIMATION KEYFRAMES
+      ====================================================== */}
+      <style jsx>{`
+        @keyframes heroFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+          }
+
+          50% {
+            transform: translateY(-8px) scale(1.03);
+          }
+        }
+
+        @keyframes floatShape {
+          0%,
+          100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+
+          50% {
+            transform: translate(25px, -20px) rotate(12deg);
+          }
+        }
+
+        @keyframes scrollLine {
+          0% {
+            transform: translateY(-100%);
+          }
+
+          50% {
+            transform: translateY(100%);
+          }
+
+          100% {
+            transform: translateY(220%);
+          }
+        }
+
+        @keyframes horizontalMove {
+          0% {
+            transform: translateX(-120%);
+          }
+
+          50% {
+            transform: translateX(180%);
+          }
+
+          100% {
+            transform: translateX(-120%);
+          }
+        }
+
+        @keyframes lineMove {
+          0%,
+          100% {
+            transform: translateX(-20%) rotate(-18deg);
+          }
+
+          50% {
+            transform: translateX(20%) rotate(-18deg);
+          }
+        }
+
+        @keyframes checkPop {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+
+          50% {
+            transform: scale(1.15);
+          }
+        }
+      `}</style>
+    </main>
+  );
+}

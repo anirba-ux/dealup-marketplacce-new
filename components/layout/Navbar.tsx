@@ -70,13 +70,16 @@ export default async function Navbar() {
 
           <div
             className="
-              min-w-0
-              shrink-0
-              translate-x-1
-              pl-2
-              sm:translate-x-0
-              sm:pl-0
-            "
+    min-w-0
+    shrink-0
+    pl-2
+    sm:pl-0
+    md:static
+    md:translate-x-0
+    max-md:absolute
+    max-md:left-1/2
+    max-md:-translate-x-1/2
+  "
           >
             <Logo />
           </div>
@@ -126,11 +129,7 @@ export default async function Navbar() {
             ================================================== */}
 
             <div className="hidden shrink-0 md:block">
-              {session?.user ? (
-                <UserMenu />
-              ) : (
-                <LoginButton />
-              )}
+              {session?.user ? <UserMenu /> : <LoginButton />}
             </div>
 
             {/* =================================================

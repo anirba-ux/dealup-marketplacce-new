@@ -6,8 +6,6 @@ import { useWishlistProducts } from "@/hooks/useWishlistProducts";
 export default function WishlistGrid() {
   const { data: products, isLoading, error } = useWishlistProducts();
 
- 
-
   if (isLoading) {
     return <div className="py-10 text-center">Loading wishlist...</div>;
   }
@@ -23,22 +21,37 @@ export default function WishlistGrid() {
   if (!products || products.length === 0) {
     return (
       <div className="rounded-xl border p-10 text-center">
-        <h2 className="text-xl font-semibold">❤️ Your wishlist is empty</h2>
+        <h2 className="text-xl font-semibold">
+          ❤️ Your wishlist is empty
+        </h2>
 
-        <p className="mt-2 text-slate-500 dark:text-slate-400">Save products to see them here.</p>
+        <p className="mt-2 text-slate-500 dark:text-slate-400">
+          Save products to see them here.
+        </p>
       </div>
     );
   }
 
-  
-
   return (
-    <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-      {products.map((product: any) => {
-        
-        return (
+    <div
+      className="
+        flex gap-3 overflow-x-auto overscroll-x-contain pb-4
+        [-ms-overflow-style:none] [scrollbar-width:none]
+
+        sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0
+        lg:grid-cols-4 lg:gap-6
+      "
+    >
+      {products.map((product: any) => (
+        <div
+          key={product._id}
+          className="
+            w-[78vw] min-w-[78vw] max-w-[340px] shrink-0
+
+            sm:w-auto sm:min-w-0 sm:max-w-none sm:shrink
+          "
+        >
           <ProductCard
-            key={product._id}
             id={product._id}
             slug={product.slug}
             title={product.title}
@@ -52,8 +65,8 @@ export default function WishlistGrid() {
             createdAt={product.createdAt}
             views={product.views}
           />
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 }

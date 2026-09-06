@@ -13,9 +13,9 @@ import {
 
 import WishlistButton from "@/components/wishlist/WishlistButton";
 
-/* =========================================================
-   SELLER BADGE
-========================================================= */
+// =========================================================
+// SELLER BADGE
+// =========================================================
 
 interface SellerBadge {
   label?: string;
@@ -24,9 +24,9 @@ interface SellerBadge {
   badge?: string;
 }
 
-/* =========================================================
-   PRODUCT CARD PROPS
-========================================================= */
+// =========================================================
+// PRODUCT CARD PROPS
+// =========================================================
 
 interface ProductCardProps {
   id: string;
@@ -37,48 +37,21 @@ interface ProductCardProps {
   image: string;
   seller: string;
 
-  /* -------------------------------------------------------
-     PHONE VERIFICATION
-  ------------------------------------------------------- */
-
+  // Phone verification
   sellerIsPhoneVerified?: boolean;
 
-  /* -------------------------------------------------------
-     SELLER VERIFICATION
-  ------------------------------------------------------- */
-
+  // Seller verification
   sellerVerificationStatus?: string;
 
-  /* -------------------------------------------------------
-     PREMIUM SELLER
-  ------------------------------------------------------- */
-
+  // Premium seller
   sellerPremiumSeller?: boolean;
-
   sellerPremiumBadge?: boolean;
 
-  /* -------------------------------------------------------
-     BACKEND SELLER BADGE
-
-     Can be:
-     "verified"
-     "trusted"
-     {
-       type: "verified"
-     }
-     {
-       badge: "trusted"
-     }
-  ------------------------------------------------------- */
-
+  // Backend seller badge
   sellerBadge?: SellerBadge | string | null;
 
-  /* -------------------------------------------------------
-     PRODUCT
-  ------------------------------------------------------- */
-
+  // Product
   condition: string;
-
   isFeatured?: boolean;
   isPremium?: boolean;
   isBoosted?: boolean;
@@ -92,9 +65,9 @@ interface ProductCardProps {
   onWishlistRemoved?: () => void;
 }
 
-/* =========================================================
-   PRODUCT CARD
-========================================================= */
+// =========================================================
+// PRODUCT CARD
+// =========================================================
 
 export default function ProductCard({
   id,
@@ -126,9 +99,9 @@ export default function ProductCard({
 
   onWishlistRemoved,
 }: ProductCardProps) {
-  /* =======================================================
-     NORMALIZE SELLER BADGE
-  ======================================================= */
+  // =======================================================
+  // NORMALIZE SELLER BADGE
+  // =======================================================
 
   const sellerBadgeType =
     typeof sellerBadge === "string"
@@ -137,9 +110,9 @@ export default function ProductCard({
         sellerBadge?.badge ??
         "none";
 
-  /* =======================================================
-     SELLER BADGE STATES
-  ======================================================= */
+  // =======================================================
+  // SELLER BADGE STATES
+  // =======================================================
 
   const isTrustedSeller =
     sellerBadgeType === "trusted";
@@ -148,32 +121,32 @@ export default function ProductCard({
     sellerBadgeType === "verified" ||
     sellerBadgeType === "trusted";
 
-  /* =======================================================
-     PHONE VERIFIED
-  ======================================================= */
+  // =======================================================
+  // PHONE VERIFIED
+  // =======================================================
 
   const hasPhoneBadge =
     sellerIsPhoneVerified === true;
 
-  /* =======================================================
-     PREMIUM SELLER
-  ======================================================= */
+  // =======================================================
+  // PREMIUM SELLER
+  // =======================================================
 
   const hasPremiumBadge =
     sellerPremiumSeller === true &&
     sellerPremiumBadge === true;
 
-  /* =======================================================
-     SELLER BADGE SECTION
-  ======================================================= */
+  // =======================================================
+  // BADGE SECTION
+  // =======================================================
 
   const showBadgeSection =
     isVerifiedSeller ||
     hasPhoneBadge;
 
-  /* =======================================================
-     RETURN
-  ======================================================= */
+  // =======================================================
+  // RETURN
+  // =======================================================
 
   return (
     <Link
@@ -182,32 +155,73 @@ export default function ProductCard({
         group
         block
         overflow-hidden
-        rounded-3xl
+        rounded-2xl
         border
         border-slate-200
         bg-white
         shadow-sm
         transition-all
         duration-300
-        hover:-translate-y-2
-        hover:shadow-2xl
+        hover:-translate-y-1
+        hover:shadow-xl
         dark:border-slate-700
         dark:bg-slate-900
+        sm:rounded-3xl
+        sm:hover:-translate-y-2
       "
     >
-      {/* =================================================
+      {/* ===================================================
           IMAGE
-      ================================================= */}
+      =================================================== */}
 
       <div
         className="
           relative
-          h-64
+          aspect-[4/3]
           overflow-hidden
           bg-slate-100
           dark:bg-slate-800
+          sm:aspect-[16/11]
         "
       >
+        {/* =================================================
+            PRODUCT IMAGE
+        ================================================= */}
+
+        <Image
+          src={
+            image ||
+            "/placeholder-product.jpg"
+          }
+          alt={title}
+          fill
+          sizes="
+            (max-width: 640px) 100vw,
+            (max-width: 1024px) 50vw,
+            25vw
+          "
+          className="
+            object-cover
+            transition-transform
+            duration-500
+            group-hover:scale-[1.04]
+          "
+        />
+
+        {/* Subtle image overlay */}
+
+        <div
+          className="
+            pointer-events-none
+            absolute
+            inset-0
+            bg-gradient-to-t
+            from-black/25
+            via-transparent
+            to-black/5
+          "
+        />
+
         {/* =================================================
             TRUSTED SELLER
         ================================================= */}
@@ -221,23 +235,27 @@ export default function ProductCard({
               z-30
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
-              bg-yellow-500
-              px-3
-              py-1.5
-              text-xs
+              bg-amber-500
+              px-2.5
+              py-1
+              text-[10px]
               font-bold
               text-white
               shadow-lg
-              shadow-yellow-500/30
+              sm:left-4
+              sm:top-4
+              sm:gap-1.5
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
             "
           >
             <Star
-              size={14}
+              size={12}
               strokeWidth={2.8}
               fill="white"
-              className="text-white"
             />
 
             <span>Trusted</span>
@@ -256,56 +274,35 @@ export default function ProductCard({
               z-30
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
               bg-amber-500
-              px-3
-              py-1.5
-              text-xs
+              px-2.5
+              py-1
+              text-[10px]
               font-bold
               text-white
-              shadow-md
-
+              shadow-lg
+              sm:left-4
+              sm:gap-1.5
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
               ${
                 isTrustedSeller
-                  ? "top-[52px]"
-                  : "top-3"
+                  ? "top-10 sm:top-12"
+                  : "top-3 sm:top-4"
               }
             `}
           >
             <Rocket
-              size={14}
+              size={12}
               strokeWidth={2.5}
-              className="text-white"
             />
 
             <span>Boosted</span>
           </div>
         )}
-
-        {/* =================================================
-            PRODUCT IMAGE
-        ================================================= */}
-
-        <Image
-          src={
-            image ||
-            "/placeholder-product.jpg"
-          }
-          alt={title}
-          fill
-          sizes="
-            (max-width:768px) 100vw,
-            (max-width:1200px) 50vw,
-            25vw
-          "
-          className="
-            object-cover
-            transition
-            duration-500
-            group-hover:scale-110
-          "
-        />
 
         {/* =================================================
             WISHLIST
@@ -329,26 +326,30 @@ export default function ProductCard({
               z-30
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
               bg-gradient-to-r
               from-blue-500
               to-[#1565d8]
-              px-3
-              py-1.5
-              text-xs
+              px-2.5
+              py-1
+              text-[10px]
               font-bold
               text-white
               shadow-lg
-              shadow-blue-500/30
               ring-1
               ring-white/30
+              sm:bottom-4
+              sm:left-4
+              sm:gap-1.5
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
             "
           >
             <Gem
-              size={15}
+              size={13}
               strokeWidth={2.8}
-              className="text-white"
             />
 
             <span>Premium</span>
@@ -367,36 +368,37 @@ export default function ProductCard({
               z-30
               inline-flex
               items-center
-              gap-1.5
+              gap-1
               rounded-full
               border
-              border-[#1565d8]/20
+              border-blue-100
               bg-white/95
-              px-3
-              py-1.5
-              text-xs
+              px-2.5
+              py-1
+              text-[10px]
               font-bold
+              text-[#1565d8]
               shadow-md
-              shadow-blue-500/10
               backdrop-blur-sm
-
+              sm:left-4
+              sm:gap-1.5
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
               ${
                 hasPremiumBadge
-                  ? "bottom-[52px]"
-                  : "bottom-3"
+                  ? "bottom-10 sm:bottom-12"
+                  : "bottom-3 sm:bottom-4"
               }
             `}
           >
             <Star
-              size={14}
+              size={12}
               strokeWidth={2.5}
               fill="#1565d8"
-              className="text-[#1565d8]"
             />
 
-            <span className="text-[#1565d8]">
-              Featured
-            </span>
+            <span>Featured</span>
           </div>
         )}
 
@@ -412,19 +414,22 @@ export default function ProductCard({
               z-20
               rounded-full
               bg-[#1565d8]
-              px-3
+              px-2.5
               py-1
-              text-xs
+              text-[10px]
               font-bold
               text-white
               shadow-md
-
+              sm:left-4
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
               ${
                 hasPremiumBadge && isFeatured
-                  ? "bottom-[101px]"
+                  ? "bottom-[76px] sm:bottom-[88px]"
                   : hasPremiumBadge || isFeatured
-                    ? "bottom-[52px]"
-                    : "bottom-3"
+                    ? "bottom-10 sm:bottom-12"
+                    : "bottom-3 sm:bottom-4"
               }
             `}
           >
@@ -433,12 +438,16 @@ export default function ProductCard({
         )}
       </div>
 
-      {/* =================================================
+      {/* ===================================================
           CONTENT
-      ================================================= */}
+      =================================================== */}
 
-      <div className="p-5">
-
+      <div
+        className="
+          p-4
+          sm:p-5
+        "
+      >
         {/* =================================================
             TITLE
         ================================================= */}
@@ -446,12 +455,17 @@ export default function ProductCard({
         <h3
           className="
             line-clamp-2
-            text-lg
+            min-h-[40px]
+            text-base
             font-bold
+            leading-5
             text-slate-900
             transition-colors
             group-hover:text-[#1565d8]
             dark:text-white
+            sm:min-h-[48px]
+            sm:text-lg
+            sm:leading-6
           "
         >
           {title}
@@ -463,10 +477,13 @@ export default function ProductCard({
 
         <p
           className="
-            mt-3
-            text-3xl
+            mt-2
+            text-2xl
             font-extrabold
+            tracking-tight
             text-[#1565d8]
+            sm:mt-3
+            sm:text-3xl
           "
         >
           ₹ {price.toLocaleString("en-IN")}
@@ -482,17 +499,22 @@ export default function ProductCard({
             flex
             items-center
             justify-between
-            gap-3
+            gap-2
+            sm:mt-5
+            sm:gap-3
           "
         >
-          <div className="min-w-0">
+          {/* Seller */}
 
+          <div className="min-w-0 flex-1">
             <p
               className="
-                text-xs
+                text-[9px]
+                font-medium
                 uppercase
-                tracking-wide
+                tracking-wider
                 text-slate-400
+                sm:text-[10px]
               "
             >
               Seller
@@ -500,18 +522,20 @@ export default function ProductCard({
 
             <p
               className="
+                mt-0.5
                 truncate
+                text-sm
                 font-semibold
                 text-slate-700
                 dark:text-slate-200
+                sm:text-base
               "
             >
               {seller}
             </p>
-
           </div>
 
-          {/* CONDITION */}
+          {/* Condition */}
 
           <div
             className="
@@ -520,15 +544,18 @@ export default function ProductCard({
               border
               border-slate-200
               bg-slate-50
-              px-3
+              px-2.5
               py-1
-              text-sm
+              text-[10px]
               font-medium
               capitalize
               text-slate-600
               dark:border-slate-700
               dark:bg-slate-800
               dark:text-slate-300
+              sm:px-3
+              sm:py-1.5
+              sm:text-xs
             "
           >
             {condition}
@@ -542,17 +569,16 @@ export default function ProductCard({
         {showBadgeSection && (
           <div
             className="
-              mt-4
+              mt-3
               flex
               flex-wrap
-              gap-2
+              gap-1.5
+              sm:mt-4
+              sm:gap-2
             "
           >
-
             {/* =================================================
                 VERIFIED SELLER
-
-                Trusted seller is also verified.
             ================================================= */}
 
             {isVerifiedSeller && (
@@ -560,57 +586,45 @@ export default function ProductCard({
                 className="
                   inline-flex
                   items-center
-                  gap-2
+                  gap-1.5
                   rounded-full
                   border
                   border-emerald-200
-                  bg-gradient-to-r
-                  from-emerald-50
-                  via-teal-50
-                  to-cyan-50
-                  px-3.5
-                  py-1.5
-                  shadow-sm
-                  shadow-emerald-100
-                  transition-all
-                  duration-200
-                  hover:shadow-md
+                  bg-emerald-50
+                  px-2.5
+                  py-1
                   dark:border-emerald-800
-                  dark:from-emerald-950/50
-                  dark:via-teal-950/50
-                  dark:to-cyan-950/50
-                  dark:shadow-none
+                  dark:bg-emerald-950/40
                 "
               >
                 <span
                   className="
                     flex
-                    h-5
-                    w-5
+                    h-4
+                    w-4
                     shrink-0
                     items-center
                     justify-center
                     rounded-full
-                    bg-gradient-to-br
-                    from-emerald-500
-                    to-teal-600
+                    bg-emerald-500
                     text-white
-                    shadow-sm
+                    sm:h-5
+                    sm:w-5
                   "
                 >
                   <ShieldCheck
-                    size={13}
+                    size={11}
                     strokeWidth={2.7}
                   />
                 </span>
 
                 <span
                   className="
-                    text-xs
+                    text-[10px]
                     font-bold
-                    tracking-wide
                     text-emerald-700
                     dark:text-emerald-300
+                    sm:text-xs
                   "
                 >
                   Verified Seller
@@ -627,57 +641,45 @@ export default function ProductCard({
                 className="
                   inline-flex
                   items-center
-                  gap-2
+                  gap-1.5
                   rounded-full
                   border
                   border-amber-200
-                  bg-gradient-to-r
-                  from-amber-50
-                  via-yellow-50
-                  to-orange-50
-                  px-3.5
-                  py-1.5
-                  shadow-sm
-                  shadow-amber-100
-                  transition-all
-                  duration-200
-                  hover:shadow-md
+                  bg-amber-50
+                  px-2.5
+                  py-1
                   dark:border-amber-800
-                  dark:from-amber-950/50
-                  dark:via-yellow-950/50
-                  dark:to-orange-950/50
-                  dark:shadow-none
+                  dark:bg-amber-950/40
                 "
               >
                 <span
                   className="
                     flex
-                    h-5
-                    w-5
+                    h-4
+                    w-4
                     shrink-0
                     items-center
                     justify-center
                     rounded-full
-                    bg-gradient-to-br
-                    from-amber-500
-                    to-orange-600
+                    bg-amber-500
                     text-white
-                    shadow-sm
+                    sm:h-5
+                    sm:w-5
                   "
                 >
                   <BadgeCheck
-                    size={13}
+                    size={11}
                     strokeWidth={2.7}
                   />
                 </span>
 
                 <span
                   className="
-                    text-xs
+                    text-[10px]
                     font-bold
-                    tracking-wide
                     text-amber-700
                     dark:text-amber-300
+                    sm:text-xs
                   "
                 >
                   Trusted Seller
@@ -694,29 +696,29 @@ export default function ProductCard({
                 className="
                   inline-flex
                   items-center
-                  gap-1.5
+                  gap-1
                   rounded-full
                   border
                   border-blue-200
                   bg-blue-50
-                  px-3
-                  py-1.5
-                  text-xs
+                  px-2.5
+                  py-1
+                  text-[10px]
                   font-semibold
                   text-blue-700
                   dark:border-blue-800
                   dark:bg-blue-950/40
                   dark:text-blue-400
+                  sm:gap-1.5
+                  sm:py-1.5
+                  sm:text-xs
                 "
               >
                 <span>📞</span>
 
-                <span>
-                  Phone Verified
-                </span>
+                <span>Phone Verified</span>
               </div>
             )}
-
           </div>
         )}
 
@@ -726,19 +728,26 @@ export default function ProductCard({
 
         <div
           className="
-            mt-5
+            mt-4
             flex
+            min-w-0
             items-center
-            gap-2
+            gap-1.5
+            text-xs
             text-slate-500
             dark:text-slate-400
+            sm:mt-5
+            sm:gap-2
+            sm:text-sm
           "
         >
           <MapPin
-            size={18}
+            size={15}
             className="
               shrink-0
               text-[#1565d8]
+              sm:h-[18px]
+              sm:w-[18px]
             "
           />
 
@@ -754,9 +763,10 @@ export default function ProductCard({
         <p
           className="
             mt-1
-            text-xs
+            text-[10px]
             text-slate-500
             dark:text-slate-400
+            sm:text-xs
           "
         >
           🕒 Posted{" "}
@@ -764,7 +774,7 @@ export default function ProductCard({
             new Date(createdAt),
             {
               addSuffix: true,
-            }
+            },
           )}
         </p>
 
@@ -774,18 +784,21 @@ export default function ProductCard({
 
         <div
           className="
-            mt-3
+            mt-2
             flex
             items-center
-            justify-between
-            text-sm
+            text-[11px]
             text-slate-500
             dark:text-slate-400
+            sm:mt-3
+            sm:text-sm
           "
         >
           <span>
             👁{" "}
-            {(views ?? 0).toLocaleString("en-IN")}{" "}
+            {(views ?? 0).toLocaleString(
+              "en-IN",
+            )}{" "}
             Views
           </span>
         </div>
@@ -795,27 +808,31 @@ export default function ProductCard({
         ================================================= */}
 
         {distance !== undefined && (
-          <div className="mt-3">
+          <div className="mt-2 sm:mt-3">
             <span
               className="
                 inline-flex
+                max-w-full
                 items-center
-                gap-2
+                gap-1.5
                 rounded-full
                 bg-blue-50
-                px-3
+                px-2.5
                 py-1
-                text-sm
+                text-[10px]
                 font-semibold
                 text-[#1565d8]
                 dark:bg-blue-950/40
+                sm:gap-2
+                sm:px-3
+                sm:py-1.5
+                sm:text-xs
               "
             >
               📍 {distance.toFixed(2)} KM Away
             </span>
           </div>
         )}
-
       </div>
     </Link>
   );

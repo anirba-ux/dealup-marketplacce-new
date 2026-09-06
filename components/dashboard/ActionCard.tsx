@@ -17,27 +17,143 @@ export default function ActionCard({
   return (
     <Link
       href={href}
-      className="group rounded-3xl border border-blue-100 bg-gradient-to-br from-[#1565d8] to-[#0f52ba] p-6 text-white shadow-lg transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl"
+      className="
+        group
+        relative
+        flex
+        min-h-[104px]
+        items-center
+        gap-3.5
+        overflow-hidden
+        rounded-2xl
+        border
+        border-slate-200
+        bg-white
+        p-4
+        shadow-sm
+        transition-all
+        duration-300
+        hover:-translate-y-1
+        hover:border-[#1565d8]/30
+        hover:shadow-lg
+        active:scale-[0.98]
+        sm:min-h-[118px]
+        sm:gap-4
+        sm:p-5
+        dark:border-slate-700
+        dark:bg-slate-800
+        dark:hover:border-blue-500/40
+      "
     >
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+      {/* Decorative Glow */}
+
+      <div
+        className="
+          pointer-events-none
+          absolute
+          -right-8
+          -top-8
+          h-20
+          w-20
+          rounded-full
+          bg-blue-500/5
+          blur-2xl
+          transition
+          duration-300
+          group-hover:bg-blue-500/10
+        "
+      />
+
+      {/* Icon */}
+
+      <div
+        className="
+          relative
+          flex
+          h-11
+          w-11
+          shrink-0
+          items-center
+          justify-center
+          rounded-xl
+          bg-blue-50
+          text-[#1565d8]
+          transition-all
+          duration-300
+          group-hover:scale-105
+          group-hover:bg-[#1565d8]
+          group-hover:text-white
+          sm:h-13
+          sm:w-13
+          sm:rounded-2xl
+          dark:bg-blue-950/50
+          dark:text-blue-400
+          dark:group-hover:bg-[#1565d8]
+          dark:group-hover:text-white
+        "
+      >
         {icon}
       </div>
 
-      <h3 className="text-2xl font-bold">
-        {title}
-      </h3>
+      {/* Content */}
 
-      <p className="mt-3 text-blue-100">
-        {description}
-      </p>
+      <div className="relative min-w-0 flex-1">
+        <h3
+          className="
+            truncate
+            text-sm
+            font-bold
+            text-slate-900
+            transition-colors
+            duration-200
+            group-hover:text-[#1565d8]
+            sm:text-base
+            dark:text-white
+            dark:group-hover:text-blue-400
+          "
+        >
+          {title}
+        </h3>
 
-      <div className="mt-6 flex items-center gap-2 font-semibold">
-        Open
+        <p
+          className="
+            mt-1
+            line-clamp-2
+            text-[11px]
+            leading-4
+            text-slate-500
+            sm:text-xs
+            sm:leading-5
+            dark:text-slate-400
+          "
+        >
+          {description}
+        </p>
 
-        <ArrowRight
-          size={18}
-          className="transition group-hover:translate-x-1"
-        />
+        <div
+          className="
+            mt-1.5
+            flex
+            items-center
+            gap-1
+            text-[10px]
+            font-bold
+            text-[#1565d8]
+            sm:mt-2
+            sm:text-[11px]
+            dark:text-blue-400
+          "
+        >
+          Open
+          <ArrowRight
+            size={13}
+            className="
+              transition-transform
+              duration-200
+              group-hover:translate-x-1
+            "
+          />
+        </div>
       </div>
     </Link>
   );
