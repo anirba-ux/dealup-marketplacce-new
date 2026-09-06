@@ -1,38 +1,96 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   Home,
   MapPin,
   Navigation,
   Search,
+  Sparkles,
+  Store,
   Users,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+
+const steps = [
+  {
+    number: "01",
+    title: "Discover",
+    subtitle: "Nearby Products",
+    description:
+      "Find products around you and discover local listings that are more relevant to your area.",
+    icon: Search,
+    accent: "blue",
+  },
+  {
+    number: "02",
+    title: "Choose",
+    subtitle: "Your Location",
+    description:
+      "Location helps DealUp show products and sellers that are closer to where you want to trade.",
+    icon: Navigation,
+    accent: "orange",
+  },
+  {
+    number: "03",
+    title: "Connect",
+    subtitle: "With Sellers",
+    description:
+      "View seller information and start conversations with people selling products around you.",
+    icon: Users,
+    accent: "blue",
+  },
+  {
+    number: "04",
+    title: "Trade",
+    subtitle: "Locally",
+    description:
+      "Make local buying and selling simpler by connecting nearby buyers and sellers.",
+    icon: Store,
+    accent: "orange",
+  },
+];
+
+const cities = [
+  "Bansberia",
+  "Hooghly",
+  "Chinsurah",
+  "Tribeni",
+  "Kalyani",
+  "Kolkata",
+];
 
 function ScrollReveal({
   children,
   className = "",
+  delay = 0,
 }: {
   children: React.ReactNode;
   className?: string;
+  delay?: number;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const element = ref.current;
+
     if (!element) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          element.classList.add("is-visible");
+          setVisible(true);
           observer.unobserve(element);
         }
       },
-      { threshold: 0.15 }
+      {
+        threshold: 0.15,
+        rootMargin: "0px 0px -70px 0px",
+      }
     );
 
     observer.observe(element);
@@ -41,174 +99,263 @@ function ScrollReveal({
   }, []);
 
   return (
-    <div ref={ref} className={`reveal ${className}`}>
+    <div
+      ref={ref}
+      className={`transition-all duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+        visible
+          ? "translate-y-0 scale-100 opacity-100"
+          : "translate-y-16 scale-[0.94] opacity-0"
+      } ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
       {children}
     </div>
   );
 }
 
-export default function LocalMarketplacePage() {
-  const cities = [
-    "Bansberia",
-    "Hooghly",
-    "Chinsurah",
-    "Tribeni",
-    "Kalyani",
-    "Kolkata",
-  ];
+function FloatingShape({
+  className,
+  delay = "0s",
+}: {
+  className: string;
+  delay?: string;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute rounded-full border border-slate-300/60 dark:border-white/10 ${className}`}
+      style={{
+        animation: "floatShape 7s ease-in-out infinite",
+        animationDelay: delay,
+      }}
+    />
+  );
+}
 
+export default function LocalMarketplacePage() {
   return (
     <main className="min-h-screen overflow-hidden bg-slate-50 text-slate-900 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
-        {/* Navigation */}
-        <div className="mb-6 flex items-center justify-between gap-3 sm:mb-10">
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:px-4"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+      {/* =====================================================
+          HERO
+      ====================================================== */}
 
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 sm:px-4"
-          >
-            <Home className="h-4 w-4" />
-            Home
-          </Link>
-        </div>
+      <section className="relative min-h-screen overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_25%,rgba(21,101,216,0.08),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_25%,rgba(21,101,216,0.20),transparent_38%)]" />
 
-        {/* Hero */}
-        <section className="relative flex min-h-[75vh] items-center py-12 sm:py-20">
-          <ScrollReveal className="w-full">
-            <div className="max-w-5xl">
-              <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                <MapPin className="h-8 w-8" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.05),transparent_30%)] dark:bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.08),transparent_30%)]" />
+
+        <FloatingShape
+          className="left-[8%] top-[28%] h-28 w-28"
+          delay="0s"
+        />
+
+        <FloatingShape
+          className="right-[9%] top-[20%] h-20 w-20"
+          delay="1.5s"
+        />
+
+        <FloatingShape
+          className="bottom-[18%] left-[18%] h-12 w-12"
+          delay="2s"
+        />
+
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[140%] -translate-x-1/2 rotate-[-18deg] bg-gradient-to-r from-transparent via-[#1565d8]/15 to-transparent dark:via-[#1565d8]/40 animate-[lineMove_6s_ease-in-out_infinite]" />
+
+        <div className="relative mx-auto min-h-screen max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          {/* Navigation */}
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => window.history.back()}
+              className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md transition-all duration-300 hover:-translate-x-1 hover:border-[#1565d8]/40 hover:text-[#1565d8] dark:border-white/10 dark:bg-white/5 dark:text-white/80 dark:shadow-none dark:hover:bg-white/10 dark:hover:text-white sm:px-4"
+            >
+              <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back
+            </button>
+
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md transition-all duration-300 hover:border-[#1565d8]/40 hover:text-[#1565d8] dark:border-white/10 dark:bg-white/5 dark:text-white/80 dark:shadow-none dark:hover:bg-white/10 dark:hover:text-white sm:px-4"
+            >
+              <Home className="h-4 w-4 transition-transform group-hover:scale-110" />
+              Home
+            </Link>
+          </div>
+
+          {/* Hero */}
+          <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center text-center">
+            <div className="relative mb-10 flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
+              <div className="absolute inset-0 animate-[spin_18s_linear_infinite] rounded-full border border-[#1565d8]/20 dark:border-[#1565d8]/30" />
+
+              <div className="absolute inset-4 animate-[spin_12s_linear_infinite_reverse] rounded-full border border-dashed border-[#f5a623]/20 dark:border-[#f5a623]/25" />
+
+              <span className="absolute left-1 top-1/2 h-2 w-2 -translate-y-1/2 animate-pulse rounded-full bg-[#1565d8]" />
+
+              <span className="absolute right-1 top-1/2 h-2 w-2 -translate-y-1/2 animate-pulse rounded-full bg-[#f5a623]" />
+
+              <div className="relative flex h-20 w-20 animate-[heroFloat_4s_ease-in-out_infinite] items-center justify-center rounded-[26px] border border-[#1565d8]/20 bg-white shadow-[0_20px_60px_rgba(21,101,216,0.12)] dark:border-[#1565d8]/30 dark:bg-[#0d1a2d] dark:shadow-[0_0_60px_rgba(21,101,216,0.20)] sm:h-24 sm:w-24">
+                <MapPin className="h-11 w-11 text-[#1565d8] dark:text-[#3b82f6]" />
+
+                <div className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#16a34a] text-white shadow-lg">
+                  <Check className="h-4 w-4" />
+                </div>
               </div>
+            </div>
 
-              <p className="mb-4 text-sm font-bold uppercase tracking-[0.3em] text-orange-600 dark:text-orange-400">
-                Local Marketplace
-              </p>
+            <ScrollReveal>
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1565d8]/15 bg-[#1565d8]/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.22em] text-[#1565d8] dark:border-[#1565d8]/20 dark:text-blue-400 sm:text-xs">
+                <Sparkles className="h-3.5 w-3.5" />
+                DealUp Local Marketplace
+              </div>
+            </ScrollReveal>
 
-              <h1 className="text-[clamp(3rem,10vw,8rem)] font-black leading-[0.88] tracking-[-0.06em]">
-                BUY
-                <br />
-                CLOSE.
-                <br />
-                SELL
-                <br />
-                LOCAL.
+            <ScrollReveal delay={100}>
+              <h1 className="mt-6 text-5xl font-black leading-[0.95] tracking-[-0.04em] sm:text-7xl lg:text-8xl">
+                Buy Local.
+                <span className="block bg-gradient-to-r from-[#1565d8] via-blue-500 to-[#f5a623] bg-clip-text text-transparent">
+                  Sell Local.
+                </span>
               </h1>
+            </ScrollReveal>
 
-              <p className="mt-8 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg sm:leading-8">
+            <ScrollReveal delay={250}>
+              <p className="mt-7 max-w-xl text-sm leading-7 text-slate-600 dark:text-slate-400 sm:text-base">
                 Discover products around you, connect with nearby sellers and
-                make local buying and selling simpler.
+                make local trading simpler.
               </p>
-            </div>
-          </ScrollReveal>
-        </section>
+            </ScrollReveal>
 
-        {/* Step 01 */}
-        <section className="rounded-[2rem] bg-white p-6 shadow-sm ring-1 ring-slate-200 dark:bg-[#091526] dark:ring-white/10 sm:p-10 lg:p-14">
+            <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
+              <span>Scroll</span>
+
+              <div className="h-10 w-px overflow-hidden bg-slate-300 dark:bg-white/10">
+                <div className="h-1/2 w-full animate-[scrollLine_2s_ease-in-out_infinite] bg-[#1565d8]" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          INTRO
+      ====================================================== */}
+
+      <section className="relative overflow-hidden bg-white px-4 py-24 dark:bg-[#091526] sm:px-6 sm:py-32 lg:px-8">
+        <div className="relative mx-auto max-w-6xl">
           <ScrollReveal>
-            <div className="grid gap-10 lg:grid-cols-[0.35fr_1fr] lg:items-center">
-              <span className="text-7xl font-black text-slate-200 dark:text-white/10 sm:text-8xl">
-                01
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f5a623]">
+              Why Local Matters
+            </p>
+
+            <h2 className="mt-6 max-w-4xl text-4xl font-black leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+              Your next deal
+              <span className="block text-[#1565d8] dark:text-[#3b82f6]">
+                could be nearby.
               </span>
+            </h2>
 
-              <div>
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                  <Search className="h-7 w-7" />
-                </div>
-
-                <h2 className="text-3xl font-black sm:text-5xl">
-                  Discover nearby products.
-                </h2>
-
-                <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg sm:leading-8">
-                  Browse products based on your location and discover useful
-                  listings from sellers around your area.
-                </p>
-              </div>
-            </div>
+            <p className="mt-8 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400 sm:text-base">
+              Local discovery makes it easier to find relevant products,
+              communicate with nearby sellers and build a marketplace around
+              your community.
+            </p>
           </ScrollReveal>
-        </section>
 
-        {/* Step 02 */}
-        <section className="py-20 sm:py-28">
+          <div className="mt-16 h-px w-full overflow-hidden bg-slate-200 dark:bg-white/10">
+            <div className="h-full w-1/3 animate-[horizontalMove_5s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-[#1565d8] to-transparent" />
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          JOURNEY
+      ====================================================== */}
+
+      <section className="relative bg-slate-50 px-4 py-24 dark:bg-[#07111f] sm:px-6 sm:py-32 lg:px-8">
+        <div className="mx-auto max-w-7xl">
           <ScrollReveal>
-            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-              <div>
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                  <Navigation className="h-7 w-7" />
-                </div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#1565d8] dark:text-blue-400">
+              How It Works
+            </p>
 
-                <h2 className="text-3xl font-black sm:text-5xl">
-                  Choose your location.
-                </h2>
-
-                <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg sm:leading-8">
-                  Your location helps DealUp surface products that are more
-                  relevant to where you actually want to buy or sell.
-                </p>
-              </div>
-
-              <div className="relative flex min-h-[260px] items-center justify-center overflow-hidden rounded-[2rem] bg-slate-100 dark:bg-[#0b192b]">
-                <div className="absolute h-52 w-52 rounded-full border border-blue-500/20" />
-                <div className="absolute h-32 w-32 rounded-full border border-blue-500/30" />
-                <MapPin className="relative z-10 h-12 w-12 animate-bounce text-blue-500" />
-              </div>
-            </div>
-          </ScrollReveal>
-        </section>
-
-        {/* Step 03 */}
-        <section className="rounded-[2rem] bg-slate-100 p-6 dark:bg-[#0b192b] sm:p-10 lg:p-14">
-          <ScrollReveal>
-            <div className="grid gap-10 lg:grid-cols-[0.35fr_1fr] lg:items-center">
-              <span className="text-7xl font-black text-slate-200 dark:text-white/10 sm:text-8xl">
-                03
+            <h2 className="mt-5 text-4xl font-black sm:text-6xl">
+              Four steps.
+              <span className="block text-slate-400 dark:text-slate-500">
+                One local experience.
               </span>
-
-              <div>
-                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                  <Users className="h-7 w-7" />
-                </div>
-
-                <h2 className="text-3xl font-black sm:text-5xl">
-                  Connect locally.
-                </h2>
-
-                <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-400 sm:text-lg sm:leading-8">
-                  Find sellers and buyers closer to you and make local
-                  conversations easier.
-                </p>
-              </div>
-            </div>
+            </h2>
           </ScrollReveal>
-        </section>
 
-        {/* Cities */}
-        <section className="py-24 sm:py-32">
+          <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {steps.map((step, index) => {
+              const Icon = step.icon;
+
+              return (
+                <ScrollReveal key={step.number} delay={index * 140}>
+                  <div className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-500 hover:-translate-y-3 hover:border-[#1565d8]/30 hover:shadow-xl dark:border-white/10 dark:bg-[#0b192b] dark:shadow-none dark:hover:border-[#1565d8]/50">
+                    <div className="absolute right-5 top-3 text-6xl font-black text-slate-100 transition-all duration-500 group-hover:text-[#1565d8]/10 dark:text-white/[0.025]">
+                      {step.number}
+                    </div>
+
+                    <div
+                      className={`flex h-14 w-14 items-center justify-center rounded-2xl ${
+                        step.accent === "orange"
+                          ? "bg-[#f5a623]/10 text-[#d88900]"
+                          : "bg-[#1565d8]/10 text-[#1565d8]"
+                      } transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:bg-[#1565d8] group-hover:text-white dark:text-[#3b82f6]`}
+                    >
+                      <Icon className="h-6 w-6" />
+                    </div>
+
+                    <p className="mt-7 text-xs font-bold uppercase tracking-[0.2em] text-[#f5a623]">
+                      {step.number}
+                    </p>
+
+                    <h3 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">
+                      {step.title}
+                    </h3>
+
+                    <p className="text-xl font-bold text-[#1565d8] dark:text-[#3b82f6]">
+                      {step.subtitle}
+                    </p>
+
+                    <p className="mt-5 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                      {step.description}
+                    </p>
+
+                    <div className="mt-7 h-px w-8 bg-[#1565d8] transition-all duration-500 group-hover:w-full" />
+                  </div>
+                </ScrollReveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* =====================================================
+          LOCAL NETWORK
+      ====================================================== */}
+
+      <section className="relative overflow-hidden bg-white px-4 py-24 dark:bg-[#091526] sm:px-6 sm:py-32 lg:px-8">
+        <div className="absolute right-[-120px] top-1/4 h-80 w-80 rounded-full bg-[#1565d8]/5 blur-[110px] dark:bg-[#1565d8]/10" />
+
+        <div className="relative mx-auto max-w-6xl">
           <ScrollReveal>
-            <div className="mb-10">
-              <p className="text-sm font-bold uppercase tracking-[0.3em] text-blue-600 dark:text-blue-400">
-                Your Local Network
-              </p>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f5a623]">
+              Your Local Network
+            </p>
 
-              <h2 className="mt-3 text-4xl font-black sm:text-6xl">
-                Start close.
-              </h2>
-            </div>
+            <h2 className="mt-6 text-4xl font-black sm:text-6xl">
+              Start close.
+              <span className="block text-[#1565d8] dark:text-[#3b82f6]">
+                Discover more.
+              </span>
+            </h2>
+          </ScrollReveal>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {cities.map((city, index) => (
-                <div
-                  key={city}
-                  className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-blue-300 dark:border-white/10 dark:bg-[#091526] dark:hover:border-blue-500/40"
-                >
+          <div className="mt-14 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {cities.map((city, index) => (
+              <ScrollReveal key={city} delay={index * 100}>
+                <div className="group rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm transition-all duration-500 hover:-translate-y-2 hover:border-[#1565d8]/30 hover:shadow-lg dark:border-white/10 dark:bg-[#0b192b] dark:hover:border-[#1565d8]/40">
                   <span className="text-xs font-bold text-slate-300 dark:text-white/20">
                     0{index + 1}
                   </span>
@@ -217,50 +364,112 @@ export default function LocalMarketplacePage() {
                     {city}
                   </p>
 
-                  <MapPin className="mt-4 h-4 w-4 text-blue-500" />
+                  <MapPin className="mt-4 h-4 w-4 text-[#1565d8] dark:text-[#3b82f6]" />
                 </div>
-              ))}
-            </div>
-          </ScrollReveal>
-        </section>
+              </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
 
-        {/* Final CTA */}
-        <section className="pb-24 text-center sm:pb-32">
-          <ScrollReveal>
-            <h2 className="text-4xl font-black sm:text-6xl">
-              Your next deal
-              <br />
-              could be nearby.
-            </h2>
+      {/* =====================================================
+          FINAL
+      ====================================================== */}
 
-            <p className="mx-auto mt-6 max-w-xl text-slate-600 dark:text-slate-400">
-              Explore local products and discover what is available around
-              you.
-            </p>
+      <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-slate-50 px-4 py-24 dark:bg-[#07111f] sm:px-6 lg:px-8">
+        <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1565d8]/10 animate-[spin_20s_linear_infinite]" />
 
-            <Link
-              href="/"
-              className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-blue-600 px-6 py-3.5 font-bold text-white transition hover:bg-blue-700"
-            >
-              Explore Products
-              <ArrowRight className="h-5 w-5" />
-            </Link>
-          </ScrollReveal>
-        </section>
-      </div>
+        <div className="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f5a623]/10 animate-[spin_14s_linear_infinite_reverse]" />
+
+        <ScrollReveal className="relative max-w-4xl text-center">
+          <MapPin className="mx-auto h-14 w-14 animate-[heroFloat_4s_ease-in-out_infinite] text-[#1565d8] dark:text-[#3b82f6]" />
+
+          <p className="mt-8 text-xs font-bold uppercase tracking-[0.35em] text-[#f5a623]">
+            The Result
+          </p>
+
+          <h2 className="mt-5 text-5xl font-black leading-[0.95] tracking-tight text-slate-900 dark:text-white sm:text-7xl lg:text-8xl">
+            Your community.
+            <span className="block bg-gradient-to-r from-[#1565d8] to-[#f5a623] bg-clip-text text-transparent">
+              Your marketplace.
+            </span>
+          </h2>
+
+          <p className="mx-auto mt-8 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-400 sm:text-base">
+            Discover nearby products, connect with local sellers and make your
+            next deal closer to home.
+          </p>
+
+          <Link
+            href="/"
+            className="group mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#1565d8] px-6 py-3.5 font-bold text-white transition hover:bg-[#0f52ba]"
+          >
+            Explore Local Products
+            <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
+          </Link>
+        </ScrollReveal>
+      </section>
 
       <style jsx>{`
-        .reveal {
-          opacity: 0;
-          transform: translateY(45px);
-          transition:
-            opacity 800ms ease,
-            transform 800ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        @keyframes heroFloat {
+          0%,
+          100% {
+            transform: translateY(0) scale(1);
+          }
+
+          50% {
+            transform: translateY(-8px) scale(1.03);
+          }
         }
 
-        .reveal.is-visible {
-          opacity: 1;
-          transform: translateY(0);
+        @keyframes floatShape {
+          0%,
+          100% {
+            transform: translate(0, 0) rotate(0deg);
+          }
+
+          50% {
+            transform: translate(25px, -20px) rotate(12deg);
+          }
+        }
+
+        @keyframes scrollLine {
+          0% {
+            transform: translateY(-100%);
+          }
+
+          50% {
+            transform: translateY(100%);
+          }
+
+          100% {
+            transform: translateY(220%);
+          }
+        }
+
+        @keyframes horizontalMove {
+          0% {
+            transform: translateX(-120%);
+          }
+
+          50% {
+            transform: translateX(180%);
+          }
+
+          100% {
+            transform: translateX(-120%);
+          }
+        }
+
+        @keyframes lineMove {
+          0%,
+          100% {
+            transform: translateX(-20%) rotate(-18deg);
+          }
+
+          50% {
+            transform: translateX(20%) rotate(-18deg);
+          }
         }
       `}</style>
     </main>

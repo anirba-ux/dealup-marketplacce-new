@@ -83,7 +83,7 @@ function ScrollReveal({
       {
         threshold: 0.15,
         rootMargin: "0px 0px -70px 0px",
-      },
+      }
     );
 
     observer.observe(element);
@@ -115,7 +115,7 @@ function FloatingShape({
 }) {
   return (
     <div
-      className={`pointer-events-none absolute rounded-full border border-slate-300/50 dark:border-white/10 ${className}`}
+      className={`pointer-events-none absolute rounded-full border border-slate-300/60 dark:border-white/10 ${className}`}
       style={{
         animation: "floatShape 7s ease-in-out infinite",
         animationDelay: delay,
@@ -130,11 +130,14 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           HERO
       ====================================================== */}
+
       <section className="relative min-h-screen overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(21,101,216,0.10),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_28%,rgba(21,101,216,0.20),transparent_38%)]" />
+        {/* Background glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(21,101,216,0.08),transparent_38%)] dark:bg-[radial-gradient(circle_at_50%_28%,rgba(21,101,216,0.20),transparent_38%)]" />
 
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.06),transparent_30%)] dark:bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.08),transparent_30%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.05),transparent_30%)] dark:bg-[radial-gradient(circle_at_85%_70%,rgba(245,166,35,0.08),transparent_30%)]" />
 
+        {/* Floating circles */}
         <FloatingShape
           className="left-[8%] top-[28%] h-28 w-28"
           delay="0s"
@@ -150,7 +153,8 @@ export default function VerifiedSellersPage() {
           delay="2s"
         />
 
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[140%] -translate-x-1/2 rotate-[-18deg] bg-gradient-to-r from-transparent via-[#1565d8]/20 to-transparent dark:via-[#1565d8]/40 animate-[lineMove_6s_ease-in-out_infinite]" />
+        {/* Moving line */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-px w-[140%] -translate-x-1/2 rotate-[-18deg] bg-gradient-to-r from-transparent via-[#1565d8]/15 to-transparent dark:via-[#1565d8]/40 animate-[lineMove_6s_ease-in-out_infinite]" />
 
         <div className="relative mx-auto min-h-screen max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
           {/* TOP BAR */}
@@ -175,6 +179,7 @@ export default function VerifiedSellersPage() {
 
           {/* HERO CONTENT */}
           <div className="flex min-h-[calc(100vh-80px)] flex-col items-center justify-center text-center">
+            {/* Animated verification icon */}
             <div className="relative mb-10 flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
               <div className="absolute inset-0 animate-[spin_18s_linear_infinite] rounded-full border border-[#1565d8]/20 dark:border-[#1565d8]/30" />
 
@@ -185,7 +190,7 @@ export default function VerifiedSellersPage() {
               <span className="absolute right-1 top-1/2 h-2 w-2 -translate-y-1/2 animate-pulse rounded-full bg-[#f5a623]" />
 
               <div className="relative flex h-20 w-20 animate-[heroFloat_4s_ease-in-out_infinite] items-center justify-center rounded-[26px] border border-[#1565d8]/20 bg-white shadow-[0_20px_60px_rgba(21,101,216,0.12)] dark:border-[#1565d8]/30 dark:bg-[#0d1a2d] dark:shadow-[0_0_60px_rgba(21,101,216,0.20)] sm:h-24 sm:w-24">
-                <BadgeCheck className="h-11 w-11 text-[#1565d8] dark:text-[#3b82f6] sm:h-13 sm:w-13" />
+                <BadgeCheck className="h-11 w-11 text-[#1565d8] dark:text-[#3b82f6] sm:h-12 sm:w-12" />
 
                 <div className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#16a34a] text-white shadow-lg">
                   <Check className="h-4 w-4" />
@@ -216,6 +221,7 @@ export default function VerifiedSellersPage() {
               </p>
             </ScrollReveal>
 
+            {/* Scroll indicator */}
             <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[9px] font-bold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">
               <span>Scroll</span>
 
@@ -230,6 +236,7 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           INTRO
       ====================================================== */}
+
       <section className="relative overflow-hidden bg-white px-4 py-24 dark:bg-[#091526] sm:px-6 sm:py-32 lg:px-8">
         <div className="pointer-events-none absolute left-1/2 top-0 h-80 w-80 -translate-x-1/2 rounded-full bg-[#1565d8]/5 blur-[120px] dark:bg-[#1565d8]/10" />
 
@@ -264,6 +271,7 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           VERIFICATION JOURNEY
       ====================================================== */}
+
       <section className="relative bg-slate-50 px-4 py-24 dark:bg-[#07111f] sm:px-6 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <ScrollReveal className="max-w-3xl">
@@ -286,10 +294,12 @@ export default function VerifiedSellersPage() {
               return (
                 <ScrollReveal key={step.number} delay={index * 140}>
                   <div className="group relative h-full overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-500 hover:-translate-y-3 hover:border-[#1565d8]/30 hover:shadow-xl dark:border-white/10 dark:bg-[#0b192b] dark:shadow-none dark:hover:border-[#1565d8]/50">
+                    {/* Large background number */}
                     <div className="absolute right-5 top-3 text-6xl font-black text-slate-100 transition-all duration-500 group-hover:text-[#1565d8]/10 dark:text-white/[0.025] dark:group-hover:text-[#1565d8]/10">
                       {step.number}
                     </div>
 
+                    {/* Icon */}
                     <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#1565d8]/10 text-[#1565d8] transition-all duration-500 group-hover:scale-110 group-hover:rotate-6 group-hover:bg-[#1565d8] group-hover:text-white dark:text-[#3b82f6]">
                       <Icon className="h-6 w-6" />
                     </div>
@@ -310,6 +320,7 @@ export default function VerifiedSellersPage() {
                       {step.description}
                     </p>
 
+                    {/* Animated bottom line */}
                     <div className="mt-7 h-px w-8 bg-[#1565d8] transition-all duration-500 group-hover:w-full" />
                   </div>
                 </ScrollReveal>
@@ -322,10 +333,12 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           PROFILE
       ====================================================== */}
+
       <section className="relative overflow-hidden bg-white px-4 py-24 dark:bg-[#091526] sm:px-6 sm:py-32 lg:px-8">
         <div className="absolute right-[-120px] top-1/4 h-80 w-80 rounded-full bg-[#1565d8]/5 blur-[110px] dark:bg-[#1565d8]/10" />
 
         <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-24">
+          {/* Seller profile card */}
           <ScrollReveal>
             <div className="relative mx-auto w-full max-w-md">
               <div className="absolute -inset-4 rounded-[40px] border border-[#1565d8]/10 animate-pulse" />
@@ -373,6 +386,7 @@ export default function VerifiedSellersPage() {
             </div>
           </ScrollReveal>
 
+          {/* Trust profile text */}
           <ScrollReveal delay={180}>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#f5a623]">
@@ -420,7 +434,9 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           FINAL
       ====================================================== */}
+
       <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-slate-50 px-4 py-24 dark:bg-[#07111f] sm:px-6 lg:px-8">
+        {/* Rotating circles */}
         <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#1565d8]/10 animate-[spin_20s_linear_infinite]" />
 
         <div className="absolute left-1/2 top-1/2 h-60 w-60 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#f5a623]/10 animate-[spin_14s_linear_infinite_reverse]" />
@@ -455,6 +471,7 @@ export default function VerifiedSellersPage() {
       {/* =====================================================
           ANIMATIONS
       ====================================================== */}
+
       <style jsx>{`
         @keyframes heroFloat {
           0%,
