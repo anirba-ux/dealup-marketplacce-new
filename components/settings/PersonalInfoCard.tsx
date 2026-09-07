@@ -52,7 +52,21 @@ export default function PersonalInfoCard({
           <input
             value={email}
             disabled
-            className="w-full rounded-xl border bg-slate-100 px-4 py-3"
+            className="
+              w-full
+              rounded-xl
+              border
+              border-slate-200
+              bg-slate-100
+              px-4
+              py-3
+              text-slate-700
+              outline-none
+
+              dark:border-white/10
+              dark:bg-[#111b2e]
+              dark:text-slate-300
+            "
           />
         </div>
       </div>

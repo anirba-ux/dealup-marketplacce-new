@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
 import { useSession } from "next-auth/react";
 
-import {
-  useForm,
-  type FieldErrors,
-} from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -25,10 +18,7 @@ import ImageUploadSection from "./ImageUploadSection";
 import LocationSection from "./LocationSection";
 import PreviewSection from "./PreviewSection";
 
-import {
-  productSchema,
-  type ProductFormData,
-} from "@/lib/validations/product";
+import { productSchema, type ProductFormData } from "@/lib/validations/product";
 
 import type { Product } from "@/lib/models/product";
 
@@ -36,10 +26,9 @@ import type { Product } from "@/lib/models/product";
 // Types
 // =====================================================
 
-type ProductFormInitialData =
-  Omit<Product, "_id"> & {
-    _id?: string;
-  };
+type ProductFormInitialData = Omit<Product, "_id"> & {
+  _id?: string;
+};
 
 interface LiveSellerLocation {
   latitude: number;
@@ -73,20 +62,13 @@ const TOTAL_STEPS = 6;
 // Helpers
 // =====================================================
 
-function normalizeText(
-  value: unknown,
-): string {
-  return String(
-    value ?? "",
-  )
+function normalizeText(value: unknown): string {
+  return String(value ?? "")
     .trim()
     .toLowerCase();
 }
 
-function coordinatesAreValid(
-  latitude: number,
-  longitude: number,
-): boolean {
+function coordinatesAreValid(latitude: number, longitude: number): boolean {
   return (
     Number.isFinite(latitude) &&
     Number.isFinite(longitude) &&
@@ -104,24 +86,13 @@ function locationsAreEqual(
   second: OriginalLocation,
 ): boolean {
   return (
-    normalizeText(first.state) ===
-      normalizeText(second.state) &&
-    normalizeText(first.district) ===
-      normalizeText(second.district) &&
-    normalizeText(first.city) ===
-      normalizeText(second.city) &&
-    normalizeText(first.pincode) ===
-      normalizeText(second.pincode) &&
-    normalizeText(first.address) ===
-      normalizeText(second.address) &&
-    Math.abs(
-      Number(first.latitude) -
-        Number(second.latitude),
-    ) < 0.000001 &&
-    Math.abs(
-      Number(first.longitude) -
-        Number(second.longitude),
-    ) < 0.000001
+    normalizeText(first.state) === normalizeText(second.state) &&
+    normalizeText(first.district) === normalizeText(second.district) &&
+    normalizeText(first.city) === normalizeText(second.city) &&
+    normalizeText(first.pincode) === normalizeText(second.pincode) &&
+    normalizeText(first.address) === normalizeText(second.address) &&
+    Math.abs(Number(first.latitude) - Number(second.latitude)) < 0.000001 &&
+    Math.abs(Number(first.longitude) - Number(second.longitude)) < 0.000001
   );
 }
 
@@ -139,13 +110,9 @@ export default function ProductForm({
   // Authentication
   // ===================================================
 
-  const {
-    data: session,
-    status: sessionStatus,
-  } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
 
-  const userId =
-    session?.user?.id ?? null;
+  const userId = session?.user?.id ?? null;
 
   // ===================================================
   // Draft Key
@@ -163,37 +130,31 @@ export default function ProductForm({
   // Step
   // ===================================================
 
-  const [step, setStep] =
-    useState(0);
+  const [step, setStep] = useState(0);
 
   // ===================================================
   // Success
   // ===================================================
 
-  const [successMessage, setSuccessMessage] =
-    useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const [countdown, setCountdown] =
-    useState(5);
+  const [countdown, setCountdown] = useState(5);
 
   // ===================================================
   // Product Images
   // ===================================================
 
-  const [productImages, setProductImages] =
-    useState<
-      {
-        publicId: string;
-        url: string;
-        imageHash?: string;
-      }[]
-    >(initialData?.images ?? []);
+  const [productImages, setProductImages] = useState<
+    {
+      publicId: string;
+      url: string;
+      imageHash?: string;
+    }[]
+  >(initialData?.images ?? []);
 
-  const [thumbnailIndex, setThumbnailIndex] =
-    useState(0);
+  const [thumbnailIndex, setThumbnailIndex] = useState(0);
 
-  const [imageError, setImageError] =
-    useState("");
+  const [imageError, setImageError] = useState("");
 
   // ===================================================
   // Live Seller GPS
@@ -204,9 +165,7 @@ export default function ProductForm({
   // ===================================================
 
   const [sellerLiveLocation, setSellerLiveLocation] =
-    useState<LiveSellerLocation | null>(
-      null,
-    );
+    useState<LiveSellerLocation | null>(null);
 
   // ===================================================
   // Original Product Location
@@ -216,9 +175,7 @@ export default function ProductForm({
   // ===================================================
 
   const [originalLocation, setOriginalLocation] =
-    useState<OriginalLocation | null>(
-      null,
-    );
+    useState<OriginalLocation | null>(null);
 
   // ===================================================
   // React Hook Form
@@ -234,14 +191,9 @@ export default function ProductForm({
     trigger,
     setFocus,
 
-    formState: {
-      errors,
-      isSubmitting,
-      isDirty,
-    },
+    formState: { errors, isSubmitting, isDirty },
   } = useForm<ProductFormData>({
-    resolver:
-      zodResolver(productSchema),
+    resolver: zodResolver(productSchema),
 
     defaultValues: {
       title: "",
@@ -269,64 +221,42 @@ export default function ProductForm({
   // Form Values
   // ===================================================
 
-  const formValues =
-    watch();
+  const formValues = watch();
 
   // ===================================================
   // Detect Location Change
   // ===================================================
 
-  const currentLocation =
-    useMemo<OriginalLocation>(
-      () => ({
-        state:
-          formValues.state ??
-          "",
+  const currentLocation = useMemo<OriginalLocation>(
+    () => ({
+      state: formValues.state ?? "",
 
-        district:
-          formValues.district ??
-          "",
+      district: formValues.district ?? "",
 
-        city:
-          formValues.city ??
-          "",
+      city: formValues.city ?? "",
 
-        pincode:
-          formValues.pincode ??
-          "",
+      pincode: formValues.pincode ?? "",
 
-        address:
-          formValues.address ??
-          "",
+      address: formValues.address ?? "",
 
-        latitude:
-          Number(
-            formValues.latitude,
-          ),
+      latitude: Number(formValues.latitude),
 
-        longitude:
-          Number(
-            formValues.longitude,
-          ),
-      }),
-      [
-        formValues.state,
-        formValues.district,
-        formValues.city,
-        formValues.pincode,
-        formValues.address,
-        formValues.latitude,
-        formValues.longitude,
-      ],
-    );
+      longitude: Number(formValues.longitude),
+    }),
+    [
+      formValues.state,
+      formValues.district,
+      formValues.city,
+      formValues.pincode,
+      formValues.address,
+      formValues.latitude,
+      formValues.longitude,
+    ],
+  );
 
   const locationChanged =
-    mode === "edit" &&
-    originalLocation !== null
-      ? !locationsAreEqual(
-          originalLocation,
-          currentLocation,
-        )
+    mode === "edit" && originalLocation !== null
+      ? !locationsAreEqual(originalLocation, currentLocation)
       : false;
 
   // ===================================================
@@ -334,179 +264,105 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    if (
-      mode !== "edit" ||
-      !initialData
-    ) {
+    if (mode !== "edit" || !initialData) {
       return;
     }
 
-    const existingLocation: OriginalLocation =
-      {
-        state:
-          initialData.location
-            .state,
+    const existingLocation: OriginalLocation = {
+      state: initialData.location.state,
 
-        district:
-          initialData.location
-            .district,
+      district: initialData.location.district,
 
-        city:
-          initialData.location
-            .city,
+      city: initialData.location.city,
 
-        pincode:
-          initialData.location
-            .pincode,
+      pincode: initialData.location.pincode,
 
-        address:
-          initialData.location
-            .address ?? "",
+      address: initialData.location.address ?? "",
 
-        latitude:
-          initialData.location
-            .coordinates.lat,
+      latitude: initialData.location.coordinates.lat,
 
-        longitude:
-          initialData.location
-            .coordinates.lng,
-      };
+      longitude: initialData.location.coordinates.lng,
+    };
 
     reset({
-      title:
-        initialData.title,
+      title: initialData.title,
 
-      description:
-        initialData.description,
+      description: initialData.description,
 
-      category:
-        initialData.category,
+      category: initialData.category,
 
-      subcategory:
-        initialData.subcategory,
+      subcategory: initialData.subcategory,
 
-      brand:
-        initialData.brand ?? "",
+      brand: initialData.brand ?? "",
 
-      model:
-        initialData.model ?? "",
+      model: initialData.model ?? "",
 
-      price:
-        initialData.price,
+      price: initialData.price,
 
-      negotiable:
-        initialData.negotiable,
+      negotiable: initialData.negotiable,
 
-      condition:
-        initialData.condition,
+      condition: initialData.condition,
 
-      state:
-        initialData.location.state,
+      state: initialData.location.state,
 
-      district:
-        initialData.location
-          .district,
+      district: initialData.location.district,
 
-      city:
-        initialData.location.city,
+      city: initialData.location.city,
 
-      pincode:
-        initialData.location
-          .pincode,
+      pincode: initialData.location.pincode,
 
-      address:
-        initialData.location
-          .address ?? "",
+      address: initialData.location.address ?? "",
 
-      latitude:
-        initialData.location
-          .coordinates.lat,
+      latitude: initialData.location.coordinates.lat,
 
-      longitude:
-        initialData.location
-          .coordinates.lng,
+      longitude: initialData.location.coordinates.lng,
     });
 
-    setOriginalLocation(
-      existingLocation,
-    );
+    setOriginalLocation(existingLocation);
 
-    setSellerLiveLocation(
-      null,
-    );
+    setSellerLiveLocation(null);
 
-    setProductImages(
-      initialData.images ?? [],
-    );
+    setProductImages(initialData.images ?? []);
 
-    if (
-      initialData.images?.length
-    ) {
-      const index =
-        initialData.images.findIndex(
-          (image) =>
-            image.url ===
-            initialData.thumbnail,
-        );
-
-      setThumbnailIndex(
-        index >= 0
-          ? index
-          : 0,
+    if (initialData.images?.length) {
+      const index = initialData.images.findIndex(
+        (image) => image.url === initialData.thumbnail,
       );
+
+      setThumbnailIndex(index >= 0 ? index : 0);
     }
-  }, [
-    mode,
-    initialData,
-    reset,
-  ]);
+  }, [mode, initialData, reset]);
 
   // ===================================================
   // Submit Product
   // ===================================================
 
-  async function onSubmit(
-    data: ProductFormData,
-  ) {
+  async function onSubmit(data: ProductFormData) {
     try {
       // =================================================
       // Authentication
       // =================================================
 
-      if (
-        sessionStatus ===
-        "loading"
-      ) {
-        throw new Error(
-          "Please wait while your account is being verified.",
-        );
+      if (sessionStatus === "loading") {
+        throw new Error("Please wait while your account is being verified.");
       }
 
       if (!userId) {
-        throw new Error(
-          "Please log in before publishing a product.",
-        );
+        throw new Error("Please log in before publishing a product.");
       }
 
       // =================================================
       // Product Coordinates
       // =================================================
 
-      const productLatitude =
-        Number(
-          data.latitude,
-        );
+      const productLatitude = Number(data.latitude);
 
-      const productLongitude =
-        Number(
-          data.longitude,
-        );
+      const productLongitude = Number(data.longitude);
 
-      const coordinatesValid =
-        coordinatesAreValid(
-          productLatitude,
-          productLongitude,
-        );
+      const coordinatesValid = coordinatesAreValid(
+        productLatitude,
+        productLongitude,
+      );
 
       // =================================================
       // EDIT MODE
@@ -517,13 +373,8 @@ export default function ProductForm({
       // do not require any new GPS.
       // =================================================
 
-      if (
-        mode === "edit" &&
-        !locationChanged
-      ) {
-        if (
-          !coordinatesValid
-        ) {
+      if (mode === "edit" && !locationChanged) {
+        if (!coordinatesValid) {
           throw new Error(
             "The existing product location is invalid. Please select the product location again.",
           );
@@ -536,13 +387,8 @@ export default function ProductForm({
       // New product must always have a valid location.
       // =================================================
 
-      if (
-        mode === "create" &&
-        !coordinatesValid
-      ) {
-        throw new Error(
-          "Please select a valid product location on the map.",
-        );
+      if (mode === "create" && !coordinatesValid) {
+        throw new Error("Please select a valid product location on the map.");
       }
 
       // =================================================
@@ -552,46 +398,25 @@ export default function ProductForm({
       // No live GPS is mandatory.
       // =================================================
 
-      if (
-        mode === "edit" &&
-        locationChanged &&
-        !coordinatesValid
-      ) {
-        throw new Error(
-          "Please select a valid product location on the map.",
-        );
+      if (mode === "edit" && locationChanged && !coordinatesValid) {
+        throw new Error("Please select a valid product location on the map.");
       }
 
       // =================================================
       // Product Address
       // =================================================
 
-      const state =
-        data.state?.trim() ??
-        "";
+      const state = data.state?.trim() ?? "";
 
-      const district =
-        data.district?.trim() ??
-        "";
+      const district = data.district?.trim() ?? "";
 
-      const city =
-        data.city?.trim() ??
-        "";
+      const city = data.city?.trim() ?? "";
 
-      const pincode =
-        data.pincode?.trim() ??
-        "";
+      const pincode = data.pincode?.trim() ?? "";
 
-      const address =
-        data.address?.trim() ??
-        "";
+      const address = data.address?.trim() ?? "";
 
-      if (
-        !state ||
-        !district ||
-        !city ||
-        !pincode
-      ) {
+      if (!state || !district || !city || !pincode) {
         throw new Error(
           "Please complete the product location details before saving.",
         );
@@ -605,19 +430,11 @@ export default function ProductForm({
 
       const validSellerLiveLocation =
         sellerLiveLocation &&
-        Number.isFinite(
-          sellerLiveLocation.latitude,
-        ) &&
-        Number.isFinite(
-          sellerLiveLocation.longitude,
-        ) &&
-        Number.isFinite(
-          sellerLiveLocation.accuracy,
-        ) &&
-        sellerLiveLocation.accuracy >
-          0 &&
-        sellerLiveLocation.accuracy <=
-          200
+        Number.isFinite(sellerLiveLocation.latitude) &&
+        Number.isFinite(sellerLiveLocation.longitude) &&
+        Number.isFinite(sellerLiveLocation.accuracy) &&
+        sellerLiveLocation.accuracy > 0 &&
+        sellerLiveLocation.accuracy <= 200
           ? sellerLiveLocation
           : null;
 
@@ -625,21 +442,13 @@ export default function ProductForm({
       // Payload
       // =================================================
 
-      const payload: Record<
-        string,
-        unknown
-      > = {
+      const payload: Record<string, unknown> = {
         ...data,
 
-        images:
-          productImages,
+        images: productImages,
 
         thumbnail:
-          productImages[
-            thumbnailIndex
-          ]?.url ??
-          productImages[0]?.url ??
-          "",
+          productImages[thumbnailIndex]?.url ?? productImages[0]?.url ?? "",
 
         state,
 
@@ -651,11 +460,9 @@ export default function ProductForm({
 
         address,
 
-        latitude:
-          productLatitude,
+        latitude: productLatitude,
 
-        longitude:
-          productLongitude,
+        longitude: productLongitude,
       };
 
       // =================================================
@@ -664,23 +471,16 @@ export default function ProductForm({
       // Only send when actually available.
       // =================================================
 
-      if (
-        validSellerLiveLocation
-      ) {
-        payload.sellerLocation =
-          {
-            latitude:
-              validSellerLiveLocation.latitude,
+      if (validSellerLiveLocation) {
+        payload.sellerLocation = {
+          latitude: validSellerLiveLocation.latitude,
 
-            longitude:
-              validSellerLiveLocation.longitude,
+          longitude: validSellerLiveLocation.longitude,
 
-            accuracy:
-              validSellerLiveLocation.accuracy,
+          accuracy: validSellerLiveLocation.accuracy,
 
-            capturedAt:
-              validSellerLiveLocation.capturedAt,
-          };
+          capturedAt: validSellerLiveLocation.capturedAt,
+        };
       }
 
       // =================================================
@@ -692,95 +492,62 @@ export default function ProductForm({
       // 2. Actual location change
       // =================================================
 
-      if (
-        mode === "edit"
-      ) {
-        payload.locationChanged =
-          locationChanged;
+      if (mode === "edit") {
+        payload.locationChanged = locationChanged;
       }
 
       // =================================================
       // Debug
       // =================================================
 
-      console.log(
-        "PRODUCT SUBMIT MODE:",
-        mode,
-      );
+      console.log("PRODUCT SUBMIT MODE:", mode);
 
-      console.log(
-        "PRODUCT LOCATION CHANGED:",
-        locationChanged,
-      );
+      console.log("PRODUCT LOCATION CHANGED:", locationChanged);
 
-      console.log(
-        "PRODUCT SUBMIT PAYLOAD:",
-        payload,
-      );
+      console.log("PRODUCT SUBMIT PAYLOAD:", payload);
 
       // =================================================
       // API
       // =================================================
 
       const url =
-        mode === "edit"
-          ? `/api/products/${initialData?._id}`
-          : "/api/products";
+        mode === "edit" ? `/api/products/${initialData?._id}` : "/api/products";
 
-      const method =
-        mode === "edit"
-          ? "PUT"
-          : "POST";
+      const method = mode === "edit" ? "PUT" : "POST";
 
       // =================================================
       // Request
       // =================================================
 
-      const response =
-        await fetch(
-          url,
-          {
-            method,
+      const response = await fetch(url, {
+        method,
 
-            headers: {
-              "Content-Type":
-                "application/json",
-            },
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-            body:
-              JSON.stringify(
-                payload,
-              ),
-          },
-        );
+        body: JSON.stringify(payload),
+      });
 
       // =================================================
       // Response
       // =================================================
 
-      let result:
-        | any
-        | null = null;
+      let result: any | null = null;
 
       try {
-        result =
-          await response.json();
+        result = await response.json();
       } catch {
         result = null;
       }
 
-      console.log(
-        "PRODUCT API RESULT:",
-        result,
-      );
+      console.log("PRODUCT API RESULT:", result);
 
       // =================================================
       // API Error
       // =================================================
 
-      if (
-        !response.ok
-      ) {
+      if (!response.ok) {
         throw new Error(
           result?.message ??
             (mode === "edit"
@@ -793,39 +560,24 @@ export default function ProductForm({
       // Location Verification
       // =================================================
 
-      if (
-        result?.locationVerification
-      ) {
-        console.log(
-          "LOCATION VERIFICATION:",
-          result.locationVerification,
-        );
+      if (result?.locationVerification) {
+        console.log("LOCATION VERIFICATION:", result.locationVerification);
       }
 
       // =================================================
       // Seller → Product Distance
       // =================================================
 
-      if (
-        result?.sellerProductDistance
-      ) {
-        console.log(
-          "SELLER → PRODUCT DISTANCE:",
-          result.sellerProductDistance,
-        );
+      if (result?.sellerProductDistance) {
+        console.log("SELLER → PRODUCT DISTANCE:", result.sellerProductDistance);
       }
 
       // =================================================
       // Clear Draft
       // =================================================
 
-      if (
-        draftKey &&
-        mode === "create"
-      ) {
-        localStorage.removeItem(
-          draftKey,
-        );
+      if (draftKey && mode === "create") {
+        localStorage.removeItem(draftKey);
       }
 
       // =================================================
@@ -840,10 +592,7 @@ export default function ProductForm({
 
       setCountdown(5);
     } catch (error) {
-      console.error(
-        "PRODUCT SUBMIT ERROR:",
-        error,
-      );
+      console.error("PRODUCT SUBMIT ERROR:", error);
 
       alert(
         error instanceof Error
@@ -860,15 +609,11 @@ export default function ProductForm({
   // ===================================================
 
   async function nextStep() {
-    if (
-      step >=
-      TOTAL_STEPS - 1
-    ) {
+    if (step >= TOTAL_STEPS - 1) {
       return;
     }
 
-    let isValid =
-      false;
+    let isValid = false;
 
     // =================================================
     // Validate Current Step
@@ -880,11 +625,7 @@ export default function ProductForm({
       // ===============================================
 
       case 0:
-        isValid =
-          await trigger([
-            "title",
-            "description",
-          ]);
+        isValid = await trigger(["title", "description"]);
 
         break;
 
@@ -893,11 +634,7 @@ export default function ProductForm({
       // ===============================================
 
       case 1:
-        isValid =
-          await trigger([
-            "category",
-            "subcategory",
-          ]);
+        isValid = await trigger(["category", "subcategory"]);
 
         break;
 
@@ -906,11 +643,7 @@ export default function ProductForm({
       // ===============================================
 
       case 2:
-        isValid =
-          await trigger([
-            "price",
-            "condition",
-          ]);
+        isValid = await trigger(["price", "condition"]);
 
         break;
 
@@ -919,13 +652,8 @@ export default function ProductForm({
       // ===============================================
 
       case 3:
-        if (
-          productImages.length ===
-          0
-        ) {
-          setImageError(
-            "Please upload at least one image.",
-          );
+        if (productImages.length === 0) {
+          setImageError("Please upload at least one image.");
 
           return;
         }
@@ -942,47 +670,29 @@ export default function ProductForm({
       // ===============================================
 
       case 4:
-        isValid =
-          await trigger([
-            "state",
-            "district",
-            "city",
-            "pincode",
-            "address",
-            "latitude",
-            "longitude",
-          ]);
+        isValid = await trigger([
+          "state",
+          "district",
+          "city",
+          "pincode",
+          "address",
+          "latitude",
+          "longitude",
+        ]);
 
         // ---------------------------------------------
         // Coordinates
         // ---------------------------------------------
 
         if (isValid) {
-          const latitude =
-            Number(
-              getValues(
-                "latitude",
-              ),
-            );
+          const latitude = Number(getValues("latitude"));
 
-          const longitude =
-            Number(
-              getValues(
-                "longitude",
-              ),
-            );
+          const longitude = Number(getValues("longitude"));
 
-          if (
-            !coordinatesAreValid(
-              latitude,
-              longitude,
-            )
-          ) {
+          if (!coordinatesAreValid(latitude, longitude)) {
             isValid = false;
 
-            alert(
-              "Please select a valid product location on the map.",
-            );
+            alert("Please select a valid product location on the map.");
           }
         }
 
@@ -997,76 +707,39 @@ export default function ProductForm({
     // =================================================
 
     if (!isValid) {
-      const formErrors =
-        errors as FieldErrors<ProductFormData>;
+      const formErrors = errors as FieldErrors<ProductFormData>;
 
       switch (step) {
         case 0:
-          setFocus(
-            formErrors.title
-              ? "title"
-              : "description",
-          );
+          setFocus(formErrors.title ? "title" : "description");
 
           break;
 
         case 1:
-          setFocus(
-            formErrors.category
-              ? "category"
-              : "subcategory",
-          );
+          setFocus(formErrors.category ? "category" : "subcategory");
 
           break;
 
         case 2:
-          setFocus(
-            formErrors.price
-              ? "price"
-              : "condition",
-          );
+          setFocus(formErrors.price ? "price" : "condition");
 
           break;
 
         case 4:
-          if (
-            formErrors.state
-          ) {
+          if (formErrors.state) {
             setFocus("state");
-          } else if (
-            formErrors.district
-          ) {
-            setFocus(
-              "district",
-            );
-          } else if (
-            formErrors.city
-          ) {
+          } else if (formErrors.district) {
+            setFocus("district");
+          } else if (formErrors.city) {
             setFocus("city");
-          } else if (
-            formErrors.pincode
-          ) {
-            setFocus(
-              "pincode",
-            );
-          } else if (
-            formErrors.address
-          ) {
-            setFocus(
-              "address",
-            );
-          } else if (
-            formErrors.latitude
-          ) {
-            setFocus(
-              "latitude",
-            );
-          } else if (
-            formErrors.longitude
-          ) {
-            setFocus(
-              "longitude",
-            );
+          } else if (formErrors.pincode) {
+            setFocus("pincode");
+          } else if (formErrors.address) {
+            setFocus("address");
+          } else if (formErrors.latitude) {
+            setFocus("latitude");
+          } else if (formErrors.longitude) {
+            setFocus("longitude");
           }
 
           break;
@@ -1079,10 +752,7 @@ export default function ProductForm({
     // Next
     // =================================================
 
-    setStep(
-      (previous) =>
-        previous + 1,
-    );
+    setStep((previous) => previous + 1);
   }
 
   // ===================================================
@@ -1094,10 +764,7 @@ export default function ProductForm({
       return;
     }
 
-    setStep(
-      (previous) =>
-        previous - 1,
-    );
+    setStep((previous) => previous - 1);
   }
 
   // ===================================================
@@ -1105,29 +772,20 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    const handleBeforeUnload =
-      (
-        event: BeforeUnloadEvent,
-      ) => {
-        if (!isDirty) {
-          return;
-        }
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) {
+        return;
+      }
 
-        event.preventDefault();
+      event.preventDefault();
 
-        event.returnValue = "";
-      };
+      event.returnValue = "";
+    };
 
-    window.addEventListener(
-      "beforeunload",
-      handleBeforeUnload,
-    );
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      window.removeEventListener(
-        "beforeunload",
-        handleBeforeUnload,
-      );
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, [isDirty]);
 
@@ -1138,16 +796,11 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    if (
-      mode === "edit"
-    ) {
+    if (mode === "edit") {
       return;
     }
 
-    if (
-      sessionStatus ===
-      "loading"
-    ) {
+    if (sessionStatus === "loading") {
       return;
     }
 
@@ -1155,56 +808,30 @@ export default function ProductForm({
       return;
     }
 
-    const draft =
-      localStorage.getItem(
-        draftKey,
-      );
+    const draft = localStorage.getItem(draftKey);
 
     if (!draft) {
       return;
     }
 
     try {
-      const parsed =
-        JSON.parse(draft);
+      const parsed = JSON.parse(draft);
 
-      if (
-        parsed.values
-      ) {
-        reset(
-          parsed.values,
-        );
+      if (parsed.values) {
+        reset(parsed.values);
       }
 
-      setStep(
-        parsed.step ?? 0,
-      );
+      setStep(parsed.step ?? 0);
 
-      setProductImages(
-        parsed.productImages ??
-          [],
-      );
+      setProductImages(parsed.productImages ?? []);
 
-      setThumbnailIndex(
-        parsed.thumbnailIndex ??
-          0,
-      );
+      setThumbnailIndex(parsed.thumbnailIndex ?? 0);
     } catch (error) {
-      console.error(
-        "DRAFT LOAD ERROR:",
-        error,
-      );
+      console.error("DRAFT LOAD ERROR:", error);
 
-      localStorage.removeItem(
-        draftKey,
-      );
+      localStorage.removeItem(draftKey);
     }
-  }, [
-    mode,
-    sessionStatus,
-    draftKey,
-    reset,
-  ]);
+  }, [mode, sessionStatus, draftKey, reset]);
 
   // ===================================================
   // Save Draft
@@ -1213,9 +840,7 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    if (
-      mode === "edit"
-    ) {
+    if (mode === "edit") {
       return;
     }
 
@@ -1223,10 +848,7 @@ export default function ProductForm({
       return;
     }
 
-    if (
-      sessionStatus ===
-      "loading"
-    ) {
+    if (sessionStatus === "loading") {
       return;
     }
 
@@ -1235,8 +857,7 @@ export default function ProductForm({
     }
 
     const draft = {
-      values:
-        formValues,
+      values: formValues,
 
       step,
 
@@ -1246,17 +867,9 @@ export default function ProductForm({
     };
 
     try {
-      localStorage.setItem(
-        draftKey,
-        JSON.stringify(
-          draft,
-        ),
-      );
+      localStorage.setItem(draftKey, JSON.stringify(draft));
     } catch (error) {
-      console.warn(
-        "DRAFT SAVE ERROR:",
-        error,
-      );
+      console.warn("DRAFT SAVE ERROR:", error);
     }
   }, [
     mode,
@@ -1274,48 +887,32 @@ export default function ProductForm({
   // ===================================================
 
   useEffect(() => {
-    if (
-      !successMessage
-    ) {
+    if (!successMessage) {
       return;
     }
 
-    if (
-      countdown === 0
-    ) {
-      router.push(
-        "/dashboard",
-      );
+    if (countdown === 0) {
+      router.push("/dashboard");
 
       router.refresh();
 
       return;
     }
 
-    const timer =
-      setTimeout(() => {
-        setCountdown(
-          (previous) =>
-            previous - 1,
-        );
-      }, 1000);
+    const timer = setTimeout(() => {
+      setCountdown((previous) => previous - 1);
+    }, 1000);
 
     return () => {
       clearTimeout(timer);
     };
-  }, [
-    successMessage,
-    countdown,
-    router,
-  ]);
+  }, [successMessage, countdown, router]);
 
   // ===================================================
   // Success Screen
   // ===================================================
 
-  if (
-    successMessage
-  ) {
+  if (successMessage) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center">
         <div className="w-full max-w-xl rounded-3xl border border-green-200 bg-white p-10 text-center shadow-2xl dark:bg-slate-900">
@@ -1328,33 +925,24 @@ export default function ProductForm({
           </h2>
 
           <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
-            Your changes have
-            been saved
-            successfully.
+            Your changes have been saved successfully.
           </p>
 
           <p className="mt-3 text-sm text-slate-500">
-            Product location is
-            handled separately
-            from permanent seller
+            Product location is handled separately from permanent seller
             verification.
           </p>
 
           <p className="mt-6 text-xl font-semibold text-[#1565d8]">
-            Redirecting in{" "}
-            {countdown} second
-            {countdown !== 1
-              ? "s"
-              : ""}
+            Redirecting in {countdown} second
+            {countdown !== 1 ? "s" : ""}
             ...
           </p>
 
           <button
             type="button"
             onClick={() => {
-              router.push(
-                "/dashboard",
-              );
+              router.push("/dashboard");
 
               router.refresh();
             }}
@@ -1372,19 +960,12 @@ export default function ProductForm({
   // ===================================================
 
   return (
-    <form
-      onSubmit={handleSubmit(
-        onSubmit,
-      )}
-      className="space-y-10"
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-10">
       {/* =================================================
           Stepper
       ================================================= */}
 
-      <ProductStepper
-        currentStep={step}
-      />
+      <ProductStepper currentStep={step} />
 
       {/* =================================================
           Form Sections
@@ -1395,30 +976,15 @@ export default function ProductForm({
             STEP 1
         =============================================== */}
 
-        <div
-          className={
-            step === 0
-              ? "block"
-              : "hidden"
-          }
-        >
-          <BasicInformation
-            register={register}
-            errors={errors}
-          />
+        <div className={step === 0 ? "block" : "hidden"}>
+          <BasicInformation register={register} errors={errors} />
         </div>
 
         {/* ===============================================
             STEP 2
         =============================================== */}
 
-        <div
-          className={
-            step === 1
-              ? "block"
-              : "hidden"
-          }
-        >
+        <div className={step === 1 ? "block" : "hidden"}>
           <CategorySection
             register={register}
             watch={watch}
@@ -1431,55 +997,26 @@ export default function ProductForm({
             STEP 3
         =============================================== */}
 
-        <div
-          className={
-            step === 2
-              ? "block"
-              : "hidden"
-          }
-        >
-          <PricingSection
-            register={register}
-            errors={errors}
-          />
+        <div className={step === 2 ? "block" : "hidden"}>
+          <PricingSection register={register} errors={errors} />
         </div>
 
         {/* ===============================================
             STEP 4
         =============================================== */}
 
-        <div
-          className={
-            step === 3
-              ? "block"
-              : "hidden"
-          }
-        >
+        <div className={step === 3 ? "block" : "hidden"}>
           <ImageUploadSection
-            uploadedImages={
-              productImages
-            }
-            setUploadedImages={(
-              images,
-            ) => {
-              setProductImages(
-                images,
-              );
+            uploadedImages={productImages}
+            setUploadedImages={(images) => {
+              setProductImages(images);
 
-              if (
-                images.length > 0
-              ) {
-                setImageError(
-                  "",
-                );
+              if (images.length > 0) {
+                setImageError("");
               }
             }}
-            thumbnailIndex={
-              thumbnailIndex
-            }
-            setThumbnailIndex={
-              setThumbnailIndex
-            }
+            thumbnailIndex={thumbnailIndex}
+            setThumbnailIndex={setThumbnailIndex}
           />
 
           {imageError && (
@@ -1493,25 +1030,15 @@ export default function ProductForm({
             STEP 5
         =============================================== */}
 
-        <div
-          className={
-            step === 4
-              ? "block"
-              : "hidden"
-          }
-        >
+        <div className={step === 4 ? "block" : "hidden"}>
           <LocationSection
             register={register}
             errors={errors}
             setValue={setValue}
-            getValues={
-              getValues
-            }
+            getValues={getValues}
             watch={watch}
             mode={mode}
-            onMobileLocationChange={
-              setSellerLiveLocation
-            }
+            onMobileLocationChange={setSellerLiveLocation}
           />
         </div>
 
@@ -1519,21 +1046,8 @@ export default function ProductForm({
             STEP 6
         =============================================== */}
 
-        <div
-          className={
-            step === 5
-              ? "block"
-              : "hidden"
-          }
-        >
-          <PreviewSection
-            values={
-              formValues
-            }
-            images={
-              productImages
-            }
-          />
+        <div className={step === 5 ? "block" : "hidden"}>
+          <PreviewSection values={formValues} images={productImages} />
         </div>
       </div>
 
@@ -1541,102 +1055,116 @@ export default function ProductForm({
           Footer
       ================================================= */}
 
-      <div className="mt-12 flex items-center justify-between border-t border-slate-200 pt-8 dark:border-slate-700">
+      <div
+        className="
+    mt-10 flex items-center gap-3
+    border-t border-slate-200 pt-6
+    dark:border-slate-700
+    sm:mt-12 sm:gap-4 sm:pt-8
+  "
+      >
         {/* ===============================================
-            Previous
-        =============================================== */}
-
+      Previous
+  =============================================== */}
         <button
           type="button"
-          onClick={
-            previousStep
-          }
-          disabled={
-            step === 0 ||
-            isSubmitting
-          }
+          onClick={previousStep}
+          disabled={isSubmitting}
           className="
-            rounded-2xl
-            border
-            border-slate-300
-            bg-white
-            px-8
-            py-3
-            font-semibold
-            text-slate-700
-            transition
-            hover:border-[#1565d8]
-            hover:text-[#1565d8]
-            disabled:cursor-not-allowed
-            disabled:opacity-40
-            dark:bg-slate-900
-            dark:text-slate-200
-          "
+    flex min-w-0 flex-1
+    items-center justify-center gap-2
+    rounded-2xl
+    border border-slate-300
+    bg-white
+    px-3 py-3
+    text-sm font-semibold
+    text-slate-600
+    transition-all duration-200
+    hover:-translate-y-0.5
+    hover:border-[#1565d8]
+    hover:bg-blue-50
+    hover:text-[#1565d8]
+    hover:shadow-md
+    active:scale-[0.98]
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+    dark:border-white/10
+    dark:bg-slate-900
+    dark:text-slate-300
+    dark:hover:border-[#1565d8]
+    dark:hover:bg-slate-800
+    dark:hover:text-white
+    sm:px-6 sm:py-3.5
+    sm:text-base
+  "
         >
-          ← Previous
+          <span className="text-base sm:text-lg">←</span>
+          <span className="whitespace-nowrap">Previous</span>
         </button>
 
         {/* ===============================================
-            Submit / Continue
-        =============================================== */}
+      Submit / Continue
+  =============================================== */}
 
-        {step ===
-        TOTAL_STEPS - 1 ? (
+        {step === TOTAL_STEPS - 1 ? (
           <button
             type="submit"
-            disabled={
-              isSubmitting ||
-              sessionStatus ===
-                "loading"
-            }
+            disabled={isSubmitting || sessionStatus === "loading"}
             className="
-              rounded-2xl
-              bg-[#1565d8]
-              px-10
-              py-3
-              font-semibold
-              text-white
-              shadow-lg
-              transition
-              hover:bg-[#0f52ba]
-              disabled:cursor-not-allowed
-              disabled:opacity-60
-            "
+        flex min-w-0 flex-1
+        items-center justify-center gap-2
+        rounded-2xl
+        bg-[#1565d8]
+        px-3 py-3
+        text-sm font-semibold
+        text-white
+        shadow-lg shadow-blue-500/20
+        transition-all duration-200
+        hover:bg-[#0f52ba]
+        hover:shadow-xl
+        active:scale-[0.98]
+        disabled:cursor-not-allowed
+        disabled:opacity-60
+        sm:px-6 sm:py-3.5
+        sm:text-base
+      "
           >
-            {isSubmitting
-              ? mode ===
-                "edit"
-                ? "Updating..."
-                : "Publishing..."
-              : mode ===
-                  "edit"
-                ? "💾 Update Product"
-                : "🚀 Publish Product"}
+            <span className="whitespace-nowrap">
+              {isSubmitting
+                ? mode === "edit"
+                  ? "Updating..."
+                  : "Publishing..."
+                : mode === "edit"
+                  ? "💾 Update Product"
+                  : "🚀 Publish Product"}
+            </span>
           </button>
         ) : (
           <button
             type="button"
-            onClick={
-              nextStep
-            }
-            disabled={
-              isSubmitting
-            }
+            onClick={nextStep}
+            disabled={isSubmitting}
             className="
-              rounded-2xl
-              bg-[#1565d8]
-              px-10
-              py-3
-              font-semibold
-              text-white
-              shadow-lg
-              transition
-              hover:bg-[#0f52ba]
-              disabled:cursor-not-allowed
-              disabled:opacity-60
-            "
+        flex min-w-0 flex-1
+        items-center justify-center gap-2
+        rounded-2xl
+        bg-[#1565d8]
+        px-3 py-3
+        text-sm font-semibold
+        text-white
+        shadow-lg shadow-blue-500/20
+        transition-all duration-200
+        hover:bg-[#0f52ba]
+        hover:shadow-xl
+        active:scale-[0.98]
+        disabled:cursor-not-allowed
+        disabled:opacity-60
+        sm:px-6 sm:py-3.5
+        sm:text-base
+      "
           >
-            Continue →
+            <span className="whitespace-nowrap">Continue</span>
+            <span className="text-base sm:text-lg">→</span>
           </button>
         )}
       </div>

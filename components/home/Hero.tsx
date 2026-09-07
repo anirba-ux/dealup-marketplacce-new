@@ -150,9 +150,7 @@ export default function Hero() {
               "
             >
               {/* Buy & Sell */}
-              <span className="block">
-                Buy &amp; Sell
-              </span>
+              <span className="block">Buy &amp; Sell</span>
 
               {/* Anything */}
               <span
@@ -210,8 +208,8 @@ export default function Hero() {
                 dark:text-slate-300
               "
             >
-              Discover trusted local deals, connect with nearby buyers
-              and sellers, and trade safely with confidence using DealUp.
+              Discover trusted local deals, connect with nearby buyers and
+              sellers, and trade safely with confidence using DealUp.
             </p>
 
             {/* =================================================
@@ -239,40 +237,47 @@ export default function Hero() {
               <Link
                 href="/search"
                 className="
-                  inline-flex
-                  min-w-0
-                  flex-1
-                  items-center
-                  justify-center
-                  rounded-xl
-                  bg-[#1565d8]
-                  px-3
-                  py-3
-                  text-center
-                  text-sm
-                  font-bold
-                  text-white
-                  shadow-lg
-                  shadow-blue-500/20
-                  transition-all duration-300
+    inline-flex
+    min-w-0
+    flex-1
+    shrink-0
+    items-center
+    justify-center
+    gap-1
+    whitespace-nowrap
+    rounded-xl
+    bg-[#1565d8]
+    px-2.5
+    py-3
+    text-center
+    text-[13px]
+    font-bold
+    leading-none
+    text-white
+    shadow-lg
+    shadow-blue-500/20
+    transition-all
+    duration-300
 
-                  hover:-translate-y-1
-                  hover:bg-[#0f52ba]
-                  hover:shadow-xl
+    hover:-translate-y-1
+    hover:bg-[#0f52ba]
+    hover:shadow-xl
 
-                  active:scale-95
+    active:scale-95
 
-                  sm:px-6
-                  sm:py-3.5
-                  sm:text-base
+    sm:gap-2
+    sm:px-6
+    sm:py-3.5
+    sm:text-base
 
-                  lg:flex-none
-                  lg:px-8
-                  lg:py-4
-                "
+    lg:flex-none
+    lg:px-8
+    lg:py-4
+  "
               >
-                Explore Products
-                <span className="ml-2 text-lg leading-none">→</span>
+                <span className="whitespace-nowrap">Explore Products</span>
+
+                <span className="text-base leading-none sm:text-lg">→</span>
               </Link>
 
               {/* Start Selling */}
