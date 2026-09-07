@@ -13,24 +13,36 @@ export default function BackButton() {
         gap-2
         rounded-xl
         border
-        border-white/25
-        bg-white/10
+        border-slate-200
+        bg-white
         px-3
         py-2
         text-sm
         font-semibold
-        text-white
-        backdrop-blur-md
+        text-slate-700
+        shadow-sm
         transition-all
         duration-200
-        hover:border-white/40
-        hover:bg-white/20
+
+        hover:border-[#1565d8]/30
+        hover:bg-slate-50
+        hover:text-[#1565d8]
         hover:shadow-md
+
         active:scale-95
+
+        dark:border-white/20
+        dark:bg-white/10
+        dark:text-white
+        dark:hover:border-white/40
+        dark:hover:bg-white/20
+        dark:hover:text-white
+
         sm:px-4
       "
     >
-      <ArrowLeft className="h-4 w-4" />
+      <ArrowLeft className="h-4 w-4 shrink-0" />
+
       <span>Back</span>
     </button>
   );
