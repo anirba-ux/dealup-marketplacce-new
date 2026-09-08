@@ -1,4 +1,5 @@
 import { MongoClient } from "mongodb";
+import { attachDatabasePool } from "@vercel/functions";
 
 // =====================================================
 // MongoDB URI
@@ -7,9 +8,7 @@ import { MongoClient } from "mongodb";
 const uri = process.env.MONGODB_URI;
 
 if (!uri) {
-  throw new Error(
-    "MONGODB_URI is missing in .env.local",
-  );
+  throw new Error("MONGODB_URI is missing");
 }
 
 // =====================================================
@@ -33,22 +32,28 @@ const client = new MongoClient(uri, {
   // ---------------------------------------------------
 
   maxPoolSize: 10,
-  minPoolSize: 1,
+  minPoolSize: 0,
 
   // ---------------------------------------------------
   // Connection Timeouts
   // ---------------------------------------------------
 
-  serverSelectionTimeoutMS: 5000,
-  connectTimeoutMS: 5000,
-  socketTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 15000,
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 20000,
 
   // ---------------------------------------------------
-  // Keep connections alive
+  // Idle Connection Management
   // ---------------------------------------------------
 
-  maxIdleTimeMS: 60000,
+  maxIdleTimeMS: 120000,
 });
+
+// =====================================================
+// Vercel Connection Pool Management
+// =====================================================
+
+attachDatabasePool(client);
 
 // =====================================================
 // Reuse Existing Connection
@@ -59,13 +64,10 @@ const clientPromise =
   client.connect();
 
 // =====================================================
-// Cache Connection During Development
+// Cache Connection
 // =====================================================
 
-if (process.env.NODE_ENV === "development") {
-  global._mongoClientPromise =
-    clientPromise;
-}
+global._mongoClientPromise = clientPromise;
 
 // =====================================================
 // Export
