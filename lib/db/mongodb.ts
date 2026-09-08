@@ -1,5 +1,4 @@
 import { MongoClient } from "mongodb";
-import { attachDatabasePool } from "@vercel/functions";
 
 // =====================================================
 // MongoDB URI
@@ -48,12 +47,6 @@ const client = new MongoClient(uri, {
 
   maxIdleTimeMS: 120000,
 });
-
-// =====================================================
-// Vercel Connection Pool Management
-// =====================================================
-
-attachDatabasePool(client);
 
 // =====================================================
 // Reuse Existing Connection
