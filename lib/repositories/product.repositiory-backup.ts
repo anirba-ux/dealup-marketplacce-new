@@ -1,4 +1,3 @@
-
 import { ObjectId } from "mongodb";
 
 import { getConversationCountByProduct } from "./chat.repository";
@@ -29,7 +28,14 @@ const COLLECTION_NAME = "products";
 
 async function getCollection() {
   const client = await clientPromise;
-  return client.db(DATABASE_NAME).collection<Product>(COLLECTION_NAME);
+
+  const db = client.db(DATABASE_NAME);
+
+  console.log("DATABASE:", db.databaseName);
+
+  console.log("COLLECTION:", COLLECTION_NAME);
+
+  return db.collection<Product>(COLLECTION_NAME);
 }
 
 // =====================================================
@@ -531,29 +537,23 @@ export async function findActiveProductsBySeller(
 export async function findSellerStats(sellerId: string) {
   const collection = await getCollection();
 
-  const [stats] = await collection
-    .aggregate([
-      {
-        $match: {
-          sellerId,
-          status: "active",
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          activeAds: { $sum: 1 },
-          totalViews: {
-            $sum: { $ifNull: ["$views", 0] },
-          },
-        },
-      },
-    ])
+  const products = await collection
+    .find({
+      sellerId,
+      status: "active",
+    })
     .toArray();
 
+  const activeAds = products.length;
+
+  const totalViews = products.reduce(
+    (sum, product) => sum + (product.views ?? 0),
+    0,
+  );
+
   return {
-    activeAds: Number(stats?.activeAds ?? 0),
-    totalViews: Number(stats?.totalViews ?? 0),
+    activeAds,
+    totalViews,
   };
 }
 
@@ -562,7 +562,17 @@ export async function findSellerStats(sellerId: string) {
 // =====================================================
 
 export async function findLatestProducts(limit = 20) {
+  const totalStart = performance.now();
+
+  const collectionStart = performance.now();
   const collection = await getCollection();
+  console.log(
+    `[PERF] findLatestProducts → getCollection: ${(
+      performance.now() - collectionStart
+    ).toFixed(0)}ms`,
+  );
+
+  const productsStart = performance.now();
 
   const products = await collection
     .find({
@@ -575,7 +585,29 @@ export async function findLatestProducts(limit = 20) {
     .limit(limit)
     .toArray();
 
-  return attachSellerVerification(products);
+  console.log(
+    `[PERF] findLatestProducts → Mongo products: ${(
+      performance.now() - productsStart
+    ).toFixed(0)}ms (${products.length} products)`,
+  );
+
+  const sellerStart = performance.now();
+
+  const result = await attachSellerVerification(products);
+
+  console.log(
+    `[PERF] findLatestProducts → seller verification: ${(
+      performance.now() - sellerStart
+    ).toFixed(0)}ms`,
+  );
+
+  console.log(
+    `[PERF] findLatestProducts → TOTAL: ${(
+      performance.now() - totalStart
+    ).toFixed(0)}ms`,
+  );
+
+  return result;
 }
 
 // =====================================================
@@ -1032,46 +1064,57 @@ export async function featureProduct(productId: string, sellerId: string) {
 // =====================================================
 
 export async function findFeaturedProducts(limit = 8) {
-  // ===================================================
-  // Database
-  // ===================================================
+  const totalStart = performance.now();
+
+  const collectionStart = performance.now();
 
   const collection = await getCollection();
 
-  // ===================================================
-  // Find Active Featured Products
-  // ===================================================
+  console.log(
+    `[PERF] findFeaturedProducts → getCollection: ${(
+      performance.now() - collectionStart
+    ).toFixed(0)}ms`,
+  );
+
+  const productsStart = performance.now();
 
   const products = await collection
     .find({
       status: "active",
-
       isFeatured: true,
-
       featuredUntil: {
         $gt: new Date(),
       },
     })
-
-    // =================================================
-    // Featured priority
-    //
-    // Most recently featured products appear first.
-    // =================================================
-
     .sort({
       featuredAt: -1,
     })
-
     .limit(limit)
-
     .toArray();
 
-  // ===================================================
-  // Attach Seller Verification / Premium data
-  // ===================================================
+  console.log(
+    `[PERF] findFeaturedProducts → Mongo products: ${(
+      performance.now() - productsStart
+    ).toFixed(0)}ms (${products.length} products)`,
+  );
 
-  return attachSellerVerification(products);
+  const sellerStart = performance.now();
+
+  const result = await attachSellerVerification(products);
+
+  console.log(
+    `[PERF] findFeaturedProducts → seller verification: ${(
+      performance.now() - sellerStart
+    ).toFixed(0)}ms`,
+  );
+
+  console.log(
+    `[PERF] findFeaturedProducts → TOTAL: ${(
+      performance.now() - totalStart
+    ).toFixed(0)}ms`,
+  );
+
+  return result;
 }
 // =====================================================
 // Products By Category
@@ -1267,21 +1310,20 @@ if (city?.trim()) {
 
   const skip = (page - 1) * limit;
 
-  // ===================================================
-  // Products + Count (parallel)
-  // ===================================================
-
-  const [totalProducts, products] = await Promise.all([
-    collection.countDocuments(query),
-    collection
-      .find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit)
-      .toArray(),
-  ]);
+  const totalProducts = await collection.countDocuments(query);
 
   const totalPages = Math.ceil(totalProducts / limit);
+
+  // ===================================================
+  // Products
+  // ===================================================
+
+  const products = await collection
+    .find(query)
+    .sort(sortOption)
+    .skip(skip)
+    .limit(limit)
+    .toArray();
 
   const productsWithSeller = await attachSellerVerification(products);
 
@@ -2538,6 +2580,18 @@ export async function searchProducts(query: string, limit = 5) {
   if (!keyword) {
     return [];
   }
+
+  console.log("Search Keyword:", keyword);
+
+  const total = await collection.countDocuments();
+
+  console.log("Total Products:", total);
+
+  const activeProducts = await collection.countDocuments({
+    status: "active",
+  });
+
+  console.log("Active Products:", activeProducts);
 
   const products = await collection
     .find({

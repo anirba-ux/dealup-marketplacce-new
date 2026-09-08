@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 
@@ -24,6 +25,8 @@ import {
 
 export default function MobileMenu() {
   const [open, setOpen] = useState(false);
+
+  const pathname = usePathname();
 
   const { data: session } = useSession();
 
@@ -50,6 +53,16 @@ export default function MobileMenu() {
   }, [open]);
 
   // =======================================================
+  // Close menu AFTER navigation completes
+  // =======================================================
+
+  useEffect(() => {
+    if (!open) return;
+
+    setOpen(false);
+  }, [pathname]);
+
+  // =======================================================
   // Prevent body scroll when menu is open
   // =======================================================
 
@@ -71,7 +84,8 @@ export default function MobileMenu() {
 
   const name = session?.user?.name || "User";
 
-  const image = session?.user?.image || "/images/default-avatar.png";
+  const image =
+    session?.user?.image || "/images/default-avatar.png";
 
   const isAdmin = session?.user?.role === "admin";
 
@@ -112,9 +126,17 @@ export default function MobileMenu() {
     },
   ];
 
+  // =======================================================
+  // Close menu manually
+  // =======================================================
+
   const closeMenu = () => {
     setOpen(false);
   };
+
+  // =======================================================
+  // Render
+  // =======================================================
 
   return (
     <>
@@ -383,7 +405,6 @@ export default function MobileMenu() {
               <div className="px-4 pt-4">
                 <Link
                   href="/login"
-                  onClick={closeMenu}
                   className="
                     flex
                     w-full
@@ -437,7 +458,6 @@ export default function MobileMenu() {
                         <Link
                           key={item.href}
                           href={item.href}
-                          onClick={closeMenu}
                           className="
                             group
                             flex
@@ -481,7 +501,6 @@ export default function MobileMenu() {
                   {isAdmin && (
                     <Link
                       href="/admin"
-                      onClick={closeMenu}
                       className="
                         mt-1
                         flex
@@ -522,7 +541,6 @@ export default function MobileMenu() {
               >
                 <Link
                   href="/sell"
-                  onClick={closeMenu}
                   className="
                     flex
                     w-full
@@ -546,7 +564,10 @@ export default function MobileMenu() {
                     dark:hover:bg-[#1565D8]
                   "
                 >
-                  <PlusCircle size={19} strokeWidth={2.2} />
+                  <PlusCircle
+                    size={19}
+                    strokeWidth={2.2}
+                  />
 
                   <span>+ {t("sell")}</span>
                 </Link>
