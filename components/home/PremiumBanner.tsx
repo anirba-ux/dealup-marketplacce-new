@@ -1,8 +1,27 @@
 import Link from "next/link";
 import Container from "@/components/ui/Container";
-import { ArrowRight, BadgeCheck, TrendingUp, Zap } from "lucide-react";
+import { auth } from "@/auth";
+import { getPremiumSellerStatus } from "@/lib/repositories/premium.repository";
+import {
+  ArrowRight,
+  BadgeCheck,
+  BarChart3,
+  TrendingUp,
+  Zap,
+} from "lucide-react";
 
-export default function PremiumBanner() {
+export default async function PremiumBanner() {
+  const session = await auth();
+  const sellerId = (session?.user as any)?.id;
+
+  const premiumStatus = sellerId
+    ? await getPremiumSellerStatus(sellerId)
+    : null;
+
+  const isPremiumSubscriber =
+    premiumStatus?.active === true &&
+    premiumStatus?.sellerAnalytics === true;
+
   return (
     <section
       className="
@@ -97,7 +116,9 @@ export default function PremiumBanner() {
               >
                 Sell Faster with
                 <br />
-                <span className="text-yellow-300">DealUp Premium</span>
+                <span className="text-yellow-300">
+                  DealUp Premium
+                </span>
               </h2>
 
               {/* Description */}
@@ -119,74 +140,76 @@ export default function PremiumBanner() {
                   lg:leading-8
                 "
               >
-                Get featured listings, reach more buyers, boost your visibility,
-                and grow your sales with our Premium Seller membership.
+                Get featured listings, reach more buyers, boost your
+                visibility, and grow your sales with our Premium Seller
+                membership.
               </p>
 
               {/* =================================================
-    ACTIONS
-================================================== */}
+                  ACTIONS
+              ================================================== */}
 
               <div
                 className="
-    mt-6
-    flex
-    w-full
-    items-center
-    gap-3
+                  mt-6
+                  grid
+                  w-full
+                  min-w-0
+                  grid-cols-1
+                  gap-3
 
-    sm:mt-8
-    sm:w-auto
-    sm:flex-row
-    sm:gap-4
+                  sm:mt-8
+                  sm:grid-cols-3
+                  sm:gap-3
 
-    lg:mt-10
-  "
+                  lg:mt-10
+                  lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.25fr)]
+                  lg:gap-3
+                "
               >
                 {/* Upgrade Now */}
 
                 <Link
                   href="/dashboard/premium"
                   className="
-  inline-flex
-  min-w-0
-  flex-1
-  items-center
-  justify-center
-  gap-1.5
-  whitespace-nowrap
-  rounded-xl
-  bg-[#f5a623]
-  px-3
-  py-3
-  text-center
-  text-sm
-  font-semibold
-  text-slate-900
-  shadow-lg
-  transition-all
-  duration-300
-  ease-out
-  hover:-translate-y-0.5
-  hover:scale-[1.02]
-  hover:bg-[#ffb52e]
-  hover:shadow-xl
-  active:translate-y-0
+                    flex
+                    min-w-0
+                    w-full
+                    items-center
+                    justify-center
+                    gap-1.5
+                    whitespace-nowrap
+                    rounded-xl
+                    bg-[#f5a623]
+                    px-3
+                    py-3
+                    text-center
+                    text-sm
+                    font-semibold
+                    text-slate-900
+                    shadow-lg
+                    transition-all
+                    duration-300
+                    ease-out
+                    hover:-translate-y-0.5
+                    hover:scale-[1.02]
+                    hover:bg-[#ffb52e]
+                    hover:shadow-xl
+                    active:translate-y-0
 
-  sm:flex-none
-  sm:gap-2
-  sm:px-8
-  sm:py-3.5
-  sm:text-base
+                    sm:px-4
+                    sm:py-3.5
 
-  lg:px-10
-  lg:py-4
-"
+                    lg:px-6
+                    lg:py-4
+                    lg:text-base
+                  "
                 >
-                  Upgrade Now
+                  <span>Upgrade Now</span>
+
                   <ArrowRight
                     size={17}
-                    className="shrink-0 sm:h-[18px] sm:w-[18px]"
+                    className="shrink-0"
                   />
                 </Link>
 
@@ -195,44 +218,190 @@ export default function PremiumBanner() {
                 <Link
                   href="/premium"
                   className="
-      inline-flex
-      min-w-0
-      flex-1
-      items-center
-      justify-center
-      rounded-xl
-      border
-      border-white/40
-      px-3
-      py-3
-      text-center
-      text-sm
-      font-semibold
-      text-white
-      backdrop-blur
-      transition-all
-      duration-300
-      ease-out
-      hover:-translate-y-0.5
-      hover:bg-white
-      hover:text-[#1565d8]
-      hover:shadow-lg
-      active:translate-y-0
+                    flex
+                    min-w-0
+                    w-full
+                    items-center
+                    justify-center
+                    gap-1.5
+                    whitespace-nowrap
+                    rounded-xl
+                    border
+                    border-white/40
+                    bg-white/5
+                    px-3
+                    py-3
+                    text-center
+                    text-sm
+                    font-semibold
+                    text-white
+                    backdrop-blur
+                    transition-all
+                    duration-300
+                    ease-out
+                    hover:-translate-y-0.5
+                    hover:bg-white
+                    hover:text-[#1565d8]
+                    hover:shadow-lg
+                    active:translate-y-0
 
-      sm:flex-none
-      sm:px-8
-      sm:py-3.5
-      sm:text-base
+                    sm:px-4
+                    sm:py-3.5
 
-      lg:px-10
-      lg:py-4
+                    lg:px-6
+                    lg:py-4
+                    lg:text-base
 
-      dark:hover:bg-slate-800
-      dark:hover:text-white
-    "
+                    dark:hover:bg-slate-800
+                    dark:hover:text-white
+                  "
                 >
-                  Learn More
+                  <span>Learn More</span>
                 </Link>
+
+                {/* Seller Analytics — Premium subscribers only */}
+
+                <div className="relative min-w-0 w-full">
+                  {/* Premium badge stays above the button */}
+                  <span
+                    className="
+                      absolute
+                      -top-2.5
+                      right-2
+                      z-10
+                      rounded-full
+                      border
+                      border-amber-300/70
+                      bg-[#f5a623]
+                      px-2
+                      py-0.5
+                      text-[8px]
+                      font-black
+                      uppercase
+                      tracking-wide
+                      text-slate-950
+                      shadow-md
+                      sm:-top-3
+                      sm:right-3
+                      sm:px-2.5
+                      sm:text-[9px]
+                    "
+                  >
+                    Premium
+                  </span>
+
+                  {isPremiumSubscriber ? (
+                    <Link
+                      href="/dashboard/analytics"
+                      className="
+                        flex
+                        min-w-0
+                        w-full
+                        items-center
+                        justify-center
+                        gap-1.5
+                        whitespace-nowrap
+                        rounded-xl
+                        border
+                        border-white/40
+                        bg-white/10
+                        px-3
+                        py-3
+                        text-center
+                        text-sm
+                        font-semibold
+                        text-white
+                        backdrop-blur
+                        transition-all
+                        duration-300
+                        ease-out
+                        hover:-translate-y-0.5
+                        hover:bg-white
+                        hover:text-[#1565d8]
+                        hover:shadow-lg
+                        active:translate-y-0
+
+                        sm:px-4
+                        sm:py-3.5
+
+                        lg:px-3
+                        lg:py-4
+                        lg:text-sm
+
+                        dark:hover:bg-slate-800
+                        dark:hover:text-white
+                      "
+                    >
+                      <BarChart3
+                        size={17}
+                        className="shrink-0"
+                      />
+
+                      <span className="min-w-0 truncate">
+                        Seller Analytics
+                      </span>
+
+                      <ArrowRight
+                        size={17}
+                        className="shrink-0"
+                      />
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/dashboard/premium"
+                      aria-label="Seller Analytics is available for Premium subscribers"
+                      className="
+                        flex
+                        min-w-0
+                        w-full
+                        items-center
+                        justify-center
+                        gap-1.5
+                        whitespace-nowrap
+                        rounded-xl
+                        border
+                        border-white/25
+                        bg-white/5
+                        px-3
+                        py-3
+                        text-center
+                        text-sm
+                        font-semibold
+                        text-white/75
+                        backdrop-blur
+                        transition-all
+                        duration-300
+                        ease-out
+                        hover:-translate-y-0.5
+                        hover:bg-white/15
+                        hover:text-white
+                        hover:shadow-lg
+                        active:translate-y-0
+
+                        sm:px-4
+                        sm:py-3.5
+
+                        lg:px-3
+                        lg:py-4
+                        lg:text-sm
+                      "
+                    >
+                      <BarChart3
+                        size={17}
+                        className="shrink-0"
+                      />
+
+                      <span className="min-w-0 truncate">
+                        Seller Analytics
+                      </span>
+
+                      <ArrowRight
+                        size={17}
+                        className="shrink-0"
+                      />
+                    </Link>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -378,7 +547,10 @@ export default function PremiumBanner() {
                     lg:w-12
                   "
                 >
-                  <Zap size={24} className="sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
+                  <Zap
+                    size={24}
+                    className="sm:h-7 sm:w-7 lg:h-8 lg:w-8"
+                  />
                 </div>
 
                 <div className="min-w-0">

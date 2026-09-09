@@ -9,7 +9,7 @@ export default function CategoryMenu() {
   const selectedCategory = searchParams.get("category");
 
   const categories = [
-    { name: "Mobiles", slug: "mobiles" },
+    { name: "Mobiles", slug: "mobile-phones" },
     { name: "Cars", slug: "cars" },
     { name: "Bikes", slug: "bikes" },
     { name: "Electronics", slug: "electronics" },

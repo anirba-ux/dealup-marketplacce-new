@@ -18,12 +18,12 @@ import {
 
 const categories = [
   {
-    title: "Mobiles",
-    slug: "mobiles",
-    icon: Smartphone,
-    color: "#1565D8",
-    soft: "rgba(21,101,216,0.16)",
-  },
+  title: "Mobiles",
+  slug: "mobile-phones",
+  icon: Smartphone,
+  color: "#1565D8",
+  soft: "rgba(21,101,216,0.16)",
+},
   {
     title: "Cars",
     slug: "cars",

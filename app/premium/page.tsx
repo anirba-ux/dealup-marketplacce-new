@@ -1,10 +1,13 @@
 import Link from "next/link";
+import BackButton from "@/components/ui/BackButton";
+
 import {
   ArrowRight,
   BadgeCheck,
   BarChart3,
   Check,
   Crown,
+  Home,
   ShieldCheck,
   Sparkles,
   TrendingUp,
@@ -86,6 +89,21 @@ const benefits = [
 export default function PremiumPage() {
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Page Navigation */}
+      <div className="relative z-20 border-b border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:px-8">
+          <BackButton />
+
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#1565d8]/30 hover:bg-slate-50 hover:text-[#1565d8] hover:shadow-md active:scale-95 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/20 dark:hover:text-white sm:px-4"
+          >
+            <Home className="h-4 w-4 shrink-0" />
+            <span>Home</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-[#1565d8] via-[#1769dc] to-[#0f52ba] px-6 py-20 text-white lg:px-8 lg:py-28">
         <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
@@ -112,20 +130,20 @@ export default function PremiumPage() {
               powerful seller tools—all designed to help you sell faster.
             </p>
 
-            <div className="mt-9 flex flex-wrap gap-4">
+            <div className="mt-9 grid grid-cols-2 gap-3 sm:max-w-md sm:gap-4 lg:flex lg:max-w-none lg:flex-col lg:items-start">
               <Link
                 href="/dashboard/premium"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#f5a623] px-7 py-4 font-bold text-slate-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-yellow-400"
+                className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-xl bg-[#f5a623] px-3 py-3.5 text-center text-sm font-bold text-slate-900 shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-105 hover:bg-yellow-400 sm:gap-2 sm:px-7 sm:py-4 sm:text-base"
               >
-                Upgrade Now
-                <ArrowRight size={19} />
+                <span className="whitespace-nowrap">Upgrade Now</span>
+                <ArrowRight size={17} className="shrink-0 sm:h-[19px] sm:w-[19px]" />
               </Link>
 
               <a
                 href="#features"
-                className="inline-flex items-center rounded-xl border border-white/40 px-7 py-4 font-semibold text-white transition-all duration-300 hover:bg-white hover:text-[#1565d8]"
+                className="inline-flex min-w-0 items-center justify-center rounded-xl border border-white/40 px-3 py-3.5 text-center text-sm font-semibold text-white transition-all duration-300 hover:bg-white hover:text-[#1565d8] sm:px-7 sm:py-4 sm:text-base"
               >
-                Explore Features
+                <span className="whitespace-nowrap">Explore Features</span>
               </a>
             </div>
           </div>

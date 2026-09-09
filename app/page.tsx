@@ -21,21 +21,46 @@ import {
 
 export default async function Home() {
   // =========================================================
+  // PERFORMANCE TEST
+  // =========================================================
+
+  const totalStart = performance.now();
+
+  console.log("========================================");
+  console.log("[PERF] HOME PAGE START");
+
+  // =========================================================
   // FETCH HOMEPAGE PRODUCTS IN PARALLEL
   // =========================================================
-  //
-  // These queries are independent.
-  // Running them together avoids unnecessary waiting.
-  //
+
+  const productsStart = performance.now();
+
   const [featuredProducts, latestProducts] = await Promise.all([
     findFeaturedProducts(20),
     findLatestProducts(8),
   ]);
 
+  const productsEnd = performance.now();
+
+  console.log(
+    `[PERF] Featured + Latest queries: ${(
+      productsEnd - productsStart
+    ).toFixed(0)}ms`,
+  );
+
+  console.log(
+    `[PERF] Featured products count: ${featuredProducts.length}`,
+  );
+
+  console.log(
+    `[PERF] Latest products count: ${latestProducts.length}`,
+  );
+
   // =========================================================
   // SERIALIZE FEATURED PRODUCTS
-  // Server Component → Client Component
   // =========================================================
+
+  const serializeStart = performance.now();
 
   const serializedFeaturedProducts = featuredProducts.map((product) => ({
     id: product._id?.toString() ?? "",
@@ -124,9 +149,27 @@ export default async function Home() {
       product.views ?? 0,
   }));
 
+  const serializeEnd = performance.now();
+
+  console.log(
+    `[PERF] Featured serialization: ${(
+      serializeEnd - serializeStart
+    ).toFixed(0)}ms`,
+  );
+
   // =========================================================
   // PAGE
   // =========================================================
+
+  const totalEnd = performance.now();
+
+  console.log(
+    `[PERF] HOME SERVER CODE: ${(
+      totalEnd - totalStart
+    ).toFixed(0)}ms`,
+  );
+
+  console.log("========================================");
 
   return (
     <>
