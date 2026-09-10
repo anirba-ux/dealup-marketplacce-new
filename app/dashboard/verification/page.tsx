@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ObjectId } from "mongodb";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import {
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { auth } from "@/auth";
+import clientPromise from "@/lib/db/mongodb";
 import { findUserById } from "@/lib/repositories/user.repository";
 import BackButton from "@/components/ui/BackButton";
 import LocationVerificationCard from "@/components/verification/LocationVerificationCard";
@@ -55,10 +57,49 @@ export default async function SellerVerificationPage() {
     redirect("/login");
   }
 
+  // ---------------------------------------------------------
+  // Read the actual identity submission review status.
+  // sellerVerification.status is the OVERALL seller status and
+  // must not be used as the identity review status.
+  // ---------------------------------------------------------
+  type IdentitySubmission = {
+    reviewStatus?: "pending" | "approved" | "rejected";
+    rejectionReason?: string | null;
+    submittedAt?: Date | string | null;
+  };
+
+  let identitySubmission: IdentitySubmission | null = null;
+
+  try {
+    const client = await clientPromise;
+    const db = client.db("dealup");
+
+    identitySubmission = (await db
+      .collection("identityVerificationSubmissions")
+      .findOne(
+        {
+          userId: String(session.user.id),
+          documentType: "aadhaar",
+        },
+        {
+          sort: { submittedAt: -1 },
+          projection: {
+            reviewStatus: 1,
+            rejectionReason: 1,
+            submittedAt: 1,
+          },
+        },
+      )) as IdentitySubmission | null;
+  } catch (error) {
+    console.error("SELLER VERIFICATION IDENTITY STATUS ERROR:", error);
+  }
+
   type SellerVerificationData = {
     status?: VerificationState;
     phoneVerified?: boolean;
     identityVerified?: boolean;
+    identitySubmissionId?: string | null;
+    identitySubmittedAt?: Date | string | null;
     identityRejectionReason?: string;
     rejectionReason?: string;
     selfieVerified?: boolean;
@@ -78,23 +119,31 @@ export default async function SellerVerificationPage() {
 
   const identityVerified = verification.identityVerified === true;
   const selfieVerified = verification.selfieVerified === true;
-  const locationVerified =
-    verification.locationVerified === true;
+  const locationVerified = verification.locationVerified === true;
+
+  // ---------------------------------------------------------
+  // Identity status comes from the identity submission itself.
+  // ---------------------------------------------------------
+  const identityReviewStatus = identityVerified
+    ? "approved"
+    : identitySubmission?.reviewStatus ??
+      (verification.identitySubmissionId ? "pending" : "none");
+
+  const identityPending =
+    !identityVerified && identityReviewStatus === "pending";
+
+  const identityRejected =
+    !identityVerified && identityReviewStatus === "rejected";
+
+  const identitySuspended =
+    !identityVerified &&
+    (verification.status ?? "unverified") === "suspended";
 
   // ---------------------------------------------------------
   // Overall seller verification state
   // ---------------------------------------------------------
   const verificationStatus =
     (verification.status ?? "unverified") as VerificationState;
-
-  const identityPending =
-    !identityVerified && verificationStatus === "pending";
-
-  const identityRejected =
-    !identityVerified && verificationStatus === "rejected";
-
-  const identitySuspended =
-    !identityVerified && verificationStatus === "suspended";
 
   const correctionRequest =
     (verification.correctionRequest ?? null) as CorrectionRequest | null;
@@ -132,7 +181,7 @@ export default async function SellerVerificationPage() {
   } else if (verificationStatus === "pending") {
     overallLabel = "Under Review";
     overallDescription =
-      "Your identity submission is currently under review by the DealUp admin team.";
+      "Your seller verification request is currently under review by the DealUp admin team.";
   } else if (verificationStatus === "rejected") {
     overallLabel = "Verification Rejected";
     overallDescription =
@@ -365,7 +414,8 @@ export default async function SellerVerificationPage() {
               }
               rejectionReason={
                 identityRejected
-                  ? verification.identityRejectionReason ??
+                  ? identitySubmission?.rejectionReason ??
+                    verification.identityRejectionReason ??
                     verification.rejectionReason
                   : undefined
               }
@@ -443,7 +493,10 @@ export default async function SellerVerificationPage() {
           id="location-selfie"
           className="mt-6 scroll-mt-6"
         >
-          <LocationVerificationCard verified={locationVerified} />
+          <LocationVerificationCard
+            verified={locationVerified}
+            selfieVerified={selfieVerified}
+          />
         </section>
 
         {/* Admin review */}

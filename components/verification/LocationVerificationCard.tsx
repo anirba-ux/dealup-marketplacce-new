@@ -17,6 +17,7 @@ import LiveSelfieCapture from "./LiveSelfieCapture";
 
 interface LocationVerificationCardProps {
   verified: boolean;
+  selfieVerified?: boolean;
 }
 
 type Mode = "desktop" | "mobile" | null;
@@ -48,6 +49,10 @@ export default function LocationVerificationCard({
   useEffect(() => {
     setLocationVerified(verified);
   }, [verified]);
+
+  useEffect(() => {
+    setSelfieVerified(selfieVerified);
+  }, [selfieVerified]);
 
   useEffect(() => {
     return () => {
@@ -324,11 +329,11 @@ export default function LocationVerificationCard({
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             <div className={`flex items-center gap-3 rounded-2xl border p-3.5 ${selfieVerified ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-500/10" : "border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5"}`}>
               <CheckCircle2 className={`h-5 w-5 shrink-0 ${selfieVerified ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selfieVerified ? "Live Selfie Verified" : "Live Selfie Pending"}</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{selfieVerified ? "Live Selfie Verified" : "Live Selfie Not Completed"}</span>
             </div>
             <div className={`flex items-center gap-3 rounded-2xl border p-3.5 ${locationVerified ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-500/10" : "border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5"}`}>
               <CheckCircle2 className={`h-5 w-5 shrink-0 ${locationVerified ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
-              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{locationVerified ? "Location Verified" : "Location Pending"}</span>
+              <span className="text-sm font-bold text-slate-800 dark:text-slate-200">{locationVerified ? "Location Verified" : "Location Not Completed"}</span>
             </div>
           </div>
         )}
