@@ -13,15 +13,11 @@ export default function PersonalInfoCard({
 }: PersonalInfoCardProps) {
   return (
     <div className="mt-8">
-      <h2 className="mb-6 text-xl font-semibold">
-        Personal Information
-      </h2>
+      <h2 className="mb-6 text-xl font-semibold">Personal Information</h2>
 
       <div className="grid gap-6 md:grid-cols-2">
         <div>
-          <label className="mb-2 block font-medium">
-            Full Name
-          </label>
+          <label className="mb-2 block font-medium">Full Name</label>
 
           <input
             name="name"
@@ -32,9 +28,7 @@ export default function PersonalInfoCard({
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">
-            Phone Number
-          </label>
+          <label className="mb-2 block font-medium">Phone Number</label>
 
           <input
             name="phone"
@@ -45,28 +39,12 @@ export default function PersonalInfoCard({
         </div>
 
         <div className="md:col-span-2">
-          <label className="mb-2 block font-medium">
-            Email Address
-          </label>
+          <label className="mb-2 block font-medium">Email Address</label>
 
           <input
             value={email}
             disabled
-            className="
-              w-full
-              rounded-xl
-              border
-              border-slate-200
-              bg-slate-100
-              px-4
-              py-3
-              text-slate-700
-              outline-none
-
-              dark:border-white/10
-              dark:bg-[#111b2e]
-              dark:text-slate-300
-            "
+            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-slate-700 outline-none transition-colors dark:border-white/10 dark:bg-[#111b2e] dark:text-slate-300"
           />
         </div>
       </div>

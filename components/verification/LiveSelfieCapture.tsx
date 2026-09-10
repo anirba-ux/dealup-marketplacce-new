@@ -637,122 +637,139 @@ export default function LiveSelfieCapture({
   // Render
   // =====================================
 
-  return (
-    <div className="mx-auto w-full max-w-xl">
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-950 shadow-xl">
-        {/* ================================= */}
-        {/* Camera */}
-        {/* ================================= */}
+  const statusLabel =
+    state === "loading"
+      ? "Preparing camera"
+      : state === "no-face"
+        ? "Looking for your face"
+        : state === "position"
+          ? "Adjust your position"
+          : state === "blink"
+            ? "Liveness check"
+            : state === "steady"
+              ? "Keep still"
+              : state === "countdown"
+                ? "Capturing"
+                : state === "captured"
+                  ? "Selfie captured"
+                  : "Verification error";
 
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
+  return (
+    <div className="mx-auto w-full max-w-2xl">
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-[#07111f] shadow-xl shadow-slate-900/10 dark:border-white/10 dark:bg-[#050b16]">
+        <div className="border-b border-white/10 px-4 py-4 sm:px-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-300">
+                Live verification
+              </p>
+              <h3 className="mt-1 text-sm font-black text-white sm:text-base">
+                Keep your face inside the guide
+              </h3>
+            </div>
+
+            <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-[11px] font-bold text-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+              {statusLabel}
+            </span>
+          </div>
+        </div>
+
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-black sm:aspect-video">
           <video
             ref={videoRef}
             muted
             playsInline
             autoPlay
+            aria-label="Live selfie camera"
             className="h-full w-full object-cover"
-            style={{
-              transform: "scaleX(-1)",
-            }}
+            style={{ transform: "scaleX(-1)" }}
           />
 
-          {/* ================================= */}
-          {/* Face Guide */}
-          {/* ================================= */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/45 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/60 to-transparent" />
+          </div>
+
+          <div className="pointer-events-none absolute left-4 top-4 rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur-md">
+            Camera active
+          </div>
 
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <div
-              className={`
-                h-[65%]
-                w-[48%]
-                rounded-[50%]
-                border-4
-                ${
-                  state === "countdown"
-                    ? "border-green-400 shadow-[0_0_30px_rgba(74,222,128,0.6)]"
-                    : state === "captured"
-                      ? "border-green-500"
-                      : state === "steady"
-                        ? "border-yellow-400"
-                        : "border-white/80"
-                }
-              `}
-            />
+              className={`relative h-[70%] w-[52%] max-w-[320px] rounded-[50%] border-[3px] transition-all duration-300 sm:w-[38%] ${
+                state === "countdown"
+                  ? "border-green-400 shadow-[0_0_35px_rgba(74,222,128,0.65)]"
+                  : state === "captured"
+                    ? "border-green-400 shadow-[0_0_30px_rgba(74,222,128,0.55)]"
+                    : state === "steady"
+                      ? "border-yellow-300 shadow-[0_0_24px_rgba(253,224,71,0.3)]"
+                      : state === "error"
+                        ? "border-red-400"
+                        : "border-white/85"
+              }`}
+            >
+              <span className="absolute -left-1 -top-1 h-7 w-7 rounded-tl-xl border-l-[3px] border-t-[3px] border-white" />
+              <span className="absolute -right-1 -top-1 h-7 w-7 rounded-tr-xl border-r-[3px] border-t-[3px] border-white" />
+              <span className="absolute -bottom-1 -left-1 h-7 w-7 rounded-bl-xl border-b-[3px] border-l-[3px] border-white" />
+              <span className="absolute -bottom-1 -right-1 h-7 w-7 rounded-br-xl border-b-[3px] border-r-[3px] border-white" />
+            </div>
           </div>
 
-          {/* ================================= */}
-          {/* Countdown */}
-          {/* ================================= */}
-
           {countdown !== null && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex h-32 w-32 items-center justify-center rounded-full bg-black/60 text-7xl font-bold text-white shadow-2xl backdrop-blur">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/15">
+              <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-black/65 text-6xl font-black text-white shadow-2xl backdrop-blur-md sm:h-28 sm:w-28 sm:text-7xl">
                 {countdown}
               </div>
             </div>
           )}
 
-          {/* ================================= */}
-          {/* Loading */}
-          {/* ================================= */}
-
           {state === "loading" && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-              <div className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-xl">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-5 backdrop-blur-[2px]">
+              <div className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/10 px-5 py-4 text-center text-sm font-bold text-white shadow-2xl backdrop-blur-xl">
                 {message}
               </div>
             </div>
           )}
+
+          {state !== "loading" && state !== "error" && state !== "captured" && (
+            <div className="absolute inset-x-0 bottom-4 px-4 text-center">
+              <span className="inline-flex max-w-full rounded-full bg-black/55 px-4 py-2 text-xs font-bold text-white backdrop-blur-md">
+                {message}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* ================================= */}
-        {/* Message */}
-        {/* ================================= */}
-
-        <div className="space-y-3 p-5">
+        <div className="space-y-3 p-4 sm:p-5">
           <div
-            className={`
-              rounded-2xl
-              px-4
-              py-4
-              text-center
-              ${
-                state === "captured"
-                  ? "bg-green-600"
-                  : state === "countdown"
-                    ? "bg-green-700"
-                    : state === "error"
-                      ? "bg-red-700"
-                      : "bg-slate-800"
-              }
-            `}
+            className={`rounded-2xl border px-4 py-3.5 ${
+              state === "captured"
+                ? "border-green-400/20 bg-green-500/10"
+                : state === "error"
+                  ? "border-red-400/20 bg-red-500/10"
+                  : "border-white/10 bg-white/5"
+            }`}
           >
-            <p className="text-sm font-semibold text-white">{message}</p>
+            <p
+              className={`text-center text-sm font-bold ${
+                state === "captured"
+                  ? "text-green-300"
+                  : state === "error"
+                    ? "text-red-300"
+                    : "text-slate-200"
+              }`}
+            >
+              {state === "captured" ? "✓ " : ""}
+              {state === "error" ? error : message}
+            </p>
           </div>
 
-          {/* ================================= */}
-          {/* Captured */}
-          {/* ================================= */}
-
           {state === "captured" && (
-            <div className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-700">
-              ✓ Your live selfie has been captured for seller verification.
+            <div className="rounded-2xl border border-green-200/20 bg-green-50 px-4 py-3 text-center text-sm font-bold text-green-700">
+              ✓ Your live selfie is ready for seller verification.
             </div>
           )}
-
-          {/* ================================= */}
-          {/* Error */}
-          {/* ================================= */}
-
-          {state === "error" && (
-            <div className="rounded-xl bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-700">
-              {error}
-            </div>
-          )}
-
-          {/* ================================= */}
-          {/* Cancel */}
-          {/* ================================= */}
 
           {onCancel && (
             <button
@@ -768,17 +785,19 @@ export default function LiveSelfieCapture({
 
                 onCancel();
               }}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-slate-200 transition hover:border-white/25 hover:bg-white/10 active:scale-[0.99]"
             >
-              Cancel
+              Cancel Verification
             </button>
           )}
         </div>
       </div>
 
-      {/* ================================= */}
-      {/* Hidden Canvas */}
-      {/* ================================= */}
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+        <span>• Look at the camera</span>
+        <span>• Blink once</span>
+        <span>• Keep still during capture</span>
+      </div>
 
       <canvas ref={canvasRef} className="hidden" />
     </div>

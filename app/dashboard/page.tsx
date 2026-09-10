@@ -465,7 +465,7 @@ export default async function DashboardPage() {
                     {/* Verification Action */}
 
                     <Link
-                      href="/dashboard/profile/verification"
+                      href="/dashboard/verification"
                       className="
                         inline-flex
                         w-full
