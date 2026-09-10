@@ -41,6 +41,10 @@ export default function LiveSelfieCapture({
 
   const countdownStartedRef = useRef(false);
 
+  // Mobile cameras can occasionally miss a single video frame.
+  // Do not cancel a valid countdown because of one transient miss.
+  const missedFaceFramesRef = useRef(0);
+
   // =====================================
   // Steady Face Tracking
   // =====================================
@@ -135,11 +139,11 @@ export default function LiveSelfieCapture({
 
           numFaces: 1,
 
-          minFaceDetectionConfidence: 0.6,
+          minFaceDetectionConfidence: 0.5,
 
-          minFacePresenceConfidence: 0.6,
+          minFacePresenceConfidence: 0.5,
 
-          minTrackingConfidence: 0.6,
+          minTrackingConfidence: 0.5,
 
           outputFaceBlendshapes: true,
         });
@@ -235,6 +239,7 @@ export default function LiveSelfieCapture({
     lastFaceCenterRef.current = null;
 
     lastFaceSizeRef.current = null;
+    missedFaceFramesRef.current = 0;
   }
 
   // =====================================
@@ -276,10 +281,23 @@ export default function LiveSelfieCapture({
       // =====================================
 
       if (!faces || faces.length === 0) {
+        // A mobile camera can briefly lose the face for a frame while
+        // autofocus/exposure changes. Keep the countdown alive for a
+        // short grace period instead of immediately cancelling it.
         if (countdownStartedRef.current) {
+          missedFaceFramesRef.current += 1;
+
+          if (missedFaceFramesRef.current <= 20) {
+            setState("countdown");
+            setMessage("Hold still — keeping your face in frame...");
+            animationFrameRef.current = requestAnimationFrame(detectFace);
+            return;
+          }
+
           resetCountdown();
         }
 
+        missedFaceFramesRef.current = 0;
         blinkDetectedRef.current = false;
 
         setState("no-face");
@@ -290,6 +308,8 @@ export default function LiveSelfieCapture({
 
         return;
       }
+
+      missedFaceFramesRef.current = 0;
 
       const face = faces[0];
 
@@ -321,15 +341,15 @@ export default function LiveSelfieCapture({
       // Face Position
       // =====================================
 
-      const insideHorizontal = faceCenterX > 0.35 && faceCenterX < 0.65;
+      const insideHorizontal = faceCenterX > 0.30 && faceCenterX < 0.70;
 
-      const insideVertical = faceCenterY > 0.35 && faceCenterY < 0.65;
+      const insideVertical = faceCenterY > 0.30 && faceCenterY < 0.70;
 
       const correctSize =
-        faceWidth > 0.25 &&
-        faceWidth < 0.65 &&
-        faceHeight > 0.25 &&
-        faceHeight < 0.75;
+        faceWidth > 0.20 &&
+        faceWidth < 0.75 &&
+        faceHeight > 0.20 &&
+        faceHeight < 0.80;
 
       // =====================================
       // Invalid Position
@@ -464,9 +484,9 @@ export default function LiveSelfieCapture({
           // =====================================
 
           const faceIsStable =
-            centerMovement < 0.015 &&
-            widthMovement < 0.025 &&
-            heightMovement < 0.025;
+            centerMovement < 0.02 &&
+            widthMovement < 0.035 &&
+            heightMovement < 0.035;
 
           if (!faceIsStable) {
             // Face moved

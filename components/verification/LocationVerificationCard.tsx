@@ -37,6 +37,7 @@ export default function LocationVerificationCard({
   const [locationVerified, setLocationVerified] = useState(verified);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const tokenRef = useRef<string>("");
 
   useEffect(() => {
     if (typeof navigator !== "undefined") {
@@ -106,7 +107,7 @@ export default function LocationVerificationCard({
   }
 
   async function submitSelfie(imageData: string) {
-    const sessionToken = token;
+    const sessionToken = tokenRef.current || token;
     if (!sessionToken) {
       setError("Verification session is missing. Please start again.");
       return;
@@ -161,7 +162,7 @@ export default function LocationVerificationCard({
   }
 
   async function captureLocation() {
-    const sessionToken = token;
+    const sessionToken = tokenRef.current || token;
     if (!sessionToken) {
       setError("Verification session is missing. Please start again.");
       return;
@@ -224,7 +225,7 @@ export default function LocationVerificationCard({
   }
 
   async function checkStatus() {
-    const sessionToken = token;
+    const sessionToken = tokenRef.current || token;
     if (!sessionToken) return;
 
     try {
@@ -284,6 +285,7 @@ export default function LocationVerificationCard({
   function resetSelection() {
     if (pollingRef.current) clearInterval(pollingRef.current);
     setMode(null);
+    tokenRef.current = "";
     setToken("");
     setMobileUrl("");
     setMessage("");
