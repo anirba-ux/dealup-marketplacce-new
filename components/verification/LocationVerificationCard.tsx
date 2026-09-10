@@ -81,7 +81,8 @@ export default function LocationVerificationCard({
 
   async function startMode(selectedMode: Exclude<Mode, null>) {
     try {
-      setMode(selectedMode);
+      // IMPORTANT: create the session before mounting LiveSelfieCapture.
+      // Otherwise the selfie callback can fire while token is still empty.
       setLoading(true);
       setError("");
       setMessage("");
@@ -91,8 +92,14 @@ export default function LocationVerificationCard({
       setAccuracy(null);
 
       const data = await createSession();
+
+      // Store the token immediately in both ref and state.
+      tokenRef.current = data.token;
       setToken(data.token);
       setMobileUrl(String(data.mobileUrl || ""));
+
+      // Only mount the camera/QR flow after the session is ready.
+      setMode(selectedMode);
 
       if (selectedMode === "mobile" && !isMobileDevice) {
         setMessage("Scan the QR code with your mobile phone to continue selfie + GPS verification.");
@@ -293,23 +300,6 @@ export default function LocationVerificationCard({
     setSelfieVerified(false);
     setLocationVerified(verified);
     setAccuracy(null);
-  }
-
-  if (verified) {
-    return (
-      <section className="rounded-[28px] border border-emerald-200 bg-white p-5 shadow-sm dark:border-emerald-900/70 dark:bg-[#091526] sm:p-7">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-            <CheckCircle2 className="h-6 w-6" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">Verified</p>
-            <h3 className="mt-1 text-xl font-extrabold text-slate-900 dark:text-white">Location Verified</h3>
-            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">Your location verification is already complete.</p>
-          </div>
-        </div>
-      </section>
-    );
   }
 
   const directCameraMode = mode !== null && (mode === "desktop" || isMobileDevice);
