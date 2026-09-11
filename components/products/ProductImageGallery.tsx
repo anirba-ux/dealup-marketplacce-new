@@ -2,12 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Gem,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Gem } from "lucide-react";
 
 // =====================================================
 // Product Image
@@ -46,25 +41,21 @@ export default function ProductImageGallery({
   // Selected Image
   // ===================================================
 
-  const [selectedImage, setSelectedImage] =
-    useState(images[0]?.url);
+  const [selectedImage, setSelectedImage] = useState(images[0]?.url);
 
   // ===================================================
   // Fullscreen Preview
   // ===================================================
 
-  const [openPreview, setOpenPreview] =
-    useState(false);
+  const [openPreview, setOpenPreview] = useState(false);
 
   // ===================================================
   // Touch / Swipe
   // ===================================================
 
-  const [touchStart, setTouchStart] =
-    useState(0);
+  const [touchStart, setTouchStart] = useState(0);
 
-  const [touchEnd, setTouchEnd] =
-    useState(0);
+  const [touchEnd, setTouchEnd] = useState(0);
 
   // ===================================================
   // Premium Badge
@@ -78,18 +69,13 @@ export default function ProductImageGallery({
   // ===================================================
 
   const hasPremiumBadge =
-    sellerPremiumSeller === true &&
-    sellerPremiumBadge === true;
+    sellerPremiumSeller === true && sellerPremiumBadge === true;
 
   // ===================================================
   // Current Image Index
   // ===================================================
 
-  const currentIndex =
-    images.findIndex(
-      (image) =>
-        image.url === selectedImage,
-    );
+  const currentIndex = images.findIndex((image) => image.url === selectedImage);
 
   // ===================================================
   // Previous Image
@@ -101,13 +87,9 @@ export default function ProductImageGallery({
     }
 
     if (currentIndex <= 0) {
-      setSelectedImage(
-        images[images.length - 1].url,
-      );
+      setSelectedImage(images[images.length - 1].url);
     } else {
-      setSelectedImage(
-        images[currentIndex - 1].url,
-      );
+      setSelectedImage(images[currentIndex - 1].url);
     }
   }
 
@@ -120,17 +102,10 @@ export default function ProductImageGallery({
       return;
     }
 
-    if (
-      currentIndex ===
-      images.length - 1
-    ) {
-      setSelectedImage(
-        images[0].url,
-      );
+    if (currentIndex === images.length - 1) {
+      setSelectedImage(images[0].url);
     } else {
-      setSelectedImage(
-        images[currentIndex + 1].url,
-      );
+      setSelectedImage(images[currentIndex + 1].url);
     }
   }
 
@@ -139,12 +114,9 @@ export default function ProductImageGallery({
   // ===================================================
 
   function handleSwipe() {
-    const swipeDistance =
-      touchStart - touchEnd;
+    const swipeDistance = touchStart - touchEnd;
 
-    if (
-      Math.abs(swipeDistance) < 80
-    ) {
+    if (Math.abs(swipeDistance) < 80) {
       return;
     }
 
@@ -169,9 +141,7 @@ export default function ProductImageGallery({
       return;
     }
 
-    function handleKeyDown(
-      event: KeyboardEvent,
-    ) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "ArrowLeft") {
         previousImage();
       }
@@ -185,21 +155,12 @@ export default function ProductImageGallery({
       }
     }
 
-    window.addEventListener(
-      "keydown",
-      handleKeyDown,
-    );
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeyDown,
-      );
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    openPreview,
-    currentIndex,
-  ]);
+  }, [openPreview, currentIndex]);
 
   // ===================================================
   // No Images
@@ -251,20 +212,12 @@ export default function ProductImageGallery({
         "
       >
         <div
-          onClick={() =>
-            setOpenPreview(true)
-          }
+          onClick={() => setOpenPreview(true)}
           onTouchStart={(e) => {
-            setTouchStart(
-              e.targetTouches[0]
-                .clientX,
-            );
+            setTouchStart(e.targetTouches[0].clientX);
           }}
           onTouchMove={(e) => {
-            setTouchEnd(
-              e.targetTouches[0]
-                .clientX,
-            );
+            setTouchEnd(e.targetTouches[0].clientX);
           }}
           onTouchEnd={handleSwipe}
           className="
@@ -339,15 +292,9 @@ export default function ProductImageGallery({
                 group-hover:scale-105
               "
             >
-              <Gem
-                size={17}
-                strokeWidth={2.8}
-                className="text-white"
-              />
+              <Gem size={17} strokeWidth={2.8} className="text-white" />
 
-              <span>
-                Premium
-              </span>
+              <span>Premium</span>
             </div>
           )}
 
@@ -374,8 +321,7 @@ export default function ProductImageGallery({
               backdrop-blur-md
             "
           >
-            📷 {currentIndex + 1} /{" "}
-            {images.length}
+            📷 {currentIndex + 1} / {images.length}
           </div>
 
           {/* =================================================
@@ -411,9 +357,7 @@ export default function ProductImageGallery({
                 hover:bg-black/70
               "
             >
-              <ChevronLeft
-                size={22}
-              />
+              <ChevronLeft size={22} />
             </button>
           )}
 
@@ -450,9 +394,7 @@ export default function ProductImageGallery({
                 hover:bg-black/70
               "
             >
-              <ChevronRight
-                size={22}
-              />
+              <ChevronRight size={22} />
             </button>
           )}
 
@@ -476,62 +418,54 @@ export default function ProductImageGallery({
       {images.length > 1 && (
         <div
           className="
-            mt-4
-            flex
-            gap-3
-            overflow-x-auto
-          "
+    mt-4
+    flex
+    w-full
+    gap-3
+    overflow-x-auto
+    overscroll-x-contain
+    pb-2
+    [scrollbar-width:none]
+    [-ms-overflow-style:none]
+  "
         >
-          {images.map(
-            (image, index) => (
-              <button
-                type="button"
-                key={index}
-                onClick={() =>
-                  setSelectedImage(
-                    image.url,
-                  )
-                }
-                aria-label={`Select image ${
-                  index + 1
-                }`}
-                className={`
-                  group
-
-                  overflow-hidden
-
-                  rounded-2xl
-
-                  border-2
-
-                  shadow-sm
-
-                  transition-all
-                  duration-300
-
-                  ${
-                    selectedImage ===
-                    image.url
-                      ? "scale-105 border-[#1565d8] shadow-lg"
-                      : "border-transparent hover:scale-105 hover:border-blue-300"
-                  }
-                `}
-              >
-                <div
-                  className="
+          {images.map((image, index) => (
+            <button
+              type="button"
+              key={index}
+              onClick={() => setSelectedImage(image.url)}
+              aria-label={`Select image ${index + 1}`}
+              className={`
+  group
+  h-24
+  w-24
+  shrink-0
+  overflow-hidden
+  rounded-2xl
+  border-2
+  shadow-sm
+  transition-all
+  duration-300
+  ${
+    selectedImage === image.url
+      ? "scale-105 border-[#1565d8] shadow-lg"
+      : "border-transparent hover:scale-105 hover:border-blue-300"
+  }
+`}
+            >
+              <div
+                className="
                     relative
                     h-24
                     w-24
                   "
-                >
-                  <Image
-                    src={image.url}
-                    alt={`Thumbnail ${
-                      index + 1
-                    }`}
-                    fill
-                    sizes="96px"
-                    className="
+              >
+                <Image
+                  src={image.url}
+                  alt={`Thumbnail ${index + 1}`}
+                  fill
+                  sizes="96px"
+                  className="
                       object-cover
 
                       transition-transform
@@ -539,11 +473,10 @@ export default function ProductImageGallery({
 
                       group-hover:scale-110
                     "
-                  />
-                </div>
-              </button>
-            ),
-          )}
+                />
+              </div>
+            </button>
+          ))}
         </div>
       )}
 
@@ -566,9 +499,7 @@ export default function ProductImageGallery({
 
             p-6
           "
-          onClick={() =>
-            setOpenPreview(false)
-          }
+          onClick={() => setOpenPreview(false)}
         >
           {/* =================================================
               FULLSCREEN PREVIOUS
@@ -604,9 +535,7 @@ export default function ProductImageGallery({
                 hover:bg-white/40
               "
             >
-              <ChevronLeft
-                size={28}
-              />
+              <ChevronLeft size={28} />
             </button>
           )}
 
@@ -667,15 +596,9 @@ export default function ProductImageGallery({
                 backdrop-blur-md
               "
             >
-              <Gem
-                size={17}
-                strokeWidth={2.8}
-                className="text-white"
-              />
+              <Gem size={17} strokeWidth={2.8} className="text-white" />
 
-              <span>
-                Premium
-              </span>
+              <span>Premium</span>
             </div>
           )}
 
@@ -706,22 +629,17 @@ export default function ProductImageGallery({
                 backdrop-blur-md
               "
             >
-              {images.map(
-                (image, index) => (
-                  <button
-                    type="button"
-                    key={index}
-                    onClick={(e) => {
-                      e.stopPropagation();
+              {images.map((image, index) => (
+                <button
+                  type="button"
+                  key={index}
+                  onClick={(e) => {
+                    e.stopPropagation();
 
-                      setSelectedImage(
-                        image.url,
-                      );
-                    }}
-                    aria-label={`Select preview image ${
-                      index + 1
-                    }`}
-                    className={`
+                    setSelectedImage(image.url);
+                  }}
+                  aria-label={`Select preview image ${index + 1}`}
+                  className={`
                       relative
 
                       h-16
@@ -736,27 +654,23 @@ export default function ProductImageGallery({
                       transition-all
 
                       ${
-                        selectedImage ===
-                        image.url
+                        selectedImage === image.url
                           ? "border-blue-500"
                           : "border-transparent hover:border-white"
                       }
                     `}
-                  >
-                    <Image
-                      src={image.url}
-                      alt={`Preview thumbnail ${
-                        index + 1
-                      }`}
-                      fill
-                      sizes="64px"
-                      className="
+                >
+                  <Image
+                    src={image.url}
+                    alt={`Preview thumbnail ${index + 1}`}
+                    fill
+                    sizes="64px"
+                    className="
                         object-cover
                       "
-                    />
-                  </button>
-                ),
-              )}
+                  />
+                </button>
+              ))}
             </div>
           </div>
 
@@ -794,9 +708,7 @@ export default function ProductImageGallery({
                 hover:bg-white/40
               "
             >
-              <ChevronRight
-                size={28}
-              />
+              <ChevronRight size={28} />
             </button>
           )}
 
@@ -824,8 +736,7 @@ export default function ProductImageGallery({
               backdrop-blur-md
             "
           >
-            {currentIndex + 1} /{" "}
-            {images.length}
+            {currentIndex + 1} / {images.length}
           </div>
 
           {/* =================================================
@@ -834,9 +745,7 @@ export default function ProductImageGallery({
 
           <button
             type="button"
-            onClick={() =>
-              setOpenPreview(false)
-            }
+            onClick={() => setOpenPreview(false)}
             aria-label="Close preview"
             className="
               absolute
