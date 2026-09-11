@@ -5,12 +5,13 @@ import { socket } from "@/lib/socket/client";
 
 export function useSocket() {
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
+    socket.connect();
 
-   
-    return () => {};
+    return () => {
+      // Do not disconnect here.
+      // The same socket instance may be used by other
+      // chat components, and the client handles reconnects.
+    };
   }, []);
 
   return socket;

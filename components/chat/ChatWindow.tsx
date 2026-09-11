@@ -40,29 +40,46 @@ export default function ChatWindow({
 
   const router = useRouter();
 
-  useEffect(() => {
-    const roomId = conversation._id.toString();
+ useEffect(() => {
+  const roomId = conversation._id.toString();
 
-    function joinRoom() {
-      console.log("📥 Joining room:", roomId);
+  function joinRoom() {
+    console.log("📥 Joining conversation room:", roomId);
 
-      socket.emit(SOCKET_EVENTS.JOIN_CONVERSATION, roomId);
-    }
+    socket.emit(
+      SOCKET_EVENTS.JOIN_CONVERSATION,
+      roomId
+    );
+  }
+
+  /*
+   * Join immediately if already connected.
+   */
+  if (socket.connected) {
+    joinRoom();
+  } else {
+    /*
+     * Otherwise wait for WebSocket connection.
+     */
+    socket.once("connect", joinRoom);
+  }
+
+  return () => {
+    socket.off("connect", joinRoom);
 
     if (socket.connected) {
-      joinRoom();
-    } else {
-      socket.once("connect", joinRoom);
+      console.log(
+        "📤 Leaving conversation room:",
+        roomId
+      );
+
+      socket.emit(
+        SOCKET_EVENTS.LEAVE_CONVERSATION,
+        roomId
+      );
     }
-
-    return () => {
-      socket.off("connect", joinRoom);
-
-      if (socket.connected) {
-        socket.emit(SOCKET_EVENTS.LEAVE_CONVERSATION, roomId);
-      }
-    };
-  }, [conversation._id]);
+  };
+}, [conversation._id, socket]);
 
   const [messages, setMessages] = useState(initialMessages);
   const [message, setMessage] = useState("");
@@ -122,16 +139,54 @@ export default function ChatWindow({
   }, [messages]);
 
   useEffect(() => {
-    function handleReceiveMessage(newMessage: any) {
-      setMessages((prev) => [...prev, newMessage]);
+  function handleReceiveMessage(newMessage: any) {
+    if (!newMessage) {
+      return;
     }
 
-    socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
+    /*
+     * Make sure the message belongs to
+     * the currently open conversation.
+     */
+    if (
+      newMessage.conversationId?.toString() !==
+      conversation._id.toString()
+    ) {
+      return;
+    }
 
-    return () => {
-      socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
-    };
-  }, [socket]);
+    /*
+     * Prevent duplicate messages.
+     */
+    setMessages((prev) => {
+      const messageId = newMessage._id?.toString();
+
+      if (
+        messageId &&
+        prev.some(
+          (msg: any) =>
+            msg._id?.toString() === messageId
+        )
+      ) {
+        return prev;
+      }
+
+      return [...prev, newMessage];
+    });
+  }
+
+  socket.on(
+    SOCKET_EVENTS.RECEIVE_MESSAGE,
+    handleReceiveMessage
+  );
+
+  return () => {
+    socket.off(
+      SOCKET_EVENTS.RECEIVE_MESSAGE,
+      handleReceiveMessage
+    );
+  };
+}, [socket, conversation._id]);
 
   async function uploadChatImage(file: File) {
     // =====================================
@@ -1025,7 +1080,10 @@ export default function ChatWindow({
             // 5. Notify socket
             // ===============================
 
-            socket?.emit("send-message", data);
+            socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
+              conversationId: conversation._id.toString(),
+              message: data,
+            });
           } catch (error) {
             console.error("IMAGE SEND ERROR:", error);
 
@@ -1107,7 +1165,10 @@ export default function ChatWindow({
             // 5. Notify socket
             // =====================================
 
-            socket?.emit("send-message", data);
+            socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
+              conversationId: conversation._id.toString(),
+              message: data,
+            });
 
             toast.success("Document sent successfully.");
           } catch (error) {
@@ -1193,7 +1254,10 @@ export default function ChatWindow({
             // 5. Socket
             // =================================
 
-            socket?.emit("send-message", data);
+            socket.emit(SOCKET_EVENTS.SEND_MESSAGE, {
+              conversationId: conversation._id.toString(),
+              message: data,
+            });
 
             toast.success("Video sent successfully.");
           } catch (error) {
