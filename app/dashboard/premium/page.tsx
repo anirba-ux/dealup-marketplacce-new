@@ -21,6 +21,14 @@ import {
   Zap,
 } from "lucide-react";
 
+declare global {
+  interface Window {
+    Cashfree?: (options: { mode: "sandbox" | "production" }) => {
+      checkout: (options: { paymentSessionId: string }) => Promise<unknown>;
+    };
+  }
+}
+
 // =====================================================
 // Premium Seller Status
 // =====================================================
@@ -221,6 +229,10 @@ export default function PremiumPage() {
   // Activate / Pay Premium
   // ===================================================
 
+  // ===================================================
+  // Activate / Pay Premium with Cashfree
+  // ===================================================
+
   async function handleActivatePremium() {
     try {
       setActivating(true);
@@ -230,10 +242,10 @@ export default function PremiumPage() {
       setSuccess("");
 
       // =================================================
-      // Create Razorpay Order
+      // Create Cashfree Order
       // =================================================
 
-      const response = await fetch("/api/payment/create-order", {
+      const response = await fetch("/api/payment/cashfree/create-order", {
         method: "POST",
 
         headers: {
@@ -255,124 +267,60 @@ export default function PremiumPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.message ?? "Unable to create payment order.");
+        throw new Error(
+          data?.message ?? "Unable to create Cashfree payment order.",
+        );
       }
 
       // =================================================
-      // Razorpay SDK Check
+      // Validate Payment Session
+      // =================================================
+
+      if (!data?.paymentSessionId) {
+        throw new Error("Cashfree payment session was not created.");
+      }
+
+      // =================================================
+      // Check Cashfree SDK
       // =================================================
 
       if (typeof window === "undefined") {
         throw new Error("Payment gateway is not available.");
       }
 
-      if (!window.Razorpay) {
+      if (!window.Cashfree) {
         throw new Error(
-          "Razorpay payment gateway is not loaded. Please refresh the page and try again.",
+          "Cashfree payment gateway is not loaded. Please refresh the page and try again.",
         );
       }
 
       // =================================================
-      // Open Razorpay Checkout
+      // Initialize Cashfree
       // =================================================
 
-      const razorpay = new window.Razorpay({
-        key: data.razorpayKeyId,
-
-        amount: data.order.amount,
-
-        currency: data.order.currency,
-
-        name: "DealUp",
-
-        description: `Premium Seller - ${
-          selectedPlan === "monthly"
-            ? "Monthly"
-            : selectedPlan === "quarterly"
-              ? "Quarterly"
-              : "Yearly"
-        }`,
-
-        order_id: data.order.id,
-
-        handler: async (paymentResponse) => {
-          try {
-            setActivating(true);
-
-            setError("");
-
-            // =======================================
-            // Verify Razorpay Payment
-            // =======================================
-
-            const verifyResponse = await fetch("/api/payment/verify", {
-              method: "POST",
-
-              headers: {
-                "Content-Type": "application/json",
-              },
-
-              body: JSON.stringify({
-                razorpayOrderId: paymentResponse.razorpay_order_id,
-
-                razorpayPaymentId: paymentResponse.razorpay_payment_id,
-
-                razorpaySignature: paymentResponse.razorpay_signature,
-
-                paymentType: data.paymentType,
-
-                plan: selectedPlan,
-              }),
-            });
-
-            const verifyData = await verifyResponse.json();
-
-            if (!verifyResponse.ok) {
-              throw new Error(
-                verifyData?.message ?? "Payment verification failed.",
-              );
-            }
-
-            // =======================================
-            // Success
-            // =======================================
-
-            setSuccess(
-              "Payment successful! Premium Seller has been activated.",
-            );
-
-            // =======================================
-            // Reload Premium Status
-            // =======================================
-
-            await loadPremiumStatus();
-          } catch (error) {
-            console.error("PREMIUM PAYMENT VERIFICATION ERROR:", error);
-
-            setError(
-              error instanceof Error
-                ? error.message
-                : "Payment verification failed.",
-            );
-          } finally {
-            setActivating(false);
-          }
-        },
-
-        modal: {
-          ondismiss: () => {
-            setActivating(false);
-          },
-        },
-
-        theme: {
-          color: "#1565d8",
-        },
+      const cashfree = window.Cashfree({
+        mode: data.environment === "production" ? "production" : "sandbox",
       });
 
-      razorpay.open();
+      // =================================================
+      // Open Cashfree Checkout
+      // =================================================
+
+      await cashfree.checkout({
+        paymentSessionId: data.paymentSessionId,
+      });
+
+      // =================================================
+      // Checkout opened successfully
+      //
+      // IMPORTANT:
+      // Actual payment verification will be handled
+      // server-side in the next step.
+      // =================================================
+
+      setActivating(false);
     } catch (error) {
-      console.error("PREMIUM PAYMENT ERROR:", error);
+      console.error("CASHFREE PREMIUM PAYMENT ERROR:", error);
 
       setError(
         error instanceof Error
@@ -566,8 +514,9 @@ export default function PremiumPage() {
     },
     {
       question: "Is my payment secure?",
+
       answer:
-        "Premium payments are processed through Razorpay Checkout. DealUp verifies the Razorpay order, payment ID and signature before activating Premium.",
+        "Premium payments are processed securely through Cashfree Checkout. DealUp verifies the payment status on the server before activating Premium.",
     },
     {
       question: "What happens after my plan expires?",
@@ -580,6 +529,11 @@ export default function PremiumPage() {
     <>
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+      />
+
+      <Script
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
         strategy="afterInteractive"
       />
 
@@ -855,9 +809,7 @@ export default function PremiumPage() {
                     dark:text-white
                   "
                 >
-                  <span className="block">
-                    Upgrade to
-                  </span>
+                  <span className="block">Upgrade to</span>
 
                   <span
                     className="
@@ -912,26 +864,22 @@ export default function PremiumPage() {
                     {
                       icon: <Megaphone size={14} />,
                       label: "Featured Ads",
-                      color:
-                        "text-emerald-600 dark:text-emerald-400",
+                      color: "text-emerald-600 dark:text-emerald-400",
                     },
                     {
                       icon: <TrendingUp size={14} />,
                       label: "Higher Visibility",
-                      color:
-                        "text-[#1565d8] dark:text-blue-300",
+                      color: "text-[#1565d8] dark:text-blue-300",
                     },
                     {
                       icon: <BarChart3 size={14} />,
                       label: "Seller Analytics",
-                      color:
-                        "text-violet-600 dark:text-violet-400",
+                      color: "text-violet-600 dark:text-violet-400",
                     },
                     {
                       icon: <Headphones size={14} />,
                       label: "Priority Support",
-                      color:
-                        "text-amber-600 dark:text-amber-400",
+                      color: "text-amber-600 dark:text-amber-400",
                     },
                   ].map((item) => (
                     <div
@@ -954,9 +902,7 @@ export default function PremiumPage() {
                         dark:bg-[#071426]/80
                       "
                     >
-                      <span
-                        className={`shrink-0 ${item.color}`}
-                      >
+                      <span className={`shrink-0 ${item.color}`}>
                         {item.icon}
                       </span>
 
@@ -1016,13 +962,13 @@ export default function PremiumPage() {
                   <p className="mt-1 text-sm font-black sm:text-base">
                     {premium.expiresAt
                       ? new Date(premium.expiresAt).toLocaleDateString(
-                          "en-IN",
-                          {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          },
-                        )
+                        "en-IN",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        },
+                      )
                       : "—"}
                   </p>
                 </div>
@@ -1082,11 +1028,10 @@ export default function PremiumPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <div
-                        className={`shrink-0 rounded-xl p-2.5 ${
-                          item.accent === "purple"
+                        className={`shrink-0 rounded-xl p-2.5 ${item.accent === "purple"
                             ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
                             : "bg-blue-100 text-[#1565d8] dark:bg-blue-900/30 dark:text-blue-300"
-                        }`}
+                          }`}
                       >
                         {item.icon}
                       </div>
@@ -1102,11 +1047,10 @@ export default function PremiumPage() {
                     </div>
 
                     <span
-                      className={`shrink-0 text-xl font-black ${
-                        item.accent === "purple"
+                      className={`shrink-0 text-xl font-black ${item.accent === "purple"
                           ? "text-purple-600"
                           : "text-[#1565d8]"
-                      }`}
+                        }`}
                     >
                       {item.remaining}
                     </span>
@@ -1114,11 +1058,10 @@ export default function PremiumPage() {
 
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div
-                      className={`h-full rounded-full ${
-                        item.accent === "purple"
+                      className={`h-full rounded-full ${item.accent === "purple"
                           ? "bg-purple-500"
                           : "bg-[#1565d8]"
-                      }`}
+                        }`}
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -1250,11 +1193,10 @@ export default function PremiumPage() {
                     key={`selector-${plan.id}`}
                     type="button"
                     onClick={() => selectPlanAndContinue(plan.id)}
-                    className={`relative min-w-0 rounded-xl border px-2 py-3 text-center transition-all duration-200 sm:rounded-2xl sm:px-4 sm:py-3.5 ${
-                      selected
+                    className={`relative min-w-0 rounded-xl border px-2 py-3 text-center transition-all duration-200 sm:rounded-2xl sm:px-4 sm:py-3.5 ${selected
                         ? "border-[#1565d8] bg-[#1565d8] text-white shadow-lg shadow-blue-500/20"
                         : "border-slate-200 bg-white text-slate-700 hover:border-[#1565d8]/40 dark:border-white/10 dark:bg-[#081426] dark:text-slate-200"
-                    }`}
+                      }`}
                   >
                     {plan.popular && (
                       <span className="absolute -right-1.5 -top-2 rounded-full bg-[#f5a623] px-2 py-0.5 text-[8px] font-black text-slate-950 sm:-right-2 sm:text-[9px]">
@@ -1266,11 +1208,10 @@ export default function PremiumPage() {
                       {plan.name}
                     </span>
                     <span
-                      className={`mt-0.5 block text-[10px] ${
-                        selected
+                      className={`mt-0.5 block text-[10px] ${selected
                           ? "text-blue-100"
                           : "text-slate-500 dark:text-slate-400"
-                      }`}
+                        }`}
                     >
                       {plan.duration}
                     </span>
@@ -1302,11 +1243,10 @@ export default function PremiumPage() {
                         selectThisPlan();
                       }
                     }}
-                    className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-[24px] border p-5 text-left outline-none transition-all duration-300 hover:-translate-y-1 sm:rounded-[28px] sm:p-6 ${
-                      selected
+                    className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-[24px] border p-5 text-left outline-none transition-all duration-300 hover:-translate-y-1 sm:rounded-[28px] sm:p-6 ${selected
                         ? "border-[#1565d8] bg-white shadow-xl shadow-blue-500/10 ring-2 ring-[#1565d8]/10 dark:bg-[#07182f]"
                         : "border-slate-200 bg-white shadow-sm hover:border-[#1565d8]/40 hover:shadow-lg focus:border-[#1565d8] focus:ring-2 focus:ring-[#1565d8]/20 dark:border-white/10 dark:bg-[#081426] dark:hover:border-blue-400/30"
-                    }`}
+                      }`}
                   >
                     {plan.popular && (
                       <span className="pointer-events-none absolute right-4 top-4 z-10 rounded-full bg-[#f5a623] px-2.5 py-1 text-[8px] font-black uppercase tracking-wide text-slate-950 shadow-sm sm:text-[9px]">
@@ -1317,11 +1257,10 @@ export default function PremiumPage() {
                     <div className="pointer-events-none">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${
-                            selected
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${selected
                               ? "bg-[#1565d8] text-white"
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                          }`}
+                            }`}
                         >
                           {plan.id === "monthly" ? (
                             <Zap size={20} />
@@ -1381,11 +1320,10 @@ export default function PremiumPage() {
                         event.stopPropagation();
                         selectPlanAndContinue(plan.id);
                       }}
-                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-xs font-black transition-all duration-200 sm:text-sm ${
-                        selected
+                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-xs font-black transition-all duration-200 sm:text-sm ${selected
                           ? "bg-[#1565d8] text-white shadow-lg shadow-blue-500/20 hover:bg-[#0f52ba]"
                           : "border border-[#1565d8]/20 bg-blue-50 text-[#1565d8] hover:bg-[#1565d8] hover:text-white dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#1565d8]"
-                      }`}
+                        }`}
                     >
                       {selected ? "Selected Plan" : "Choose Plan"}
                     </button>
@@ -1402,7 +1340,7 @@ export default function PremiumPage() {
                 {
                   icon: "🛡️",
                   title: "Secure Payment",
-                  text: "via Razorpay",
+                  text: "via Cashfree",
                 },
                 {
                   icon: "🚀",
@@ -1485,11 +1423,10 @@ export default function PremiumPage() {
                 {faqItems.map((item, index) => (
                   <details
                     key={item.question}
-                    className={`group ${
-                      index !== faqItems.length - 1
+                    className={`group ${index !== faqItems.length - 1
                         ? "border-b border-slate-200 dark:border-white/10"
                         : ""
-                    }`}
+                      }`}
                   >
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 text-xs font-bold transition hover:bg-slate-50 dark:hover:bg-white/5 sm:px-5 sm:py-4 sm:text-sm [&::-webkit-details-marker]:hidden">
                       <span>{item.question}</span>
@@ -1524,7 +1461,7 @@ export default function PremiumPage() {
                   </h3>
 
                   <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 sm:text-sm">
-                    Complete your payment securely with Razorpay.
+                    Complete your payment securely with Cashfree.
                   </p>
                 </div>
 
@@ -1542,7 +1479,7 @@ export default function PremiumPage() {
                   ) : (
                     <>
                       <Crown size={17} />
-                      Pay with Razorpay
+                      Pay with Cashfree
                     </>
                   )}
                 </button>

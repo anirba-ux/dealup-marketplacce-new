@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
 
-import {
-  razorpay,
-} from "@/lib/razorpay";
+import { razorpay } from "@/lib/razorpay";
 
 import {
   createPaymentRecord,
@@ -41,24 +39,20 @@ const PREMIUM_PRICES = {
 // Create Razorpay Order
 // =====================================================
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
     // =================================================
     // Authentication
     // =================================================
 
-    const session =
-      await auth();
+    const session = await auth();
 
     if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Unauthorized.",
+          message: "Unauthorized.",
         },
         {
           status: 401,
@@ -66,10 +60,7 @@ export async function POST(
       );
     }
 
-    const userId =
-      String(
-        session.user.id,
-      );
+    const userId = String(session.user.id);
 
     // =================================================
     // Request Body
@@ -78,17 +69,13 @@ export async function POST(
     let body: {
       type?: PaymentType;
 
-      plan?:
-        | "monthly"
-        | "quarterly"
-        | "yearly";
+      plan?: "monthly" | "quarterly" | "yearly";
 
       productId?: string;
     } = {};
 
     try {
-      body =
-        await request.json();
+      body = await request.json();
     } catch {
       body = {};
     }
@@ -97,27 +84,20 @@ export async function POST(
     // Payment Type
     // =================================================
 
-    const type =
-      body.type;
+    const type = body.type;
 
     if (
-      type !==
-        "PREMIUM_MONTHLY" &&
-      type !==
-        "PREMIUM_QUARTERLY" &&
-      type !==
-        "PREMIUM_YEARLY" &&
-      type !==
-        "FEATURED_AD" &&
-      type !==
-        "BOOST_AD"
+      type !== "PREMIUM_MONTHLY" &&
+      type !== "PREMIUM_QUARTERLY" &&
+      type !== "PREMIUM_YEARLY" &&
+      type !== "FEATURED_AD" &&
+      type !== "BOOST_AD"
     ) {
       return NextResponse.json(
         {
           success: false,
 
-          message:
-            "Invalid payment type.",
+          message: "Invalid payment type.",
         },
         {
           status: 400,
@@ -131,54 +111,37 @@ export async function POST(
 
     let amount = 0;
 
-    let productId:
-      | string
-      | null = null;
+    let productId: string | null = null;
 
     // =================================================
     // Premium Monthly
     // =================================================
 
-    if (
-      type ===
-      "PREMIUM_MONTHLY"
-    ) {
-      amount =
-        PREMIUM_PRICES.monthly;
+    if (type === "PREMIUM_MONTHLY") {
+      amount = PREMIUM_PRICES.monthly;
     }
 
     // =================================================
     // Premium Quarterly
     // =================================================
 
-    if (
-      type ===
-      "PREMIUM_QUARTERLY"
-    ) {
-      amount =
-        PREMIUM_PRICES.quarterly;
+    if (type === "PREMIUM_QUARTERLY") {
+      amount = PREMIUM_PRICES.quarterly;
     }
 
     // =================================================
     // Premium Yearly
     // =================================================
 
-    if (
-      type ===
-      "PREMIUM_YEARLY"
-    ) {
-      amount =
-        PREMIUM_PRICES.yearly;
+    if (type === "PREMIUM_YEARLY") {
+      amount = PREMIUM_PRICES.yearly;
     }
 
     // =================================================
     // Featured Ad
     // =================================================
 
-    if (
-      type ===
-      "FEATURED_AD"
-    ) {
+    if (type === "FEATURED_AD") {
       amount = 2900;
 
       if (!body.productId) {
@@ -186,8 +149,7 @@ export async function POST(
           {
             success: false,
 
-            message:
-              "Product ID is required for Featured Ad payment.",
+            message: "Product ID is required for Featured Ad payment.",
           },
           {
             status: 400,
@@ -195,20 +157,14 @@ export async function POST(
         );
       }
 
-      productId =
-        String(
-          body.productId,
-        );
+      productId = String(body.productId);
     }
 
     // =================================================
     // Boost Ad
     // =================================================
 
-    if (
-      type ===
-      "BOOST_AD"
-    ) {
+    if (type === "BOOST_AD") {
       // -------------------------------------------------
       // IMPORTANT
       //
@@ -227,8 +183,7 @@ export async function POST(
           {
             success: false,
 
-            message:
-              "Product ID is required for Boost Ad payment.",
+            message: "Product ID is required for Boost Ad payment.",
           },
           {
             status: 400,
@@ -236,40 +191,24 @@ export async function POST(
         );
       }
 
-      productId =
-        String(
-          body.productId,
-        );
+      productId = String(body.productId);
     }
 
     // =================================================
     // Premium Plan
     // =================================================
 
-    let plan:
-      | "monthly"
-      | "quarterly"
-      | "yearly"
-      | null = null;
+    let plan: "monthly" | "quarterly" | "yearly" | null = null;
 
-    if (
-      type ===
-      "PREMIUM_MONTHLY"
-    ) {
+    if (type === "PREMIUM_MONTHLY") {
       plan = "monthly";
     }
 
-    if (
-      type ===
-      "PREMIUM_QUARTERLY"
-    ) {
+    if (type === "PREMIUM_QUARTERLY") {
       plan = "quarterly";
     }
 
-    if (
-      type ===
-      "PREMIUM_YEARLY"
-    ) {
+    if (type === "PREMIUM_YEARLY") {
       plan = "yearly";
     }
 
@@ -277,81 +216,65 @@ export async function POST(
     // Razorpay Order
     // =================================================
 
-    const order =
-      await razorpay.orders.create(
-        {
-          amount,
+    const order = await razorpay.orders.create({
+      amount,
 
-          currency:
-            "INR",
+      currency: "INR",
 
-          receipt:
-            `DEALUP-${Date.now()}`,
+      receipt: `DEALUP-${Date.now()}`,
 
-          notes: {
-            userId,
+      notes: {
+        userId,
 
-            paymentType:
-              type,
+        paymentType: type,
 
-            productId:
-              productId ??
-              "",
+        productId: productId ?? "",
 
-            plan:
-              plan ??
-              "",
-          },
-        },
-      );
+        plan: plan ?? "",
+      },
+    });
 
     // =================================================
     // Save Payment
     // =================================================
 
-    const now =
-      new Date();
+    const now = new Date();
 
-    await createPaymentRecord(
-      {
-        userId,
+    await createPaymentRecord({
+      userId,
 
-        type,
+      type,
 
-        productId,
+      productId,
 
-        razorpayOrderId:
-          order.id,
+      razorpayOrderId: order.id,
 
-        razorpayPaymentId:
-          null,
+      razorpayPaymentId: null,
 
-        razorpaySignature:
-          null,
+      razorpaySignature: null,
 
-        amount,
+      cashfreeOrderId: null,
 
-        currency:
-          "INR",
+      cashfreePaymentSessionId: null,
 
-        status:
-          "created",
+      cashfreePaymentId: null,
 
-        metadata: {
-          plan,
-        },
+      amount,
 
-        createdAt:
-          now,
+      currency: "INR",
 
-        paidAt:
-          null,
+      status: "created",
 
-        updatedAt:
-          now,
+      metadata: {
+        plan,
       },
-    );
 
+      createdAt: now,
+
+      paidAt: null,
+
+      updatedAt: now,
+    });
     // =================================================
     // Success
     // =================================================
@@ -361,22 +284,16 @@ export async function POST(
         success: true,
 
         order: {
-          id:
-            order.id,
+          id: order.id,
 
-          amount:
-            order.amount,
+          amount: order.amount,
 
-          currency:
-            order.currency,
+          currency: order.currency,
         },
 
-        razorpayKeyId:
-          process.env
-            .NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        razorpayKeyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
 
-        paymentType:
-          type,
+        paymentType: type,
 
         productId,
 
@@ -386,18 +303,19 @@ export async function POST(
         status: 200,
       },
     );
-  } catch (error) {
-    console.error(
-      "CREATE RAZORPAY ORDER ERROR:",
-      error,
-    );
+  } catch (error: unknown) {
+    console.error("CREATE RAZORPAY ORDER ERROR:", error);
+
+    const message =
+      error instanceof Error ? error.message : "Unknown Razorpay error.";
 
     return NextResponse.json(
       {
         success: false,
-
         message:
-          "Unable to create payment order.",
+          process.env.NODE_ENV === "development"
+            ? message
+            : "Unable to create payment order.",
       },
       {
         status: 500,
