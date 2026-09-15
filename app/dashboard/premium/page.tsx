@@ -299,7 +299,10 @@ export default function PremiumPage() {
       // =================================================
 
       const cashfree = window.Cashfree({
-        mode: data.environment === "production" ? "production" : "sandbox",
+        mode:
+          String(data.environment).toUpperCase() === "PRODUCTION"
+            ? "production"
+            : "sandbox",
       });
 
       // =================================================
@@ -962,13 +965,13 @@ export default function PremiumPage() {
                   <p className="mt-1 text-sm font-black sm:text-base">
                     {premium.expiresAt
                       ? new Date(premium.expiresAt).toLocaleDateString(
-                        "en-IN",
-                        {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        },
-                      )
+                          "en-IN",
+                          {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        )
                       : "—"}
                   </p>
                 </div>
@@ -1028,10 +1031,11 @@ export default function PremiumPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
                       <div
-                        className={`shrink-0 rounded-xl p-2.5 ${item.accent === "purple"
+                        className={`shrink-0 rounded-xl p-2.5 ${
+                          item.accent === "purple"
                             ? "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
                             : "bg-blue-100 text-[#1565d8] dark:bg-blue-900/30 dark:text-blue-300"
-                          }`}
+                        }`}
                       >
                         {item.icon}
                       </div>
@@ -1047,10 +1051,11 @@ export default function PremiumPage() {
                     </div>
 
                     <span
-                      className={`shrink-0 text-xl font-black ${item.accent === "purple"
+                      className={`shrink-0 text-xl font-black ${
+                        item.accent === "purple"
                           ? "text-purple-600"
                           : "text-[#1565d8]"
-                        }`}
+                      }`}
                     >
                       {item.remaining}
                     </span>
@@ -1058,10 +1063,11 @@ export default function PremiumPage() {
 
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                     <div
-                      className={`h-full rounded-full ${item.accent === "purple"
+                      className={`h-full rounded-full ${
+                        item.accent === "purple"
                           ? "bg-purple-500"
                           : "bg-[#1565d8]"
-                        }`}
+                      }`}
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -1193,10 +1199,11 @@ export default function PremiumPage() {
                     key={`selector-${plan.id}`}
                     type="button"
                     onClick={() => selectPlanAndContinue(plan.id)}
-                    className={`relative min-w-0 rounded-xl border px-2 py-3 text-center transition-all duration-200 sm:rounded-2xl sm:px-4 sm:py-3.5 ${selected
+                    className={`relative min-w-0 rounded-xl border px-2 py-3 text-center transition-all duration-200 sm:rounded-2xl sm:px-4 sm:py-3.5 ${
+                      selected
                         ? "border-[#1565d8] bg-[#1565d8] text-white shadow-lg shadow-blue-500/20"
                         : "border-slate-200 bg-white text-slate-700 hover:border-[#1565d8]/40 dark:border-white/10 dark:bg-[#081426] dark:text-slate-200"
-                      }`}
+                    }`}
                   >
                     {plan.popular && (
                       <span className="absolute -right-1.5 -top-2 rounded-full bg-[#f5a623] px-2 py-0.5 text-[8px] font-black text-slate-950 sm:-right-2 sm:text-[9px]">
@@ -1208,10 +1215,11 @@ export default function PremiumPage() {
                       {plan.name}
                     </span>
                     <span
-                      className={`mt-0.5 block text-[10px] ${selected
+                      className={`mt-0.5 block text-[10px] ${
+                        selected
                           ? "text-blue-100"
                           : "text-slate-500 dark:text-slate-400"
-                        }`}
+                      }`}
                     >
                       {plan.duration}
                     </span>
@@ -1243,10 +1251,11 @@ export default function PremiumPage() {
                         selectThisPlan();
                       }
                     }}
-                    className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-[24px] border p-5 text-left outline-none transition-all duration-300 hover:-translate-y-1 sm:rounded-[28px] sm:p-6 ${selected
+                    className={`group relative flex min-w-0 cursor-pointer flex-col overflow-hidden rounded-[24px] border p-5 text-left outline-none transition-all duration-300 hover:-translate-y-1 sm:rounded-[28px] sm:p-6 ${
+                      selected
                         ? "border-[#1565d8] bg-white shadow-xl shadow-blue-500/10 ring-2 ring-[#1565d8]/10 dark:bg-[#07182f]"
                         : "border-slate-200 bg-white shadow-sm hover:border-[#1565d8]/40 hover:shadow-lg focus:border-[#1565d8] focus:ring-2 focus:ring-[#1565d8]/20 dark:border-white/10 dark:bg-[#081426] dark:hover:border-blue-400/30"
-                      }`}
+                    }`}
                   >
                     {plan.popular && (
                       <span className="pointer-events-none absolute right-4 top-4 z-10 rounded-full bg-[#f5a623] px-2.5 py-1 text-[8px] font-black uppercase tracking-wide text-slate-950 shadow-sm sm:text-[9px]">
@@ -1257,10 +1266,11 @@ export default function PremiumPage() {
                     <div className="pointer-events-none">
                       <div className="flex items-center gap-3">
                         <div
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${selected
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${
+                            selected
                               ? "bg-[#1565d8] text-white"
                               : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                            }`}
+                          }`}
                         >
                           {plan.id === "monthly" ? (
                             <Zap size={20} />
@@ -1320,10 +1330,11 @@ export default function PremiumPage() {
                         event.stopPropagation();
                         selectPlanAndContinue(plan.id);
                       }}
-                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-xs font-black transition-all duration-200 sm:text-sm ${selected
+                      className={`mt-6 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-xs font-black transition-all duration-200 sm:text-sm ${
+                        selected
                           ? "bg-[#1565d8] text-white shadow-lg shadow-blue-500/20 hover:bg-[#0f52ba]"
                           : "border border-[#1565d8]/20 bg-blue-50 text-[#1565d8] hover:bg-[#1565d8] hover:text-white dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-[#1565d8]"
-                        }`}
+                      }`}
                     >
                       {selected ? "Selected Plan" : "Choose Plan"}
                     </button>
@@ -1423,10 +1434,11 @@ export default function PremiumPage() {
                 {faqItems.map((item, index) => (
                   <details
                     key={item.question}
-                    className={`group ${index !== faqItems.length - 1
+                    className={`group ${
+                      index !== faqItems.length - 1
                         ? "border-b border-slate-200 dark:border-white/10"
                         : ""
-                      }`}
+                    }`}
                   >
                     <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 text-xs font-bold transition hover:bg-slate-50 dark:hover:bg-white/5 sm:px-5 sm:py-4 sm:text-sm [&::-webkit-details-marker]:hidden">
                       <span>{item.question}</span>
