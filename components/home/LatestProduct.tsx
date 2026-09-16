@@ -129,7 +129,7 @@ export default function LatestProducts({ products }: Props) {
           ================================================== */}
 
           <Link
-            href="/products"
+            href="/search?latest=true"
             className="
               group
               inline-flex

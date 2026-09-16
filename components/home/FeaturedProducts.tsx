@@ -370,7 +370,7 @@ export default function FeaturedProducts({
             {/* View all */}
 
             <Link
-              href="/search"
+              href="/search?featured=true"
               className="
                 ml-1
                 text-sm
@@ -523,7 +523,7 @@ export default function FeaturedProducts({
 
         <div className="mt-5 flex justify-center sm:hidden">
           <Link
-            href="/search"
+             href="/search?featured=true"
             className="
               inline-flex
               items-center
