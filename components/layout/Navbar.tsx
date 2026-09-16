@@ -7,6 +7,8 @@ import SearchBar from "@/components/ui/SearchBar";
 import Logo from "@/components/ui/Logo";
 import WishlistNavButton from "@/components/ui/WishlistNavButton";
 import MobileMenu from "@/components/ui/MobileMenu";
+import ThemeToggle from "@/components/ui/ThemeToggle";
+import UserLocationDisplay from "@/components/ui/UserLocationDisplay";
 
 export default async function Navbar() {
   const session = await auth();
@@ -25,6 +27,7 @@ export default async function Navbar() {
         border-b
         border-slate-200/80
         bg-white/95
+        backdrop-blur-md
         dark:border-slate-800
         dark:bg-slate-950/95
       "
@@ -49,18 +52,23 @@ export default async function Navbar() {
             h-16
             items-center
             gap-2
-            pt-4
-            sm:gap-4
             md:h-20
-            md:gap-6
-            md:pt-0
+            md:gap-4
           "
         >
           {/* ===================================================
               MOBILE HAMBURGER
           ==================================================== */}
 
-          <div className="shrink-0 md:hidden">
+          <div
+            className="
+              flex
+              shrink-0
+              items-center
+              justify-center
+              md:hidden
+            "
+          >
             <MobileMenu />
           </div>
 
@@ -70,18 +78,23 @@ export default async function Navbar() {
 
           <div
             className="
-    min-w-0
-    shrink-0
-    pl-2
-    sm:pl-0
-    md:static
-    md:translate-x-0
-    max-md:absolute
-    max-md:left-1/2
-    max-md:-translate-x-1/2
-  "
+              flex
+              min-w-0
+              shrink
+              items-center
+              md:shrink-0
+            "
           >
-            <Logo />
+            <div
+              className="
+                w-[128px]
+                overflow-hidden
+                sm:w-[145px]
+                md:w-auto
+              "
+            >
+              <Logo />
+            </div>
           </div>
 
           {/* ===================================================
@@ -93,9 +106,9 @@ export default async function Navbar() {
               hidden
               min-w-0
               flex-1
-              px-4
+              px-2
               md:block
-              lg:px-6
+              lg:px-4
             "
           >
             <SearchBar />
@@ -109,18 +122,63 @@ export default async function Navbar() {
             className="
               ml-auto
               flex
+              h-12
               shrink-0
               items-center
-              gap-1
-              sm:gap-2
-              md:gap-3
+              justify-end
+              gap-0.5
+              sm:gap-1.5
+              md:h-auto
+              md:gap-2
+              lg:gap-3
             "
           >
+            {/* =================================================
+                MOBILE LOCATION
+            ================================================== */}
+
+            <div
+              className="
+                flex
+                h-12
+                shrink-0
+                items-center
+                justify-center
+                md:hidden
+              "
+            >
+              <UserLocationDisplay variant="mobile" />
+            </div>
+
+            {/* =================================================
+                THEME TOGGLE
+            ================================================== */}
+
+            <div
+              className="
+                flex
+                h-12
+                shrink-0
+                items-center
+                justify-center
+              "
+            >
+              <ThemeToggle />
+            </div>
+
             {/* =================================================
                 WISHLIST
             ================================================== */}
 
-            <div className="shrink-0">
+            <div
+              className="
+                flex
+                h-12
+                shrink-0
+                items-center
+                justify-center
+              "
+            >
               <WishlistNavButton />
             </div>
 
@@ -128,7 +186,13 @@ export default async function Navbar() {
                 DESKTOP USER
             ================================================== */}
 
-            <div className="hidden shrink-0 md:block">
+            <div
+              className="
+                hidden
+                shrink-0
+                md:block
+              "
+            >
               {session?.user ? <UserMenu /> : <LoginButton />}
             </div>
 
@@ -136,7 +200,13 @@ export default async function Navbar() {
                 DESKTOP SELL
             ================================================== */}
 
-            <div className="hidden shrink-0 md:block">
+            <div
+              className="
+                hidden
+                shrink-0
+                md:block
+              "
+            >
               <SellButton />
             </div>
           </div>

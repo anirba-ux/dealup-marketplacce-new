@@ -60,7 +60,13 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`
+          ${geistSans.variable}
+          ${geistMono.variable}
+          antialiased
+          bg-background
+          text-foreground
+        `}
       >
         <QueryProvider>
           <AuthProvider session={session}>
