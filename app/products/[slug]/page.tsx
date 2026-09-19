@@ -233,11 +233,34 @@ export default async function ProductDetailsPage({ params }: Props) {
     product._id.toString(),
   );
 
+  const seoProductDescription =
+    product.description
+      ?.replace(
+        /(?:calling|call|phone|mobile|whatsapp|contact)\s*(?:number|no)?\s*[:\-]?\s*/gi,
+        "",
+      )
+      .replace(/\+?\d[\d\s\-()]{8,}/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .slice(0, 500) || product.title;
+
+  const productAvailability =
+    product.status === "sold"
+      ? "https://schema.org/SoldOut"
+      : "https://schema.org/InStock";
+
+      const productCondition =
+  product.condition === "new"
+    ? "https://schema.org/NewCondition"
+    : product.condition === "refurbished"
+      ? "https://schema.org/RefurbishedCondition"
+      : "https://schema.org/UsedCondition";
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.title,
-    description: product.description,
+    description: seoProductDescription,
     image: product.images
       .map((image: any) => (typeof image === "string" ? image : image?.url))
       .filter(Boolean),
@@ -250,23 +273,16 @@ export default async function ProductDetailsPage({ params }: Props) {
       : undefined,
     model: product.model || undefined,
     category: product.categoryName,
-    itemCondition:
-      product.condition?.toLowerCase() === "new"
-        ? "https://schema.org/NewCondition"
-        : "https://schema.org/UsedCondition",
+      itemCondition: productCondition,
     offers: {
       "@type": "Offer",
       url: `https://www.dealupmarketplace.com/products/${product.slug}`,
       priceCurrency: "INR",
       price: product.price,
-      availability: "https://schema.org/InStock",
-      itemCondition:
-        product.condition?.toLowerCase() === "new"
-          ? "https://schema.org/NewCondition"
-          : "https://schema.org/UsedCondition",
+      availability: productAvailability,
+      itemCondition: productCondition,
     },
   };
-
   return (
     <>
       <script

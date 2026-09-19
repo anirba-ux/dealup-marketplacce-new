@@ -1,5 +1,3 @@
-
-
 import { ObjectId } from "mongodb";
 
 import { getConversationCountByProduct } from "./chat.repository";
@@ -41,7 +39,10 @@ async function getCollection() {
 // Subcategory  -> products.subcategory stores the subcategory slug.
 // =====================================================
 
-async function applyCategoryFilter(query: Record<string, any>, category?: string) {
+async function applyCategoryFilter(
+  query: Record<string, any>,
+  category?: string,
+) {
   if (!category?.trim()) {
     return;
   }
@@ -56,8 +57,7 @@ async function applyCategoryFilter(query: Record<string, any>, category?: string
   }
 
   const hasParent =
-    categoryData.parentId !== null &&
-    categoryData.parentId !== undefined;
+    categoryData.parentId !== null && categoryData.parentId !== undefined;
 
   if (hasParent) {
     // Subcategory, e.g. Mobile Phones -> mobile-phones
@@ -612,6 +612,37 @@ export async function findLatestProducts(limit = 20) {
     .toArray();
 
   return attachSellerVerification(products);
+}
+
+// =====================================================
+// Active Products For Sitemap
+// =====================================================
+
+export async function findActiveProductsForSitemap() {
+  const collection = await getCollection();
+
+  return collection
+    .find(
+      {
+        status: "active",
+        slug: {
+          $exists: true,
+          $nin: [""],
+        },
+      },
+      {
+        projection: {
+          slug: 1,
+          updatedAt: 1,
+          createdAt: 1,
+        },
+      },
+    )
+    .sort({
+      updatedAt: -1,
+      createdAt: -1,
+    })
+    .toArray();
 }
 
 // =====================================================
@@ -1174,9 +1205,7 @@ export async function searchProductsPage({
   // ===================================================
 
   if (city?.trim()) {
-    const escapedCity = city
-      .trim()
-      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedCity = city.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     query["location.city"] = {
       $regex: `^${escapedCity}$`,
@@ -1330,27 +1359,20 @@ export async function searchProductsPage({
 
   const [totalProducts, products] = await Promise.all([
     collection.countDocuments(query),
-    collection
-      .find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limit)
-      .toArray(),
+    collection.find(query).sort(sortOption).skip(skip).limit(limit).toArray(),
   ]);
 
   // ===================================================
   // Total Pages
   // ===================================================
 
-  const totalPages =
-    totalProducts > 0 ? Math.ceil(totalProducts / limit) : 1;
+  const totalPages = totalProducts > 0 ? Math.ceil(totalProducts / limit) : 1;
 
   // ===================================================
   // Seller Verification + Badge
   // ===================================================
 
-  const productsWithSeller =
-    await attachSellerVerification(products);
+  const productsWithSeller = await attachSellerVerification(products);
 
   // ===================================================
   // Return
