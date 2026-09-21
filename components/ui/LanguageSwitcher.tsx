@@ -18,9 +18,7 @@ export default function LanguageSwitcher({
 
   const [isPending, startTransition] = useTransition();
 
-  async function handleChange(
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) {
+  async function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const newLocale = e.target.value;
 
     await setLocale(newLocale);
@@ -39,12 +37,17 @@ export default function LanguageSwitcher({
       }
     >
       {!compact && (
-        <label className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-300">
+        <label
+          htmlFor="language-select"
+          className="mb-2 block text-sm font-medium text-slate-600 dark:text-slate-300"
+        >
           Language
         </label>
       )}
 
       <select
+        id="language-select"
+        aria-label="Language"
         value={locale}
         onChange={handleChange}
         disabled={isPending}

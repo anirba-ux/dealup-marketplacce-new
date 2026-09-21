@@ -18,17 +18,19 @@ import {
 
 const categories = [
   {
-  title: "Mobiles",
-  slug: "mobile-phones",
-  icon: Smartphone,
-  color: "#1565D8",
-  soft: "rgba(21,101,216,0.16)",
-},
+    title: "Mobiles",
+    slug: "mobile-phones",
+    icon: Smartphone,
+    color: "#1565D8",
+    textColor: "#1D4ED8",
+    soft: "rgba(21,101,216,0.16)",
+  },
   {
     title: "Cars",
     slug: "cars",
     icon: Car,
     color: "#F97316",
+    textColor: "#C2410C",
     soft: "rgba(249,115,22,0.16)",
   },
   {
@@ -36,6 +38,7 @@ const categories = [
     slug: "bikes",
     icon: Bike,
     color: "#10B981",
+    textColor: "#047857",
     soft: "rgba(16,185,129,0.16)",
   },
   {
@@ -43,6 +46,7 @@ const categories = [
     slug: "electronics",
     icon: Laptop,
     color: "#8B5CF6",
+    textColor: "#6D28D9",
     soft: "rgba(139,92,246,0.16)",
   },
   {
@@ -50,6 +54,7 @@ const categories = [
     slug: "property",
     icon: Home,
     color: "#F43F5E",
+    textColor: "#BE123C",
     soft: "rgba(244,63,94,0.16)",
   },
   {
@@ -57,6 +62,7 @@ const categories = [
     slug: "fashion",
     icon: Shirt,
     color: "#06B6D4",
+    textColor: "#0E7490",
     soft: "rgba(6,182,212,0.16)",
   },
   {
@@ -64,6 +70,7 @@ const categories = [
     slug: "jobs",
     icon: Briefcase,
     color: "#F59E0B",
+    textColor: "#B45309",
     soft: "rgba(245,158,11,0.16)",
   },
   {
@@ -71,6 +78,7 @@ const categories = [
     slug: "services",
     icon: Wrench,
     color: "#2563EB",
+    textColor: "#1D4ED8",
     soft: "rgba(37,99,235,0.16)",
   },
 ];
@@ -187,6 +195,7 @@ export default function FeaturedCategories() {
 
             <Link
               href="/search"
+              aria-label="See all categories"
               className="
                 group
                 flex
@@ -400,7 +409,7 @@ export default function FeaturedCategories() {
                         transition-colors
                         duration-300
                       "
-                      style={{ color: category.color }}
+                      style={{ color: category.textColor }}
                     >
                       Explore listings
                     </p>
@@ -654,7 +663,7 @@ export default function FeaturedCategories() {
                       group-hover:translate-x-0.5
                     "
                     style={{
-                      color: category.color,
+                      color: category.textColor,
                     }}
                   >
                     <span>Explore</span>

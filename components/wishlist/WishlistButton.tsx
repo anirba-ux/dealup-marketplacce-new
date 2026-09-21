@@ -75,6 +75,7 @@ export default function WishlistButton({
   return (
     <button
       type="button"
+      aria-label="Add to wishlist"
       onClick={handleWishlist}
       disabled={loading}
       className="absolute right-4 top-4 rounded-full bg-white dark:bg-slate-900/90 p-2 shadow-lg backdrop-blur transition hover:scale-110 disabled:opacity-50"

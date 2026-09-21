@@ -366,7 +366,11 @@ export default function Footer() {
                     gap-2
                   "
                 >
-                  <SocialButton href="#" label="Facebook" text="f" />
+                  <SocialButton
+                    href="https://www.facebook.com/share/1WiTsb2cFx/"
+                    label="Facebook"
+                    text="f"
+                  />
 
                   <SocialButton href="#" label="Instagram" text="ig" />
 
@@ -469,45 +473,44 @@ export default function Footer() {
                 {/* EMAIL */}
 
                 <a
-                  href="mailto:support@dealup.in"
+                  href="mailto:dealupmarketplace@gmail.com"
+                  aria-label="Email DealUp"
                   className="
-                    inline-flex
-                    min-w-0
-                    items-center
-                    gap-2
-                    text-xs
-                    text-white/80
-                    transition-colors
-                    duration-200
-
-                    hover:text-white
-
-                    sm:text-sm
-                  "
+    inline-flex
+    min-w-0
+    items-center
+    gap-2
+    text-xs
+    text-white/80
+    transition-colors
+    duration-200
+    hover:text-white
+    sm:text-sm
+  "
                 >
                   <Mail className="h-4 w-4 shrink-0" />
 
-                  <span className="truncate">support@dealup.in</span>
+                  <span className="truncate">dealupmarketplace@gmail.com</span>
                 </a>
 
                 {/* PHONE */}
 
-                <div
+                <a
+                  href="tel:+918240060110"
+                  aria-label="Call DealUp"
+                  title="Call DealUp"
                   className="
-                    inline-flex
-                    items-center
-                    gap-2
-                    text-xs
-                    text-white/80
-
-                    sm:text-sm
-                  "
+    inline-flex
+    items-center
+    justify-center
+    text-white/80
+    transition-colors
+    duration-200
+    hover:text-white
+  "
                 >
                   <Phone className="h-4 w-4 shrink-0" />
-
-                  <span>+91 XXXXX XXXXX</span>
-                </div>
-
+                </a>
                 {/* LOCATION */}
 
                 <div
