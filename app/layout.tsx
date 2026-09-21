@@ -79,6 +79,28 @@ export const metadata: Metadata = {
   category: "shopping",
 };
 
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "OnlineMarketplace",
+  "@id": "https://www.dealupmarketplace.com/#organization",
+  name: "DealUp Marketplace",
+  url: "https://www.dealupmarketplace.com",
+  logo: "https://www.dealupmarketplace.com/dealup-logo.png",
+  description:
+    "DealUp Marketplace is a local online marketplace to buy and sell new and used products safely across India.",
+};
+
+const websiteJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://www.dealupmarketplace.com/#website",
+  name: "DealUp Marketplace",
+  url: "https://www.dealupmarketplace.com",
+  publisher: {
+    "@id": "https://www.dealupmarketplace.com/#organization",
+  },
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -92,14 +114,30 @@ export default async function RootLayout({
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd),
+          }}
+        />
+
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd),
+          }}
+        />
+      </head>
+
       <body
         className={`
-          ${geistSans.variable}
-          ${geistMono.variable}
-          antialiased
-          bg-background
-          text-foreground
-        `}
+        ${geistSans.variable}
+        ${geistMono.variable}
+        antialiased
+        bg-background
+        text-foreground
+      `}
       >
         <QueryProvider>
           <AuthProvider session={session}>

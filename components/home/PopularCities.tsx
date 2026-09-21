@@ -6,41 +6,49 @@ import { ArrowRight, MapPin } from "lucide-react";
 const cities = [
   {
     name: "Bansberia",
+    slug: "bansberia",
     ads: "1,250 Active Listings",
     image: "/images/cities/hanseswari_temple.png",
   },
   {
     name: "Hooghly",
+    slug: "hooghly",
     ads: "3,420 Active Listings",
     image: "/images/cities/hooghly_img.png",
   },
   {
     name: "Chinsurah",
+    slug: "chinsurah",
     ads: "2,180 Active Listings",
     image: "/images/cities/chuchura_img.png",
   },
   {
     name: "Tribeni",
+    slug: "tribeni",
     ads: "980 Active Listings",
     image: "/images/cities/tribeni_img.png",
   },
   {
     name: "Kalyani",
+    slug: "kalyani",
     ads: "1,760 Active Listings",
     image: "/images/cities/kalyani_img.png",
   },
   {
     name: "Kolkata",
+    slug: "kolkata",
     ads: "12,500 Active Listings",
     image: "/images/cities/kolkata_img.png",
   },
   {
     name: "Serampore",
+    slug: "serampore",
     ads: "2,300 Active Listings",
     image: "/images/cities/sreerampur_img.jpg",
   },
   {
     name: "Chandannagar",
+    slug: "chandannagar",
     ads: "1,640 Active Listings",
     image: "/images/cities/chandanagar_img.png",
   },
@@ -69,9 +77,7 @@ export default function PopularCities() {
           className="
             mb-8
             text-center
-
             sm:mb-10
-
             lg:mb-12
           "
         >
@@ -87,11 +93,9 @@ export default function PopularCities() {
               text-xs
               font-semibold
               text-[#1565d8]
-
               sm:px-5
               sm:py-2
               sm:text-sm
-
               dark:bg-blue-950/40
               dark:text-blue-400
             "
@@ -108,13 +112,10 @@ export default function PopularCities() {
               font-bold
               tracking-tight
               text-slate-900
-
               sm:mt-5
               sm:text-4xl
-
               lg:mt-6
               lg:text-5xl
-
               dark:text-white
             "
           >
@@ -131,21 +132,18 @@ export default function PopularCities() {
               text-sm
               leading-6
               text-slate-600
-
               sm:mt-4
               sm:text-base
               sm:leading-7
-
               lg:mt-5
               lg:text-lg
               lg:leading-8
-
               dark:text-slate-400
             "
           >
-            Discover thousands of products from the most active
-            cities near you. Buy locally, sell faster and connect
-            with trusted buyers & sellers.
+            Discover thousands of products from the most active cities near
+            you. Buy locally, sell faster and connect with trusted buyers &
+            sellers.
           </p>
         </div>
 
@@ -162,15 +160,12 @@ export default function PopularCities() {
             overscroll-x-contain
             px-4
             pb-4
-
             [scrollbar-width:none]
             [-ms-overflow-style:none]
             [&::-webkit-scrollbar]:hidden
-
             sm:-mx-6
             sm:gap-5
             sm:px-6
-
             lg:mx-0
             lg:grid
             lg:grid-cols-4
@@ -182,8 +177,8 @@ export default function PopularCities() {
         >
           {cities.map((city) => (
             <Link
-              key={city.name}
-              href={`/search?city=${encodeURIComponent(city.name)}`}
+              key={city.slug}
+              href={`/local-marketplace/${city.slug}`}
               className="
                 group
                 relative
@@ -199,16 +194,13 @@ export default function PopularCities() {
                 transition-all
                 duration-300
                 ease-out
-
                 hover:-translate-y-1
                 hover:border-[#1565d8]
                 hover:shadow-[0_15px_40px_rgba(21,101,216,0.22)]
-
                 sm:h-[320px]
                 sm:w-[300px]
                 sm:min-w-[300px]
                 sm:rounded-3xl
-
                 lg:h-[340px]
                 lg:w-auto
                 lg:min-w-0
@@ -225,7 +217,7 @@ export default function PopularCities() {
 
               <Image
                 src={city.image}
-                alt={`${city.name} marketplace`}
+                alt={`${city.name} local marketplace`}
                 fill
                 sizes="
                   (max-width: 640px) 78vw,
@@ -237,7 +229,6 @@ export default function PopularCities() {
                   transition-transform
                   duration-500
                   group-hover:scale-105
-
                   lg:group-hover:scale-110
                 "
               />
@@ -270,7 +261,6 @@ export default function PopularCities() {
                   justify-end
                   p-5
                   text-white
-
                   sm:p-6
                 "
               >
@@ -288,17 +278,13 @@ export default function PopularCities() {
                     bg-[#1565d8]/90
                     shadow-lg
                     backdrop-blur
-
                     sm:mb-5
                     sm:h-14
                     sm:w-14
                     sm:rounded-2xl
                   "
                 >
-                  <MapPin
-                    size={23}
-                    className="sm:h-7 sm:w-7"
-                  />
+                  <MapPin size={23} className="sm:h-7 sm:w-7" />
                 </div>
 
                 {/* City Name */}
@@ -308,7 +294,6 @@ export default function PopularCities() {
                     text-2xl
                     font-bold
                     leading-tight
-
                     sm:text-3xl
                   "
                 >
@@ -322,7 +307,6 @@ export default function PopularCities() {
                     mt-1.5
                     text-sm
                     text-white/80
-
                     sm:mt-2
                   "
                 >
@@ -340,7 +324,6 @@ export default function PopularCities() {
                     text-sm
                     font-semibold
                     text-[#f5a623]
-
                     sm:mt-6
                     sm:text-base
                   "
@@ -353,7 +336,6 @@ export default function PopularCities() {
                       transition-transform
                       duration-300
                       group-hover:translate-x-1.5
-
                       sm:h-[18px]
                       sm:w-[18px]
                     "
@@ -376,9 +358,7 @@ export default function PopularCities() {
               items-center
               justify-center
               gap-2
-
               sm:mt-2
-
               lg:hidden
             "
           >
@@ -396,7 +376,6 @@ export default function PopularCities() {
                 text-[11px]
                 font-medium
                 text-slate-400
-
                 dark:text-slate-500
               "
             >
@@ -407,7 +386,6 @@ export default function PopularCities() {
               size={13}
               className="
                 text-slate-400
-
                 dark:text-slate-500
               "
             />

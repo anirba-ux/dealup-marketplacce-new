@@ -249,12 +249,12 @@ export default async function ProductDetailsPage({ params }: Props) {
       ? "https://schema.org/SoldOut"
       : "https://schema.org/InStock";
 
-      const productCondition =
-  product.condition === "new"
-    ? "https://schema.org/NewCondition"
-    : product.condition === "refurbished"
-      ? "https://schema.org/RefurbishedCondition"
-      : "https://schema.org/UsedCondition";
+  const productCondition =
+    product.condition === "new"
+      ? "https://schema.org/NewCondition"
+      : product.condition === "refurbished"
+        ? "https://schema.org/RefurbishedCondition"
+        : "https://schema.org/UsedCondition";
 
   const productJsonLd = {
     "@context": "https://schema.org",
@@ -273,7 +273,7 @@ export default async function ProductDetailsPage({ params }: Props) {
       : undefined,
     model: product.model || undefined,
     category: product.categoryName,
-      itemCondition: productCondition,
+    itemCondition: productCondition,
     offers: {
       "@type": "Offer",
       url: `https://www.dealupmarketplace.com/products/${product.slug}`,
@@ -330,6 +330,7 @@ export default async function ProductDetailsPage({ params }: Props) {
                 )}
                 <ProductImageGallery
                   images={product.images}
+                  productTitle={product.title}
                   sellerPremiumSeller={sellerPremiumSeller}
                   sellerPremiumBadge={sellerPremiumBadge}
                 />

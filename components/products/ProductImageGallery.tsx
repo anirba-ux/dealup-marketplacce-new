@@ -19,12 +19,11 @@ interface ProductImage {
 interface Props {
   images: ProductImage[];
 
-  // ===================================================
+  // Product title for SEO-friendly image alt text
+  productTitle: string;
+
   // Premium Seller
-  // ===================================================
-
   sellerPremiumSeller?: boolean;
-
   sellerPremiumBadge?: boolean;
 }
 
@@ -34,6 +33,7 @@ interface Props {
 
 export default function ProductImageGallery({
   images,
+  productTitle,
   sellerPremiumSeller,
   sellerPremiumBadge,
 }: Props) {
@@ -54,18 +54,10 @@ export default function ProductImageGallery({
   // ===================================================
 
   const [touchStart, setTouchStart] = useState(0);
-
   const [touchEnd, setTouchEnd] = useState(0);
 
   // ===================================================
   // Premium Badge
-  //
-  // Badge appears ONLY when:
-  //
-  // sellerPremiumSeller === true
-  // AND
-  // sellerPremiumBadge === true
-  //
   // ===================================================
 
   const hasPremiumBadge =
@@ -75,7 +67,9 @@ export default function ProductImageGallery({
   // Current Image Index
   // ===================================================
 
-  const currentIndex = images.findIndex((image) => image.url === selectedImage);
+  const currentIndex = images.findIndex(
+    (image) => image.url === selectedImage,
+  );
 
   // ===================================================
   // Previous Image
@@ -127,7 +121,6 @@ export default function ProductImageGallery({
     }
 
     // Reset touch positions
-
     setTouchStart(0);
     setTouchEnd(0);
   }
@@ -233,9 +226,14 @@ export default function ProductImageGallery({
 
           <Image
             src={selectedImage}
-            alt="Product"
+            alt={`${productTitle} - DealUp Marketplace`}
             fill
             priority
+            sizes="
+              (max-width: 640px) 100vw,
+              (max-width: 1024px) 70vw,
+              60vw
+            "
             className="
               object-cover
               transition-transform
@@ -246,11 +244,6 @@ export default function ProductImageGallery({
 
           {/* =================================================
               PREMIUM SELLER BADGE
-
-              Blue Diamond + Premium
-
-              Appears on the product image
-              only for active Premium Sellers.
           ================================================= */}
 
           {hasPremiumBadge && (
@@ -260,39 +253,33 @@ export default function ProductImageGallery({
                 bottom-4
                 left-4
                 z-30
-
                 inline-flex
                 items-center
                 gap-1.5
-
                 rounded-full
-
                 bg-gradient-to-r
                 from-blue-600
                 to-[#1565d8]
-
                 px-4
                 py-2
-
                 text-sm
                 font-bold
                 text-white
-
                 shadow-lg
                 shadow-blue-600/30
-
                 ring-1
                 ring-white/30
-
                 backdrop-blur-md
-
                 transition-all
                 duration-300
-
                 group-hover:scale-105
               "
             >
-              <Gem size={17} strokeWidth={2.8} className="text-white" />
+              <Gem
+                size={17}
+                strokeWidth={2.8}
+                className="text-white"
+              />
 
               <span>Premium</span>
             </div>
@@ -307,17 +294,13 @@ export default function ProductImageGallery({
               absolute
               right-4
               top-4
-
               rounded-full
               bg-black/60
-
               px-3
               py-1
-
               text-sm
               font-semibold
               text-white
-
               backdrop-blur-md
             "
           >
@@ -335,25 +318,18 @@ export default function ProductImageGallery({
                 e.stopPropagation();
                 previousImage();
               }}
-              aria-label="Previous image"
+              aria-label="Previous product image"
               className="
                 absolute
                 left-4
                 top-1/2
-
                 -translate-y-1/2
-
                 rounded-full
                 bg-black/50
-
                 p-3
-
                 text-white
-
                 backdrop-blur-md
-
                 transition
-
                 hover:bg-black/70
               "
             >
@@ -372,25 +348,18 @@ export default function ProductImageGallery({
                 e.stopPropagation();
                 nextImage();
               }}
-              aria-label="Next image"
+              aria-label="Next product image"
               className="
                 absolute
                 right-4
                 top-1/2
-
                 -translate-y-1/2
-
                 rounded-full
                 bg-black/50
-
                 p-3
-
                 text-white
-
                 backdrop-blur-md
-
                 transition
-
                 hover:bg-black/70
               "
             >
@@ -418,61 +387,60 @@ export default function ProductImageGallery({
       {images.length > 1 && (
         <div
           className="
-    mt-4
-    flex
-    w-full
-    gap-3
-    overflow-x-auto
-    overscroll-x-contain
-    pb-2
-    [scrollbar-width:none]
-    [-ms-overflow-style:none]
-  "
+            mt-4
+            flex
+            w-full
+            gap-3
+            overflow-x-auto
+            overscroll-x-contain
+            pb-2
+            [scrollbar-width:none]
+            [-ms-overflow-style:none]
+            [&::-webkit-scrollbar]:hidden
+          "
         >
           {images.map((image, index) => (
             <button
               type="button"
-              key={index}
+              key={`${image.url}-${index}`}
               onClick={() => setSelectedImage(image.url)}
-              aria-label={`Select image ${index + 1}`}
+              aria-label={`Select ${productTitle} image ${index + 1}`}
               className={`
-  group
-  h-24
-  w-24
-  shrink-0
-  overflow-hidden
-  rounded-2xl
-  border-2
-  shadow-sm
-  transition-all
-  duration-300
-  ${
-    selectedImage === image.url
-      ? "scale-105 border-[#1565d8] shadow-lg"
-      : "border-transparent hover:scale-105 hover:border-blue-300"
-  }
-`}
+                group
+                h-24
+                w-24
+                shrink-0
+                overflow-hidden
+                rounded-2xl
+                border-2
+                shadow-sm
+                transition-all
+                duration-300
+                ${
+                  selectedImage === image.url
+                    ? "scale-105 border-[#1565d8] shadow-lg"
+                    : "border-transparent hover:scale-105 hover:border-blue-300"
+                }
+              `}
             >
               <div
                 className="
-                    relative
-                    h-24
-                    w-24
-                  "
+                  relative
+                  h-24
+                  w-24
+                "
               >
                 <Image
                   src={image.url}
-                  alt={`Thumbnail ${index + 1}`}
+                  alt={`${productTitle} - image ${index + 1}`}
                   fill
                   sizes="96px"
                   className="
-                      object-cover
-
-                      transition-transform
-                      duration-300
-
-                      group-hover:scale-110
-                    "
+                    object-cover
+                    transition-transform
+                    duration-300
+                    group-hover:scale-110
+                  "
                 />
               </div>
             </button>
@@ -490,13 +458,10 @@ export default function ProductImageGallery({
             fixed
             inset-0
             z-50
-
             flex
             items-center
             justify-center
-
             bg-black/90
-
             p-6
           "
           onClick={() => setOpenPreview(false)}
@@ -512,26 +477,18 @@ export default function ProductImageGallery({
                 e.stopPropagation();
                 previousImage();
               }}
-              aria-label="Previous image"
+              aria-label="Previous product image"
               className="
                 absolute
                 left-6
                 top-1/2
-
                 -translate-y-1/2
-
                 rounded-full
-
                 bg-white/20
-
                 p-4
-
                 text-white
-
                 backdrop-blur-md
-
                 transition
-
                 hover:bg-white/40
               "
             >
@@ -545,15 +502,13 @@ export default function ProductImageGallery({
 
           <Image
             src={selectedImage}
-            alt="Preview"
+            alt={`${productTitle} - full size image`}
             width={1400}
             height={1000}
             className="
               max-h-[90vh]
               w-auto
-
               rounded-2xl
-
               object-contain
             "
           />
@@ -569,34 +524,30 @@ export default function ProductImageGallery({
                 left-6
                 top-6
                 z-30
-
                 inline-flex
                 items-center
                 gap-1.5
-
                 rounded-full
-
                 bg-gradient-to-r
                 from-blue-600
                 to-[#1565d8]
-
                 px-4
                 py-2
-
                 text-sm
                 font-bold
                 text-white
-
                 shadow-lg
                 shadow-blue-600/30
-
                 ring-1
                 ring-white/30
-
                 backdrop-blur-md
               "
             >
-              <Gem size={17} strokeWidth={2.8} className="text-white" />
+              <Gem
+                size={17}
+                strokeWidth={2.8}
+                className="text-white"
+              />
 
               <span>Premium</span>
             </div>
@@ -611,7 +562,6 @@ export default function ProductImageGallery({
               absolute
               bottom-6
               left-1/2
-
               -translate-x-1/2
             "
           >
@@ -620,54 +570,44 @@ export default function ProductImageGallery({
                 flex
                 gap-3
                 overflow-x-auto
-
                 rounded-2xl
                 bg-black/40
-
                 p-3
-
                 backdrop-blur-md
               "
             >
               {images.map((image, index) => (
                 <button
                   type="button"
-                  key={index}
+                  key={`preview-${image.url}-${index}`}
                   onClick={(e) => {
                     e.stopPropagation();
-
                     setSelectedImage(image.url);
                   }}
-                  aria-label={`Select preview image ${index + 1}`}
+                  aria-label={`Select preview of ${productTitle} image ${
+                    index + 1
+                  }`}
                   className={`
-                      relative
-
-                      h-16
-                      w-16
-
-                      overflow-hidden
-
-                      rounded-xl
-
-                      border-2
-
-                      transition-all
-
-                      ${
-                        selectedImage === image.url
-                          ? "border-blue-500"
-                          : "border-transparent hover:border-white"
-                      }
-                    `}
+                    relative
+                    h-16
+                    w-16
+                    overflow-hidden
+                    rounded-xl
+                    border-2
+                    transition-all
+                    ${
+                      selectedImage === image.url
+                        ? "border-blue-500"
+                        : "border-transparent hover:border-white"
+                    }
+                  `}
                 >
                   <Image
                     src={image.url}
-                    alt={`Preview thumbnail ${index + 1}`}
+                    alt={`${productTitle} - preview image ${index + 1}`}
                     fill
                     sizes="64px"
-                    className="
-                        object-cover
-                      "
+                    className="object-cover"
                   />
                 </button>
               ))}
@@ -685,26 +625,18 @@ export default function ProductImageGallery({
                 e.stopPropagation();
                 nextImage();
               }}
-              aria-label="Next image"
+              aria-label="Next product image"
               className="
                 absolute
                 right-6
                 top-1/2
-
                 -translate-y-1/2
-
                 rounded-full
-
                 bg-white/20
-
                 p-4
-
                 text-white
-
                 backdrop-blur-md
-
                 transition
-
                 hover:bg-white/40
               "
             >
@@ -721,18 +653,12 @@ export default function ProductImageGallery({
               absolute
               bottom-28
               left-1/2
-
               -translate-x-1/2
-
               rounded-full
-
               bg-black/60
-
               px-5
               py-2
-
               text-white
-
               backdrop-blur-md
             "
           >
@@ -746,24 +672,17 @@ export default function ProductImageGallery({
           <button
             type="button"
             onClick={() => setOpenPreview(false)}
-            aria-label="Close preview"
+            aria-label="Close image preview"
             className="
               absolute
               right-6
               top-6
-
               rounded-full
-
               bg-white/20
-
               p-3
-
               text-white
-
               backdrop-blur-md
-
               transition
-
               hover:bg-white/40
             "
           >
