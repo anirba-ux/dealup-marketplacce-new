@@ -1,4 +1,5 @@
 import IntlProvider from "@/components/providers/IntlProvider";
+import Script from "next/script";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
@@ -23,8 +24,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = "https://www.dealupmarketplace.com";
+
+// =====================================================
+// SEO METADATA
+// =====================================================
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.dealupmarketplace.com"),
+  metadataBase: new URL(SITE_URL),
 
   title: {
     default: "DealUp Marketplace | Buy & Sell Locally in India",
@@ -39,7 +46,7 @@ export const metadata: Metadata = {
   authors: [
     {
       name: "DealUp Marketplace",
-      url: "https://www.dealupmarketplace.com",
+      url: SITE_URL,
     },
   ],
 
@@ -53,6 +60,7 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+
     googleBot: {
       index: true,
       follow: true,
@@ -62,16 +70,20 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://www.dealupmarketplace.com",
+    url: SITE_URL,
     siteName: "DealUp Marketplace",
+
     title: "DealUp Marketplace | Buy & Sell Locally in India",
+
     description:
       "Buy and sell new and used products locally with DealUp Marketplace. Discover products from sellers near you.",
   },
 
   twitter: {
     card: "summary_large_image",
+
     title: "DealUp Marketplace | Buy & Sell Locally in India",
+
     description:
       "Buy and sell new and used products locally with DealUp Marketplace.",
   },
@@ -79,48 +91,104 @@ export const metadata: Metadata = {
   category: "shopping",
 };
 
+// =====================================================
+// ORGANIZATION JSON-LD
+// =====================================================
+
 const organizationJsonLd = {
   "@context": "https://schema.org",
   "@type": "OnlineMarketplace",
-  "@id": "https://www.dealupmarketplace.com/#organization",
+
+  "@id": `${SITE_URL}/#organization`,
+
   name: "DealUp Marketplace",
-  url: "https://www.dealupmarketplace.com",
-  logo: "https://www.dealupmarketplace.com/dealup-logo.png",
+
+  url: SITE_URL,
+
+  logo: `${SITE_URL}/dealup-logo.png`,
+
   description:
     "DealUp Marketplace is a local online marketplace to buy and sell new and used products safely across India.",
 };
 
+// =====================================================
+// WEBSITE JSON-LD
+// =====================================================
+
 const websiteJsonLd = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  "@id": "https://www.dealupmarketplace.com/#website",
+
+  "@id": `${SITE_URL}/#website`,
+
   name: "DealUp Marketplace",
-  url: "https://www.dealupmarketplace.com",
+
+  url: SITE_URL,
+
   publisher: {
-    "@id": "https://www.dealupmarketplace.com/#organization",
+    "@id": `${SITE_URL}/#organization`,
   },
 };
+
+// =====================================================
+// ROOT LAYOUT
+// =====================================================
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // =====================================
+  // ===================================================
   // Get Server Session
-  // =====================================
+  // ===================================================
 
   const session = await auth();
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        {/* =================================================
+            GOOGLE ANALYTICS 4
+            Measurement ID: G-P8WH1B832S
+        ================================================= */}
+
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-P8WH1B832S"
+          strategy="afterInteractive"
+        />
+
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+        >
+          {`
+            window.dataLayer = window.dataLayer || [];
+
+            function gtag() {
+              window.dataLayer.push(arguments);
+            }
+
+            gtag('js', new Date());
+
+            gtag('config', 'G-P8WH1B832S');
+          `}
+        </Script>
+
+        {/* =================================================
+            ORGANIZATION JSON-LD
+        ================================================= */}
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify(organizationJsonLd),
           }}
         />
+
+        {/* =================================================
+            WEBSITE JSON-LD
+        ================================================= */}
 
         <script
           type="application/ld+json"
@@ -132,12 +200,12 @@ export default async function RootLayout({
 
       <body
         className={`
-        ${geistSans.variable}
-        ${geistMono.variable}
-        antialiased
-        bg-background
-        text-foreground
-      `}
+          ${geistSans.variable}
+          ${geistMono.variable}
+          antialiased
+          bg-background
+          text-foreground
+        `}
       >
         <QueryProvider>
           <AuthProvider session={session}>
@@ -145,7 +213,15 @@ export default async function RootLayout({
               <IntlProvider>
                 {children}
 
-                <Toaster position="top-right" richColors closeButton />
+                {/* =================================================
+                    TOAST NOTIFICATIONS
+                ================================================= */}
+
+                <Toaster
+                  position="top-right"
+                  richColors
+                  closeButton
+                />
               </IntlProvider>
             </ThemeProvider>
           </AuthProvider>

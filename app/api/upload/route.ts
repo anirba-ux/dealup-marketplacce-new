@@ -129,6 +129,10 @@ export async function POST(request: NextRequest) {
       // Cloudinary Image Upload
       // ===================================================
 
+      const cloudinaryStart = Date.now();
+
+      console.log("[UPLOAD PERF] Before Cloudinary upload");
+
       const uploadResult = await new Promise<any>((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(
@@ -147,8 +151,14 @@ export async function POST(request: NextRequest) {
             },
             (error, result) => {
               if (error) {
+                console.error("[UPLOAD PERF] Cloudinary error:", error);
                 reject(error);
               } else {
+                console.log(
+                  "[UPLOAD PERF] Cloudinary upload time:",
+                  `${Date.now() - cloudinaryStart} ms`,
+                );
+
                 resolve(result);
               }
             },
