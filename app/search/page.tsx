@@ -60,8 +60,14 @@ export async function generateMetadata({
 
   let title = "Search Products";
 
-  if (searchTerm && categorySlug) {
+  if (searchTerm && categorySlug && cityName) {
+    title = `Buy ${searchTerm} in ${cityName}`;
+  } else if (searchTerm && categorySlug) {
     title = `Buy ${searchTerm} in ${categorySlug}`;
+  } else if (searchTerm && cityName) {
+    title = `Buy ${searchTerm} in ${cityName}`;
+  } else if (categorySlug && cityName) {
+    title = `Buy & Sell ${categorySlug} in ${cityName}`;
   } else if (searchTerm) {
     title = `Buy ${searchTerm} Online`;
   } else if (categorySlug) {

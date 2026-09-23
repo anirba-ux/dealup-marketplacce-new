@@ -256,6 +256,33 @@ export default async function ProductDetailsPage({ params }: Props) {
         ? "https://schema.org/RefurbishedCondition"
         : "https://schema.org/UsedCondition";
 
+  const productBreadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: "https://www.dealupmarketplace.com/",
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.subcategory,
+        item: `https://www.dealupmarketplace.com/search?category=${encodeURIComponent(
+          product.subcategory,
+        )}`,
+      },
+      {
+        "@type": "ListItem",
+        position: 3,
+        name: product.title,
+        item: `https://www.dealupmarketplace.com/products/${product.slug}`,
+      },
+    ],
+  };
+
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -285,6 +312,12 @@ export default async function ProductDetailsPage({ params }: Props) {
   };
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(productBreadcrumbJsonLd),
+        }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
