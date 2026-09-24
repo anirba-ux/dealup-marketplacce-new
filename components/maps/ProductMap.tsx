@@ -1,31 +1,16 @@
 "use client";
 
-import {
-  MapContainer,
-  Marker,
-  Popup,
-  TileLayer,
-  Tooltip,
-} from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, Tooltip } from "react-leaflet";
 
-import {
-  Expand,
-  LocateFixed,
-} from "lucide-react";
+import { Expand, LocateFixed } from "lucide-react";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 import FullscreenMapModal from "./FullscreenMapModal";
 
 import MapTooltip from "./MapTooltip";
 
-import {
-  calculateDistance,
-} from "@/lib/utils/distance";
+import { calculateDistance } from "@/lib/utils/distance";
 
 import L from "leaflet";
 
@@ -44,55 +29,42 @@ interface Props {
 // Marker Icons
 // =====================================================
 
-const sellerMarker =
-  new L.Icon({
-    iconUrl:
-      "/markers/seller-location.png",
+const sellerMarker = new L.Icon({
+  iconUrl: "/markers/seller-location.png",
 
-    iconSize: [40, 40],
+  iconSize: [40, 40],
 
-    iconAnchor: [20, 40],
+  iconAnchor: [20, 40],
 
-    popupAnchor: [0, -40],
-  });
+  popupAnchor: [0, -40],
+});
 
-const buyerMarker =
-  new L.Icon({
-    iconUrl:
-      "/markers/buyer-location.png",
+const buyerMarker = new L.Icon({
+  iconUrl: "/markers/buyer-location.png",
 
-    iconSize: [40, 40],
+  iconSize: [40, 40],
 
-    iconAnchor: [20, 40],
+  iconAnchor: [20, 40],
 
-    popupAnchor: [0, -40],
-  });
+  popupAnchor: [0, -40],
+});
 
 // =====================================================
 // Main Product Map
 // =====================================================
 
-export default function ProductMap({
-  latitude,
-  longitude,
-}: Props) {
+export default function ProductMap({ latitude, longitude }: Props) {
   // ===================================================
   // Validate Product Coordinates
   // ===================================================
 
-  const validLatitude =
-    Number(latitude);
+  const validLatitude = Number(latitude);
 
-  const validLongitude =
-    Number(longitude);
+  const validLongitude = Number(longitude);
 
   const hasValidCoordinates =
-    Number.isFinite(
-      validLatitude,
-    ) &&
-    Number.isFinite(
-      validLongitude,
-    ) &&
+    Number.isFinite(validLatitude) &&
+    Number.isFinite(validLongitude) &&
     validLatitude >= -90 &&
     validLatitude <= 90 &&
     validLongitude >= -180 &&
@@ -103,179 +75,112 @@ export default function ProductMap({
   // ===================================================
 
   useEffect(() => {
-    console.log(
-      "🗺️ PRODUCT MAP COORDINATES:",
-      {
-        latitude:
-          validLatitude,
+    console.log("🗺️ PRODUCT MAP COORDINATES:", {
+      latitude: validLatitude,
 
-        longitude:
-          validLongitude,
-      },
-    );
-  }, [
-    validLatitude,
-    validLongitude,
-  ]);
+      longitude: validLongitude,
+    });
+  }, [validLatitude, validLongitude]);
 
   // ===================================================
   // State
   // ===================================================
 
-  const [
-    fullscreenOpen,
-    setFullscreenOpen,
-  ] = useState(false);
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
 
-  const [
-    userLocation,
-    setUserLocation,
-  ] = useState<
-    [number, number] | null
-  >(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null,
+  );
 
-  const [
-    distance,
-    setDistance,
-  ] = useState<
-    number | null
-  >(null);
+  const [distance, setDistance] = useState<number | null>(null);
 
-  const [
-    showFullscreenTooltip,
-    setShowFullscreenTooltip,
-  ] = useState(false);
+  const [showFullscreenTooltip, setShowFullscreenTooltip] = useState(false);
 
-  const [
-    showLocationTooltip,
-    setShowLocationTooltip,
-  ] = useState(false);
+  const [showLocationTooltip, setShowLocationTooltip] = useState(false);
 
   // ===================================================
   // Map Ref
   // ===================================================
 
-  const mapRef =
-    useRef<L.Map | null>(
-      null,
-    );
+  const mapRef = useRef<L.Map | null>(null);
 
   // ===================================================
   // Get Buyer Current Location
   // ===================================================
 
-  const getCurrentLocation =
-    () => {
-      if (
-        !navigator.geolocation
-      ) {
-        alert(
-          "Geolocation is not supported on this device.",
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported on this device.");
+
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const buyerLatitude = position.coords.latitude;
+
+        const buyerLongitude = position.coords.longitude;
+
+        setUserLocation([buyerLatitude, buyerLongitude]);
+
+        // =============================================
+        // Distance
+        //
+        // Product coordinates are ALWAYS used
+        // as destination.
+        // =============================================
+
+        const km = calculateDistance(
+          buyerLatitude,
+          buyerLongitude,
+          validLatitude,
+          validLongitude,
         );
 
-        return;
-      }
+        console.log("📏 Distance from buyer to product:", km);
 
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const buyerLatitude =
-            position.coords
-              .latitude;
+        setDistance(km);
+      },
 
-          const buyerLongitude =
-            position.coords
-              .longitude;
+      () => {
+        alert("Unable to get your current location.");
+      },
 
-          setUserLocation([
-            buyerLatitude,
-            buyerLongitude,
-          ]);
+      {
+        enableHighAccuracy: true,
 
-          // =============================================
-          // Distance
-          //
-          // Product coordinates are ALWAYS used
-          // as destination.
-          // =============================================
+        timeout: 15000,
 
-          const km =
-            calculateDistance(
-              buyerLatitude,
-              buyerLongitude,
-              validLatitude,
-              validLongitude,
-            );
-
-          console.log(
-            "📏 Distance from buyer to product:",
-            km,
-          );
-
-          setDistance(km);
-        },
-
-        () => {
-          alert(
-            "Unable to get your current location.",
-          );
-        },
-
-        {
-          enableHighAccuracy: true,
-
-          timeout: 15000,
-
-          maximumAge: 0,
-        },
-      );
-    };
+        maximumAge: 0,
+      },
+    );
+  };
 
   // ===================================================
   // Fit Buyer + Product Location
   // ===================================================
 
   useEffect(() => {
-    if (
-      !mapRef.current ||
-      !userLocation ||
-      !hasValidCoordinates
-    ) {
+    if (!mapRef.current || !userLocation || !hasValidCoordinates) {
       return;
     }
 
-    const bounds =
-      L.latLngBounds([
-        [
-          validLatitude,
-          validLongitude,
-        ],
+    const bounds = L.latLngBounds([
+      [validLatitude, validLongitude],
 
-        userLocation,
-      ]);
+      userLocation,
+    ]);
 
-    mapRef.current.fitBounds(
-      bounds,
-      {
-        padding: [
-          60,
-          60,
-        ],
-      },
-    );
-  }, [
-    userLocation,
-    validLatitude,
-    validLongitude,
-    hasValidCoordinates,
-  ]);
+    mapRef.current.fitBounds(bounds, {
+      padding: [60, 60],
+    });
+  }, [userLocation, validLatitude, validLongitude, hasValidCoordinates]);
 
   // ===================================================
   // Invalid Coordinates
   // ===================================================
 
-  if (
-    !hasValidCoordinates
-  ) {
+  if (!hasValidCoordinates) {
     return (
       <div className="flex h-[350px] w-full items-center justify-center rounded-3xl border border-red-200 bg-red-50 p-6 text-center">
         <div>
@@ -284,8 +189,7 @@ export default function ProductMap({
           </p>
 
           <p className="mt-2 text-sm text-red-600">
-            Valid product coordinates
-            were not found.
+            Valid product coordinates were not found.
           </p>
         </div>
       </div>
@@ -299,26 +203,15 @@ export default function ProductMap({
   return (
     <>
       <div className="relative">
-
         {/* =================================================
             Fullscreen Button
         ================================================= */}
 
         <button
           type="button"
-          onClick={() =>
-            setFullscreenOpen(true)
-          }
-          onMouseEnter={() =>
-            setShowFullscreenTooltip(
-              true,
-            )
-          }
-          onMouseLeave={() =>
-            setShowFullscreenTooltip(
-              false,
-            )
-          }
+          onClick={() => setFullscreenOpen(true)}
+          onMouseEnter={() => setShowFullscreenTooltip(true)}
+          onMouseLeave={() => setShowFullscreenTooltip(false)}
           className="
             absolute
             right-3
@@ -343,9 +236,7 @@ export default function ProductMap({
 
           <MapTooltip
             text="Open Fullscreen Map"
-            visible={
-              showFullscreenTooltip
-            }
+            visible={showFullscreenTooltip}
           />
         </button>
 
@@ -355,19 +246,9 @@ export default function ProductMap({
 
         <button
           type="button"
-          onClick={
-            getCurrentLocation
-          }
-          onMouseEnter={() =>
-            setShowLocationTooltip(
-              true,
-            )
-          }
-          onMouseLeave={() =>
-            setShowLocationTooltip(
-              false,
-            )
-          }
+          onClick={getCurrentLocation}
+          onMouseEnter={() => setShowLocationTooltip(true)}
+          onMouseLeave={() => setShowLocationTooltip(false)}
           className="
             absolute
             right-3
@@ -390,12 +271,7 @@ export default function ProductMap({
         >
           <LocateFixed size={18} />
 
-          <MapTooltip
-            text="Show My Location"
-            visible={
-              showLocationTooltip
-            }
-          />
+          <MapTooltip text="Show My Location" visible={showLocationTooltip} />
         </button>
 
         {/* =================================================
@@ -403,13 +279,15 @@ export default function ProductMap({
         ================================================= */}
 
         <MapContainer
-          center={[
-            validLatitude,
-            validLongitude,
-          ]}
+          center={[validLatitude, validLongitude]}
           zoom={15}
           scrollWheelZoom
-          className="h-[350px] w-full rounded-3xl"
+          className="
+    h-[350px]
+    w-full
+    !rounded-2xl
+    overflow-hidden
+  "
           ref={mapRef}
         >
           {/* ===============================================
@@ -430,21 +308,13 @@ export default function ProductMap({
           =============================================== */}
 
           <Marker
-            position={[
-              validLatitude,
-              validLongitude,
-            ]}
-            icon={
-              sellerMarker
-            }
+            position={[validLatitude, validLongitude]}
+            icon={sellerMarker}
           >
             <Tooltip
               permanent
               direction="bottom"
-              offset={[
-                0,
-                12,
-              ]}
+              offset={[0, 12]}
               className="!border-0 !bg-transparent !shadow-none"
             >
               <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white">
@@ -454,15 +324,12 @@ export default function ProductMap({
 
             <Popup className="rounded-xl">
               <div className="min-w-[190px] p-1">
-
                 <h3 className="font-bold text-slate-900">
                   📍 Product Location
                 </h3>
 
                 <p className="mt-2 text-sm text-slate-600">
-                  This is the location
-                  selected for this
-                  product.
+                  This is the location selected for this product.
                 </p>
 
                 {/* =========================================
@@ -493,12 +360,8 @@ export default function ProductMap({
                   "
                 >
                   🧭
-
-                  <span className="!text-white">
-                    Get Directions
-                  </span>
+                  <span className="!text-white">Get Directions</span>
                 </a>
-
               </div>
             </Popup>
           </Marker>
@@ -511,21 +374,11 @@ export default function ProductMap({
           =============================================== */}
 
           {userLocation && (
-            <Marker
-              position={
-                userLocation
-              }
-              icon={
-                buyerMarker
-              }
-            >
+            <Marker position={userLocation} icon={buyerMarker}>
               <Tooltip
                 permanent
                 direction="bottom"
-                offset={[
-                  0,
-                  12,
-                ]}
+                offset={[0, 12]}
                 className="!border-0 !bg-transparent !shadow-none"
               >
                 <span className="rounded-full bg-[#1565d8] px-3 py-1 text-xs font-semibold text-white">
@@ -533,10 +386,7 @@ export default function ProductMap({
                 </span>
               </Tooltip>
 
-              <Popup>
-                📍 Your Current
-                Location
-              </Popup>
+              <Popup>📍 Your Current Location</Popup>
             </Marker>
           )}
         </MapContainer>
@@ -565,32 +415,22 @@ export default function ProductMap({
             "
           >
             <div className="flex items-start justify-between">
-
               <div>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                  Distance from your
-                  location
+                  Distance from your location
                 </p>
 
                 <p className="mt-1 text-lg font-bold text-[#1565d8]">
-                  🚶{" "}
-                  {distance.toFixed(
-                    2,
-                  )}{" "}
-                  KM Away
+                  🚶 {distance.toFixed(2)} KM Away
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => {
-                  setDistance(
-                    null,
-                  );
+                  setDistance(null);
 
-                  setUserLocation(
-                    null,
-                  );
+                  setUserLocation(null);
                 }}
                 className="
                   flex
@@ -608,7 +448,6 @@ export default function ProductMap({
               >
                 ✕
               </button>
-
             </div>
           </div>
         )}
@@ -619,20 +458,10 @@ export default function ProductMap({
       ================================================= */}
 
       <FullscreenMapModal
-        open={
-          fullscreenOpen
-        }
-        onClose={() =>
-          setFullscreenOpen(
-            false,
-          )
-        }
-        latitude={
-          validLatitude
-        }
-        longitude={
-          validLongitude
-        }
+        open={fullscreenOpen}
+        onClose={() => setFullscreenOpen(false)}
+        latitude={validLatitude}
+        longitude={validLongitude}
         address={`Product Location: ${validLatitude}, ${validLongitude}`}
       />
     </>

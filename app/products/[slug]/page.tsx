@@ -37,11 +37,17 @@ import {
   type SellerVerificationStatus,
 } from "@/lib/risk/sellerTrust";
 
+import type { PublicSellerProfile } from "@/lib/types/user";
+
 interface Props {
   params: Promise<{
     slug: string;
   }>;
 }
+
+/* =========================================================
+   SEO METADATA
+========================================================= */
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -72,7 +78,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     descriptionSource.length > 155
       ? `${descriptionSource.slice(0, 152)}...`
       : descriptionSource ||
-        `Buy ${productTitle} on DealUp Marketplace. Find local sellers${locationText ? ` in ${locationText}` : ""} and discover new and used products near you.`;
+        `Buy ${productTitle} on DealUp Marketplace. Find local sellers${
+          locationText ? ` in ${locationText}` : ""
+        } and discover new and used products near you.`;
 
   const canonicalUrl = `https://www.dealupmarketplace.com/products/${product.slug}`;
 
@@ -122,6 +130,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     robots: {
       index: true,
       follow: true,
+
       googleBot: {
         index: true,
         follow: true,
@@ -130,24 +139,59 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+/* =========================================================
+   PRODUCT DETAILS PAGE
+========================================================= */
+
 export default async function ProductDetailsPage({ params }: Props) {
   const { slug } = await params;
 
+  /* -------------------------------------------------------
+     FIND PRODUCT
+  ------------------------------------------------------- */
+
   let product = await findProductBySlug(slug);
 
-  if (!product) notFound();
+  if (!product) {
+    notFound();
+  }
+
+  /* -------------------------------------------------------
+     INCREASE PRODUCT VIEWS
+  ------------------------------------------------------- */
 
   await increaseProductViews(product._id.toString());
 
+  /* -------------------------------------------------------
+     FETCH PRODUCT AGAIN
+     So updated views are available
+  ------------------------------------------------------- */
+
   product = await findProductBySlug(slug);
 
-  if (!product) notFound();
+  if (!product) {
+    notFound();
+  }
+
+  /* -------------------------------------------------------
+     FIND SELLER
+  ------------------------------------------------------- */
 
   const rawSeller = await findUserById(product.sellerId);
 
-  if (!rawSeller) notFound();
+  if (!rawSeller) {
+    notFound();
+  }
+
+  /* -------------------------------------------------------
+     SELLER STATS
+  ------------------------------------------------------- */
 
   const sellerStats = await findSellerStats(product.sellerId);
+
+  /* =======================================================
+     SELLER VERIFICATION
+  ======================================================= */
 
   const sellerVerificationStatus: SellerVerificationStatus =
     rawSeller.sellerVerification?.status ?? "unverified";
@@ -165,6 +209,10 @@ export default async function ProductDetailsPage({ params }: Props) {
   const sellerLocationVerified = Boolean(
     rawSeller.sellerVerification?.locationVerified ?? false,
   );
+
+  /* =======================================================
+     SELLER TRUST
+  ======================================================= */
 
   const sellerTrustScore = Number(rawSeller.trustScore ?? 0);
 
@@ -186,6 +234,10 @@ export default async function ProductDetailsPage({ params }: Props) {
     ).trustedSeller,
   );
 
+  /* =======================================================
+     PREMIUM SELLER
+  ======================================================= */
+
   const premiumSeller = rawSeller.premiumSeller;
 
   const premiumExpiresAt = premiumSeller?.expiresAt
@@ -201,6 +253,10 @@ export default async function ProductDetailsPage({ params }: Props) {
   const sellerPremiumBadge =
     sellerPremiumSeller && premiumSeller?.premiumBadge === true;
 
+  /* =======================================================
+     SELLER BADGE
+  ======================================================= */
+
   const sellerBadge = getSellerBadge({
     verificationStatus: sellerVerificationStatus,
     phoneVerified: sellerPhoneVerified,
@@ -212,26 +268,82 @@ export default async function ProductDetailsPage({ params }: Props) {
     hasSeriousBadHistory: false,
   });
 
-  const seller = {
-    ...rawSeller,
+  /* =======================================================
+     PUBLIC SELLER PROFILE
+     
+     IMPORTANT:
+     Do NOT use:
+     
+       ...rawSeller
+     
+     here.
+
+     Because rawSeller contains private fields such as:
+       - phone
+       - email
+
+     Only safe public seller information is passed
+     to SellerCard.
+  ======================================================= */
+
+  const seller: PublicSellerProfile = {
+    _id: rawSeller._id,
+
+    name: rawSeller.name,
+
+    image: rawSeller.image,
+
+    address: rawSeller.address,
+
+    createdAt: rawSeller.createdAt,
+
     verificationStatus: sellerVerificationStatus,
+
     phoneVerified: sellerPhoneVerified,
+
     identityVerified: sellerIdentityVerified,
+
     locationVerified: sellerLocationVerified,
+
     trustScore: sellerTrustScore,
+
     trustLevel: sellerTrustLevel,
+
     trustedSeller: sellerTrustedSeller,
-    sellerBadge,
+
+    sellerBadge: sellerBadge.badge,
+
+    sellerBadgeLabel: sellerBadge.label,
+
+    sellerBadgeData: sellerBadge,
+
     badge: sellerBadge,
+
+    premiumSeller: rawSeller.premiumSeller,
   };
 
+  /* =======================================================
+     CURRENT USER
+  ======================================================= */
+
   const session = await auth();
+
   const currentUserId = (session?.user as any)?.id ?? "";
+
+  /* =======================================================
+     RELATED PRODUCTS
+  ======================================================= */
 
   const relatedProducts = await findRelatedProducts(
     product.category.toString(),
     product._id.toString(),
   );
+
+  /* =======================================================
+     SEO SAFE PRODUCT DESCRIPTION
+     
+     Contact information is removed from structured data.
+  ======================================================= */
 
   const seoProductDescription =
     product.description
@@ -244,10 +356,18 @@ export default async function ProductDetailsPage({ params }: Props) {
       .trim()
       .slice(0, 500) || product.title;
 
+  /* =======================================================
+     PRODUCT AVAILABILITY
+  ======================================================= */
+
   const productAvailability =
     product.status === "sold"
       ? "https://schema.org/SoldOut"
       : "https://schema.org/InStock";
+
+  /* =======================================================
+     PRODUCT CONDITION
+  ======================================================= */
 
   const productCondition =
     product.condition === "new"
@@ -256,9 +376,15 @@ export default async function ProductDetailsPage({ params }: Props) {
         ? "https://schema.org/RefurbishedCondition"
         : "https://schema.org/UsedCondition";
 
+  /* =======================================================
+     BREADCRUMB JSON-LD
+  ======================================================= */
+
   const productBreadcrumbJsonLd = {
     "@context": "https://schema.org",
+
     "@type": "BreadcrumbList",
+
     itemListElement: [
       {
         "@type": "ListItem",
@@ -266,6 +392,7 @@ export default async function ProductDetailsPage({ params }: Props) {
         name: "Home",
         item: "https://www.dealupmarketplace.com/",
       },
+
       {
         "@type": "ListItem",
         position: 2,
@@ -274,6 +401,7 @@ export default async function ProductDetailsPage({ params }: Props) {
           product.subcategory,
         )}`,
       },
+
       {
         "@type": "ListItem",
         position: 3,
@@ -283,49 +411,91 @@ export default async function ProductDetailsPage({ params }: Props) {
     ],
   };
 
+  /* =======================================================
+     PRODUCT JSON-LD
+  ======================================================= */
+
   const productJsonLd = {
     "@context": "https://schema.org",
+
     "@type": "Product",
+
     name: product.title,
+
     description: seoProductDescription,
+
     image: product.images
       .map((image: any) => (typeof image === "string" ? image : image?.url))
       .filter(Boolean),
+
     sku: product._id.toString(),
+
     brand: product.brand
       ? {
           "@type": "Brand",
           name: product.brand,
         }
       : undefined,
+
     model: product.model || undefined,
+
     category: product.categoryName,
+
     itemCondition: productCondition,
+
     offers: {
       "@type": "Offer",
+
       url: `https://www.dealupmarketplace.com/products/${product.slug}`,
+
       priceCurrency: "INR",
+
       price: product.price,
+
       availability: productAvailability,
+
       itemCondition: productCondition,
     },
   };
+
+  /* =======================================================
+     UI
+  ======================================================= */
+
   return (
     <>
+      {/* =====================================================
+          BREADCRUMB JSON-LD
+      ===================================================== */}
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(productBreadcrumbJsonLd),
         }}
       />
+
+      {/* =====================================================
+          PRODUCT JSON-LD
+      ===================================================== */}
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(productJsonLd),
         }}
       />
+
+      {/* =====================================================
+          PAGE
+      ===================================================== */}
+
       <main className="min-h-screen bg-slate-50 py-4 text-slate-900 sm:py-8 lg:py-10 dark:bg-[#07111f] dark:text-white">
         <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8">
+          {/* =================================================
+              TOP ACTIONS
+          ================================================= */}
+
           <div className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
             <BackButton />
 
@@ -334,26 +504,46 @@ export default async function ProductDetailsPage({ params }: Props) {
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#1565d8]/30 hover:bg-blue-50 hover:text-[#1565d8] hover:shadow-md active:scale-95 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
             >
               <Home className="h-4 w-4" />
+
               <span>Home</span>
             </Link>
           </div>
 
+          {/* =================================================
+              BREADCRUMB
+          ================================================= */}
+
           <div className="mb-5 flex items-center gap-1.5 overflow-hidden text-[11px] text-slate-500 sm:mb-7 sm:gap-2 sm:text-sm dark:text-slate-400">
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />
+
             <Link
               href={`/search?category=${product.subcategory}`}
               className="shrink-0 transition-colors hover:text-[#1565d8]"
             >
               {product.subcategory}
             </Link>
+
             <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300 dark:text-slate-600" />
+
             <span className="truncate font-semibold text-slate-800 dark:text-slate-200">
               {product.title}
             </span>
           </div>
 
+          {/* =================================================
+              MAIN GRID
+          ================================================= */}
+
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)] lg:gap-10">
+            {/* =================================================
+                LEFT COLUMN
+            ================================================= */}
+
             <div className="min-w-0 space-y-5 sm:space-y-7">
+              {/* =================================================
+                  PRODUCT IMAGE
+              ================================================= */}
+
               <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3 dark:border-white/10 dark:bg-[#091526]">
                 {sellerBadge.badge === "trusted" && (
                   <div className="absolute left-4 top-4 z-50 inline-flex items-center gap-1.5 rounded-full border border-yellow-300/80 bg-yellow-500 px-3 py-1.5 text-xs font-extrabold text-white shadow-lg shadow-yellow-500/25 sm:left-6 sm:top-6 sm:px-3.5 sm:py-2 sm:text-sm">
@@ -361,6 +551,7 @@ export default async function ProductDetailsPage({ params }: Props) {
                     Trusted Seller
                   </div>
                 )}
+
                 <ProductImageGallery
                   images={product.images}
                   productTitle={product.title}
@@ -369,17 +560,27 @@ export default async function ProductDetailsPage({ params }: Props) {
                 />
               </section>
 
+              {/* =================================================
+                  DESCRIPTION
+              ================================================= */}
+
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 dark:border-white/10 dark:bg-[#091526]">
                 <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
                   <h2 className="text-lg font-extrabold tracking-tight sm:text-2xl">
                     Description
                   </h2>
+
                   <span className="h-1 w-10 rounded-full bg-[#1565d8] sm:w-14" />
                 </div>
+
                 <p className="whitespace-pre-line text-sm leading-6 text-slate-600 sm:text-[15px] sm:leading-7 dark:text-slate-300">
                   {product.description}
                 </p>
               </section>
+
+              {/* =================================================
+                  PRODUCT LOCATION
+              ================================================= */}
 
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 dark:border-white/10 dark:bg-[#091526]">
                 <div className="mb-4 flex items-center justify-between gap-3 sm:mb-5">
@@ -387,14 +588,24 @@ export default async function ProductDetailsPage({ params }: Props) {
                     <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#1565d8]">
                       Where to find it
                     </p>
+
                     <h2 className="text-lg font-extrabold tracking-tight sm:text-2xl">
                       Product Location
                     </h2>
                   </div>
+
                   <MapPin className="h-5 w-5 text-[#1565d8] sm:h-6 sm:w-6" />
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
+                <div
+                  className="
+    overflow-hidden
+    rounded-2xl
+    border
+    border-slate-200
+    dark:border-white/10
+  "
+                >
                   <ProductLocationMap
                     latitude={product.location.coordinates.lat}
                     longitude={product.location.coordinates.lng}
@@ -405,6 +616,7 @@ export default async function ProductDetailsPage({ params }: Props) {
                   <p className="text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">
                     {product.location.address}
                   </p>
+
                   <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
                     {product.location.city}, {product.location.district},{" "}
                     {product.location.state} - {product.location.pincode}
@@ -419,22 +631,33 @@ export default async function ProductDetailsPage({ params }: Props) {
               </section>
             </div>
 
+            {/* =================================================
+                RIGHT COLUMN
+            ================================================= */}
+
             <div className="min-w-0 lg:sticky lg:top-6">
+              {/* =================================================
+                  PRODUCT SUMMARY
+              ================================================= */}
+
               <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:rounded-3xl sm:p-6 lg:p-7 dark:border-white/10 dark:bg-[#091526]">
                 <div className="flex flex-wrap gap-2">
                   <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[11px] font-bold capitalize text-[#1565d8] dark:bg-blue-500/10 dark:text-blue-300">
                     {product.condition}
                   </span>
+
                   {product.negotiable && (
                     <span className="rounded-full bg-green-50 px-3 py-1.5 text-[11px] font-bold text-green-700 dark:bg-green-500/10 dark:text-green-300">
                       Negotiable
                     </span>
                   )}
+
                   {product.isFeatured && (
                     <span className="rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                       ⭐ Featured
                     </span>
                   )}
+
                   {product.isPremium && (
                     <span className="rounded-full bg-purple-50 px-3 py-1.5 text-[11px] font-bold text-purple-700 dark:bg-purple-500/10 dark:text-purple-300">
                       Premium Seller
@@ -450,6 +673,7 @@ export default async function ProductDetailsPage({ params }: Props) {
                   <p className="text-3xl font-black tracking-tight text-[#1565d8] sm:text-5xl">
                     ₹ {product.price.toLocaleString("en-IN")}
                   </p>
+
                   <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
                     <Eye className="h-4 w-4" />
                     {product.views} views
@@ -459,8 +683,10 @@ export default async function ProductDetailsPage({ params }: Props) {
                 <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
                     <MapPin className="h-3.5 w-3.5 text-[#1565d8]" />
+
                     {product.location.city}
                   </span>
+
                   <span className="inline-flex items-center gap-1.5">
                     <CalendarDays className="h-3.5 w-3.5 text-[#1565d8]" />
                     Posted{" "}
@@ -469,79 +695,107 @@ export default async function ProductDetailsPage({ params }: Props) {
                 </div>
               </section>
 
+              {/* =================================================
+                  PRODUCT DETAILS
+              ================================================= */}
+
               <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:mt-6 sm:rounded-3xl sm:p-6 dark:border-white/10 dark:bg-[#091526]">
                 <h2 className="mb-4 text-lg font-extrabold sm:mb-5 sm:text-xl">
                   Product Details
                 </h2>
 
                 <div className="divide-y divide-slate-100 dark:divide-white/10">
+                  {/* Category */}
                   <div className="flex items-center justify-between gap-4 py-3 first:pt-0">
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                       <Tag className="h-4 w-4 text-[#1565d8]" />
                       Category
                     </span>
+
                     <span className="text-right text-xs font-bold capitalize sm:text-sm">
                       {product.categoryName}
                     </span>
                   </div>
+
+                  {/* Condition */}
                   <div className="flex items-center justify-between gap-4 py-3">
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                       <Bike className="h-4 w-4 text-[#1565d8]" />
                       Condition
                     </span>
+
                     <span className="text-right text-xs font-bold capitalize sm:text-sm">
                       {product.condition}
                     </span>
                   </div>
+
+                  {/* Brand */}
                   {product.brand && (
                     <div className="flex items-center justify-between gap-4 py-3">
                       <span className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                         Brand
                       </span>
+
                       <span className="max-w-[55%] text-right text-xs font-bold sm:text-sm">
                         {product.brand}
                       </span>
                     </div>
                   )}
+
+                  {/* Model */}
                   {product.model && (
                     <div className="flex items-center justify-between gap-4 py-3">
                       <span className="text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                         Model
                       </span>
+
                       <span className="max-w-[55%] text-right text-xs font-bold sm:text-sm">
                         {product.model}
                       </span>
                     </div>
                   )}
+
+                  {/* Views */}
                   <div className="flex items-center justify-between gap-4 py-3">
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                       <Eye className="h-4 w-4 text-[#1565d8]" />
                       Views
                     </span>
+
                     <span className="text-xs font-bold sm:text-sm">
                       {product.views}
                     </span>
                   </div>
+
+                  {/* Posted */}
                   <div className="flex items-center justify-between gap-4 py-3">
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                       <CalendarDays className="h-4 w-4 text-[#1565d8]" />
                       Posted
                     </span>
+
                     <span className="text-xs font-bold sm:text-sm">
                       {new Date(product.createdAt).toLocaleDateString("en-IN")}
                     </span>
                   </div>
+
+                  {/* Location */}
                   <div className="flex items-center justify-between gap-4 py-3 last:pb-0">
                     <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 sm:text-sm dark:text-slate-400">
                       <MapPin className="h-4 w-4 text-[#1565d8]" />
                       Location
                     </span>
+
                     <span className="text-xs font-bold sm:text-sm">
                       {product.location.city}
                     </span>
                   </div>
                 </div>
               </section>
+
+              {/* =================================================
+                  SELLER CARD
+              ================================================= */}
 
               <div className="mt-5 sm:mt-6">
                 <SellerCard
@@ -552,12 +806,20 @@ export default async function ProductDetailsPage({ params }: Props) {
                 />
               </div>
 
+              {/* =================================================
+                  SELLER MORE ADS
+              ================================================= */}
+
               <div className="mt-5 sm:mt-6">
                 <SellerMoreAds
                   sellerId={product.sellerId}
                   currentProductId={product._id.toString()}
                 />
               </div>
+
+              {/* =================================================
+                  PRODUCT ACTIONS
+              ================================================= */}
 
               <div className="mt-5 sm:mt-6">
                 <ProductActions
@@ -573,16 +835,22 @@ export default async function ProductDetailsPage({ params }: Props) {
             </div>
           </div>
 
+          {/* ===================================================
+              RELATED PRODUCTS
+          =================================================== */}
+
           <section className="mt-10 pb-4 sm:mt-14 lg:mt-20">
             <div className="mb-5 flex items-end justify-between gap-4 sm:mb-7">
               <div>
                 <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#1565d8]">
                   You may also like
                 </p>
+
                 <h2 className="text-2xl font-black tracking-tight sm:text-3xl">
                   Related Products
                 </h2>
               </div>
+
               {relatedProducts.length > 0 && (
                 <span className="shrink-0 text-xs font-medium text-slate-500 sm:hidden dark:text-slate-400">
                   Swipe →

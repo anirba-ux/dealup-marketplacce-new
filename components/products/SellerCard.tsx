@@ -8,30 +8,22 @@ import CallSellerModal from "@/components/products/CallSellerModal";
 
 import {
   BadgeCheck,
-  ShieldCheck,
-  Phone,
   BarChart3,
+  Phone,
+  ShieldCheck,
 } from "lucide-react";
 
-// =====================================================
-// Seller Badge
-// =====================================================
-
-interface SellerBadge {
-  badge?: string;
-  type?: string;
-  label?: string;
-  name?: string;
-  eligible?: boolean;
-}
+import type { PublicSellerProfile } from "@/lib/types/user";
 
 // =====================================================
 // Seller Card Props
 // =====================================================
 
 interface SellerCardProps {
-  seller: any;
+  seller: PublicSellerProfile;
+
   productId: string;
+
   productTitle: string;
 
   sellerStats: {
@@ -54,34 +46,24 @@ export default function SellerCard({
     useState(false);
 
   // ===================================================
-  // SELLER BASIC DATA
-  // ===================================================
-
-  const phoneNumber =
-    seller.phone?.replace(/\D/g, "") ?? "";
-
-  // ===================================================
   // VERIFICATION STATUS
   // ===================================================
 
   const verificationStatus =
-    seller.verificationStatus ??
-    seller.sellerVerificationStatus ??
-    seller.sellerVerification?.status ??
-    "unverified";
+    seller.verificationStatus ?? "unverified";
 
   // ===================================================
   // PHONE VERIFIED
   //
-  // Phone verification is an independent badge.
+  // IMPORTANT:
+  // We NEVER access seller.phone here.
+  //
+  // Only the already-sanitized public verification
+  // status is used.
   // ===================================================
 
   const phoneVerified =
-    seller.phoneVerified === true ||
-    seller.sellerPhoneVerified === true ||
-    seller.sellerIsPhoneVerified === true ||
-    seller.isPhoneVerified === true ||
-    seller.sellerVerification?.phoneVerified === true;
+    seller.phoneVerified === true;
 
   // ===================================================
   // SELLER BADGE
@@ -90,60 +72,30 @@ export default function SellerCard({
   //
   // Possible values:
   //
-  // none
-  // verified
-  // trusted
+  // "none"
+  // "verified"
+  // "trusted"
   //
   // IMPORTANT:
+  // We intentionally do NOT inspect:
   //
-  // Frontend does NOT calculate trust eligibility.
-  // ===================================================
-
-  const rawSellerBadge =
-    seller.sellerBadge ??
-    seller.badge ??
-    null;
-
-  // ===================================================
-  // NORMALIZE BADGE TYPE
+  // seller.badge.badge
+  // seller.badge.type
+  //
+  // This avoids the TypeScript "never" problem.
   // ===================================================
 
   const sellerBadgeType =
-    typeof rawSellerBadge === "string"
-      ? rawSellerBadge
-      : (
-          rawSellerBadge?.badge ??
-          rawSellerBadge?.type ??
-          "none"
-        );
+    seller.sellerBadge === "trusted"
+      ? "trusted"
+      : seller.sellerBadge === "verified"
+        ? "verified"
+        : "none";
 
   // ===================================================
   // FINAL BADGE STATE
   //
-  // IMPORTANT:
-  //
-  // We display THREE independent badges:
-  //
-  // 1. Phone Verified
-  // 2. Verified Seller
-  // 3. Trusted Seller
-  //
-  // Trusted Seller does NOT replace
-  // Verified Seller.
-  //
-  // Backend Trusted Seller requires a
-  // fully Verified Seller.
-  //
-  // Therefore:
-  //
-  // trusted
-  //   -> Verified Seller + Trusted Seller
-  //
-  // verified
-  //   -> Verified Seller
-  //
-  // none
-  //   -> no seller verification badge
+  // trusted seller also receives Verified Seller badge.
   // ===================================================
 
   const showTrustedSeller =
@@ -156,23 +108,6 @@ export default function SellerCard({
   const hasSellerBadge =
     showVerifiedSeller ||
     showTrustedSeller;
-
-  // ===================================================
-  // WHATSAPP MESSAGE
-  // ===================================================
-
-  const whatsappMessage =
-    encodeURIComponent(
-      `Hi ${seller.name},
-
-I'm interested in your product.
-
-📦 Product: ${productTitle}
-
-Is it still available?
-
-Thank you.`,
-    );
 
   // ===================================================
   // RETURN
@@ -213,15 +148,14 @@ Thank you.`,
       ================================================= */}
 
       <div className="flex items-center gap-4">
+        {/* SELLER IMAGE */}
+
         <Image
           src={
             seller.image ||
             "/avatar/male avatar.avif"
           }
-          alt={
-            seller.name ||
-            "Seller"
-          }
+          alt={seller.name || "Seller"}
           width={72}
           height={72}
           className="
@@ -251,7 +185,7 @@ Thank you.`,
             {seller.name}
           </h3>
 
-          {/* PHONE */}
+          {/* PHONE PRIVACY */}
 
           <p
             className="
@@ -266,8 +200,9 @@ Thank you.`,
           >
             <Phone size={14} />
 
-            {seller.phone ||
-              "Phone not available"}
+            <span>
+              Phone number protected
+            </span>
           </p>
 
           {/* LOCATION */}
@@ -318,16 +253,13 @@ Thank you.`,
 
       {/* =================================================
           SELLER BADGES
-          
-          THREE POSSIBLE BADGES:
-          
-          Phone Verified
-          Verified Seller
-          Trusted Seller
+
+          1. Phone Verified
+          2. Verified Seller
+          3. Trusted Seller
       ================================================= */}
 
-      {(hasSellerBadge ||
-        phoneVerified) && (
+      {(hasSellerBadge || phoneVerified) && (
         <div
           className="
             mt-4
@@ -338,13 +270,6 @@ Thank you.`,
         >
           {/* =================================================
               VERIFIED SELLER
-
-              If backend says:
-              sellerBadge = verified
-              OR
-              sellerBadge = trusted
-
-              Verified Seller is shown.
           ================================================= */}
 
           {showVerifiedSeller && (
@@ -409,12 +334,6 @@ Thank you.`,
 
           {/* =================================================
               TRUSTED SELLER
-
-              If backend says:
-              sellerBadge = trusted
-
-              Trusted Seller is shown IN ADDITION
-              to Verified Seller.
           ================================================= */}
 
           {showTrustedSeller && (
@@ -479,8 +398,6 @@ Thank you.`,
 
           {/* =================================================
               PHONE VERIFIED
-
-              Completely independent from seller badges.
           ================================================= */}
 
           {phoneVerified && (
@@ -514,8 +431,6 @@ Thank you.`,
 
       {/* =================================================
           TRUST INFORMATION
-
-          Only Trusted Sellers receive this section.
       ================================================= */}
 
       {showTrustedSeller && (
@@ -568,10 +483,7 @@ Thank you.`,
             {/* TRUST SCORE */}
 
             {Number.isFinite(
-              Number(
-                seller.trustScore ??
-                  seller.sellerTrustScore,
-              ),
+              Number(seller.trustScore),
             ) && (
               <span
                 className="
@@ -582,9 +494,7 @@ Thank you.`,
                 "
               >
                 {Number(
-                  seller.trustScore ??
-                    seller.sellerTrustScore ??
-                    0,
+                  seller.trustScore ?? 0,
                 )}
                 /100
               </span>
@@ -717,14 +627,23 @@ Thank you.`,
       ================================================= */}
 
       <div className="mt-8 space-y-3">
-        {/* CHAT */}
+        {/* =================================================
+            CHAT SELLER
+
+            Does NOT expose phone number.
+        ================================================= */}
 
         <ContactSellerButton
           productId={productId}
           sellerId={seller._id}
         />
 
-        {/* CALL */}
+        {/* =================================================
+            CALL SELLER
+
+            IMPORTANT:
+            seller.phone is NOT passed here.
+        ================================================= */}
 
         <button
           type="button"
@@ -737,6 +656,7 @@ Thank you.`,
             w-full
             items-center
             justify-center
+            gap-2
             rounded-xl
             bg-green-600
             font-semibold
@@ -748,51 +668,21 @@ Thank you.`,
             active:scale-95
           "
         >
-          📞 Call Seller
+          <Phone size={18} />
+
+          Call Seller
         </button>
-
-        {/* WHATSAPP */}
-
-        <a
-          href={
-            phoneNumber
-              ? `https://wa.me/91${phoneNumber}?text=${whatsappMessage}`
-              : "#"
-          }
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(event) => {
-            if (!phoneNumber) {
-              event.preventDefault();
-
-              alert(
-                "Seller phone number is not available.",
-              );
-            }
-          }}
-          className="
-            flex
-            h-12
-            w-full
-            items-center
-            justify-center
-            rounded-xl
-            bg-[#25D366]
-            font-semibold
-            text-white
-            transition-all
-            duration-300
-            hover:scale-[1.02]
-            hover:opacity-90
-            active:scale-95
-          "
-        >
-          🟢 WhatsApp Seller
-        </a>
       </div>
 
       {/* =================================================
-          CALL MODAL
+          SECURE CALL MODAL
+
+          IMPORTANT:
+          Seller phone number is NEVER passed
+          to the client component.
+
+          productId is enough because the server
+          finds the seller and their phone number.
       ================================================= */}
 
       <CallSellerModal
@@ -801,7 +691,7 @@ Thank you.`,
           setShowCallModal(false)
         }
         sellerName={seller.name}
-        phoneNumber={phoneNumber}
+        productId={productId}
       />
     </div>
   );

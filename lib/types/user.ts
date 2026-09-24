@@ -377,3 +377,81 @@ premiumSeller?: PremiumSeller;
 
   updatedAt: Date;
 }
+
+// =====================================================
+// Public Seller Profile
+// =====================================================
+//
+// This type is safe to send to client-side seller UI.
+//
+// IMPORTANT:
+// - phone is intentionally NOT included
+// - email is intentionally NOT included
+//
+// Seller contact should be handled through
+// DealUp's secure communication flow.
+//
+// =====================================================
+
+export interface PublicSellerProfile {
+  _id: string;
+
+  name: string;
+
+  image?: string;
+
+  address?: {
+    city?: string;
+    district?: string;
+    state?: string;
+  };
+
+  createdAt: Date;
+
+  // =====================================
+  // Verification
+  // =====================================
+
+  verificationStatus: SellerVerificationStatus;
+
+  phoneVerified: boolean;
+
+  identityVerified: boolean;
+
+  locationVerified: boolean;
+
+  // =====================================
+  // Seller Trust
+  // =====================================
+
+  trustScore: number;
+
+  trustLevel:
+    | "low"
+    | "basic"
+    | "trusted"
+    | "highly_trusted";
+
+  trustedSeller: boolean;
+
+  sellerBadge:
+    | "none"
+    | "verified"
+    | "trusted";
+
+  sellerBadgeLabel: string;
+
+  // =====================================
+  // UI Badge
+  // =====================================
+
+  sellerBadgeData?: unknown;
+
+  badge?: unknown;
+
+  // =====================================
+  // Premium Seller
+  // =====================================
+
+  premiumSeller?: PremiumSeller;
+}
