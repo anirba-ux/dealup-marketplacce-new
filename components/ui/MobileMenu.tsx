@@ -8,8 +8,10 @@ import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 
 import LanguageSwitcher from "./LanguageSwitcher";
+import NotificationBell from "./NotificationBell";
 
 import {
+  Headphones,
   Heart,
   LayoutDashboard,
   LogOut,
@@ -33,7 +35,7 @@ export default function MobileMenu() {
   const t = useTranslations("common");
 
   // =======================================================
-  // Close menu with Escape key
+  // CLOSE MENU WITH ESCAPE
   // =======================================================
 
   useEffect(() => {
@@ -45,15 +47,21 @@ export default function MobileMenu() {
       }
     };
 
-    document.addEventListener("keydown", handleEscape);
+    document.addEventListener(
+      "keydown",
+      handleEscape,
+    );
 
     return () => {
-      document.removeEventListener("keydown", handleEscape);
+      document.removeEventListener(
+        "keydown",
+        handleEscape,
+      );
     };
   }, [open]);
 
   // =======================================================
-  // Close menu AFTER navigation completes
+  // CLOSE MENU AFTER NAVIGATION
   // =======================================================
 
   useEffect(() => {
@@ -63,34 +71,39 @@ export default function MobileMenu() {
   }, [pathname]);
 
   // =======================================================
-  // Prevent body scroll when menu is open
+  // PREVENT BODY SCROLL
   // =======================================================
 
   useEffect(() => {
     if (!open) return;
 
-    const originalOverflow = document.body.style.overflow;
+    const originalOverflow =
+      document.body.style.overflow;
 
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = originalOverflow;
+      document.body.style.overflow =
+        originalOverflow;
     };
   }, [open]);
 
   // =======================================================
-  // User information
+  // USER INFORMATION
   // =======================================================
 
-  const name = session?.user?.name || "User";
+  const name =
+    session?.user?.name || "User";
 
   const image =
-    session?.user?.image || "/images/default-avatar.png";
+    session?.user?.image ||
+    "/images/default-avatar.png";
 
-  const isAdmin = session?.user?.role === "admin";
+  const isAdmin =
+    session?.user?.role === "admin";
 
   // =======================================================
-  // Menu items
+  // MENU ITEMS
   // =======================================================
 
   const menuItems = [
@@ -124,10 +137,15 @@ export default function MobileMenu() {
       href: "/dashboard/settings",
       icon: Settings,
     },
+    {
+      label: "Help Center",
+      href: "/help",
+      icon: Headphones,
+    },
   ];
 
   // =======================================================
-  // Close menu manually
+  // CLOSE MENU
   // =======================================================
 
   const closeMenu = () => {
@@ -135,14 +153,14 @@ export default function MobileMenu() {
   };
 
   // =======================================================
-  // Render
+  // RENDER
   // =======================================================
 
   return (
     <>
-      {/* =====================================================
+      {/* ===================================================
           HAMBURGER BUTTON
-      ====================================================== */}
+      ==================================================== */}
 
       <button
         type="button"
@@ -174,12 +192,15 @@ export default function MobileMenu() {
           md:hidden
         "
       >
-        <Menu size={22} strokeWidth={2.3} />
+        <Menu
+          size={22}
+          strokeWidth={2.3}
+        />
       </button>
 
-      {/* =====================================================
+      {/* ===================================================
           FULL SCREEN MOBILE MENU
-      ====================================================== */}
+      ==================================================== */}
 
       {open && (
         <div
@@ -246,7 +267,7 @@ export default function MobileMenu() {
                 dark:bg-[#1976F3]
               "
             >
-              {/* Logo / Brand */}
+              {/* Brand */}
 
               <div className="flex items-center gap-3">
                 <div
@@ -262,7 +283,10 @@ export default function MobileMenu() {
                     shadow-sm
                   "
                 >
-                  <Menu size={20} strokeWidth={2.3} />
+                  <Menu
+                    size={20}
+                    strokeWidth={2.3}
+                  />
                 </div>
 
                 <div>
@@ -309,7 +333,10 @@ export default function MobileMenu() {
                   active:scale-95
                 "
               >
-                <X size={23} strokeWidth={2.2} />
+                <X
+                  size={23}
+                  strokeWidth={2.2}
+                />
               </button>
             </div>
 
@@ -336,6 +363,11 @@ export default function MobileMenu() {
                       alt={name}
                       width={48}
                       height={48}
+                      unoptimized
+                      onError={(event) => {
+                        event.currentTarget.src =
+                          "/images/default-avatar.png";
+                      }}
                       className="
                         h-12
                         w-12
@@ -450,6 +482,10 @@ export default function MobileMenu() {
                     My Account
                   </p>
 
+                  {/* =================================================
+                      STANDARD MENU
+                  ================================================= */}
+
                   <div className="space-y-1">
                     {menuItems.map((item) => {
                       const Icon = item.icon;
@@ -488,15 +524,26 @@ export default function MobileMenu() {
                             "
                           />
 
-                          <span>{item.label}</span>
+                          <span>
+                            {item.label}
+                          </span>
                         </Link>
                       );
                     })}
+
+                    {/* =================================================
+                        NOTIFICATIONS
+                    ================================================= */}
+
+                    <NotificationBell
+                      variant="menu"
+                      onNavigate={closeMenu}
+                    />
                   </div>
 
-                  {/* =========================================
+                  {/* =============================================
                       ADMIN
-                  ========================================== */}
+                  ============================================== */}
 
                   {isAdmin && (
                     <Link
@@ -520,7 +567,9 @@ export default function MobileMenu() {
                     >
                       <ShieldCheck size={19} />
 
-                      <span>Admin Dashboard</span>
+                      <span>
+                        Admin Dashboard
+                      </span>
                     </Link>
                   )}
                 </>
@@ -569,7 +618,9 @@ export default function MobileMenu() {
                     strokeWidth={2.2}
                   />
 
-                  <span>+ {t("sell")}</span>
+                  <span>
+                    + {t("sell")}
+                  </span>
                 </Link>
               </div>
 
@@ -620,7 +671,9 @@ export default function MobileMenu() {
                 >
                   <LogOut size={19} />
 
-                  <span>{t("logout")}</span>
+                  <span>
+                    {t("logout")}
+                  </span>
                 </button>
               )}
             </div>

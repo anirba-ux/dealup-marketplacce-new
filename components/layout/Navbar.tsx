@@ -9,6 +9,7 @@ import WishlistNavButton from "@/components/ui/WishlistNavButton";
 import MobileMenu from "@/components/ui/MobileMenu";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import UserLocationDisplay from "@/components/ui/UserLocationDisplay";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 export default async function Navbar() {
   const session = await auth();
@@ -183,6 +184,27 @@ export default async function Navbar() {
             </div>
 
             {/* =================================================
+                NOTIFICATIONS
+                DESKTOP ONLY
+                MOBILE VERSION IS INSIDE HAMBURGER MENU
+            ================================================== */}
+
+            {session?.user && (
+              <div
+                className="
+                  hidden
+                  shrink-0
+                  md:flex
+                  md:h-12
+                  md:items-center
+                  md:justify-center
+                "
+              >
+                <NotificationBell />
+              </div>
+            )}
+
+            {/* =================================================
                 DESKTOP USER
             ================================================== */}
 
@@ -193,7 +215,11 @@ export default async function Navbar() {
                 md:block
               "
             >
-              {session?.user ? <UserMenu /> : <LoginButton />}
+              {session?.user ? (
+                <UserMenu />
+              ) : (
+                <LoginButton />
+              )}
             </div>
 
             {/* =================================================

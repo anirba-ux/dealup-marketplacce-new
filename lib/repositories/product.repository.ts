@@ -1099,44 +1099,21 @@ export async function featureProduct(productId: string, sellerId: string) {
 // =====================================================
 
 export async function findFeaturedProducts(limit = 8) {
-  // ===================================================
-  // Database
-  // ===================================================
-
   const collection = await getCollection();
-
-  // ===================================================
-  // Find Active Featured Products
-  // ===================================================
 
   const products = await collection
     .find({
       status: "active",
-
       isFeatured: true,
-
       featuredUntil: {
         $gt: new Date(),
       },
     })
-
-    // =================================================
-    // Featured priority
-    //
-    // Most recently featured products appear first.
-    // =================================================
-
     .sort({
       featuredAt: -1,
     })
-
     .limit(limit)
-
     .toArray();
-
-  // ===================================================
-  // Attach Seller Verification / Premium data
-  // ===================================================
 
   return attachSellerVerification(products);
 }

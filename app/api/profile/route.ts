@@ -84,9 +84,15 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
 
-    console.log("PROFILE BODY:", body);
-
-    const { name, phone, image, state, district, city, language } = body;
+    const {
+      name,
+      phone,
+      image,
+      state,
+      district,
+      city,
+      language,
+    } = body;
 
     const client = await clientPromise;
     const db = client.db("dealup");
@@ -121,12 +127,39 @@ export async function PUT(req: NextRequest) {
     }
 
     // =====================================
+    // Normalize Profile Fields
+    // =====================================
+
+    const safeName =
+      typeof name === "string" ? name.trim() : "";
+
+    const safeState =
+      typeof state === "string" ? state.trim() : "";
+
+    const safeDistrict =
+      typeof district === "string"
+        ? district.trim()
+        : "";
+
+    const safeCity =
+      typeof city === "string" ? city.trim() : "";
+
+    const safeLanguage =
+      typeof language === "string" && language.trim()
+        ? language.trim()
+        : "en";
+
+    // =====================================
     // Normalize Phone
     // =====================================
 
-    const oldPhone = existingUser.phone?.trim() || "";
+    const oldPhone =
+      typeof existingUser.phone === "string"
+        ? existingUser.phone.trim()
+        : "";
 
-    const newPhone = typeof phone === "string" ? phone.trim() : "";
+    const newPhone =
+      typeof phone === "string" ? phone.trim() : "";
 
     // =====================================
     // Detect Phone Change
@@ -139,20 +172,20 @@ export async function PUT(req: NextRequest) {
     // =====================================
 
     const updateData: Record<string, any> = {
-      name: name.trim(),
+      name: safeName,
 
       phone: newPhone,
 
-      image,
+      image: image ?? "",
 
-      language,
+      language: safeLanguage,
 
       address: {
-        state: state.trim(),
+        state: safeState,
 
-        district: district.trim(),
+        district: safeDistrict,
 
-        city: city.trim(),
+        city: safeCity,
       },
 
       updatedAt: new Date(),
@@ -177,7 +210,8 @@ export async function PUT(req: NextRequest) {
         phoneVerified: false,
 
         identityVerified:
-          existingUser.sellerVerification?.identityVerified ?? false,
+          existingUser.sellerVerification?.identityVerified ??
+          false,
 
         submittedAt: undefined,
 
@@ -200,8 +234,6 @@ export async function PUT(req: NextRequest) {
       },
     );
 
-    await setLocale(language);
-
     if (result.matchedCount === 0) {
       return NextResponse.json(
         {
@@ -211,6 +243,8 @@ export async function PUT(req: NextRequest) {
         { status: 404 },
       );
     }
+
+    await setLocale(safeLanguage);
 
     return NextResponse.json({
       success: true,

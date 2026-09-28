@@ -2,10 +2,21 @@ import Link from "next/link";
 import Image from "next/image";
 
 import Container from "@/components/ui/Container";
-
-import { ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
-
 import NewsletterSubscribe from "@/components/newsletter/NewsletterSubscribe";
+
+import {
+  ArrowUpRight,
+  Mail,
+  MapPin,
+  Phone,
+} from "lucide-react";
+
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaWhatsapp,
+  FaYoutube,
+} from "react-icons/fa";
 
 /* ============================================================
    FOOTER LINKS
@@ -35,6 +46,10 @@ const supportLinks = [
     label: "Sell Faster",
     href: "/sell-faster",
   },
+  {
+    label: "Help Center",
+    href: "/help",
+  },
 ];
 
 const legalLinks = [
@@ -57,6 +72,25 @@ const legalLinks = [
 ];
 
 /* ============================================================
+   SOCIAL LINKS
+============================================================ */
+
+const facebookUrl =
+  "https://www.facebook.com/share/1WiTsb2cFx/";
+
+const whatsappUrl =
+  "https://wa.me/918240060110";
+
+/*
+  Instagram and YouTube URLs are intentionally not
+  invented. Add your official profile URLs here
+  when they are available.
+*/
+
+const instagramUrl = "";
+const youtubeUrl = "";
+
+/* ============================================================
    FOOTER
 ============================================================ */
 
@@ -64,74 +98,59 @@ export default function Footer() {
   return (
     <footer
       className="
-    relative
-    isolate
+        relative
+        isolate
+        bg-[#eef4fc]
+        px-2
+        pb-3
+        pt-12
+        text-slate-900
+        transition-colors
+        duration-300
+        dark:bg-[#091426]
+        dark:text-white
+        sm:px-4
+        sm:pb-5
+        sm:pt-16
+        lg:pt-20
 
-    bg-[#eef4fc]
-    px-2
-    pb-3
-    pt-12
-    text-slate-900
+        before:pointer-events-none
+        before:absolute
+        before:-top-20
+        before:left-0
+        before:right-0
+        before:h-20
+        before:bg-slate-50
+        before:content-['']
 
-    transition-colors
-    duration-300
-
-    dark:bg-[#091426]
-    dark:text-white
-
-    sm:px-4
-    sm:pb-5
-    sm:pt-16
-
-    lg:pt-20
-
-    /* Paint the unwanted gap above the footer */
-    before:pointer-events-none
-    before:absolute
-    before:-top-20
-    before:left-0
-    before:right-0
-    before:h-20
-    before:bg-slate-50
-    before:content-['']
-
-    dark:before:bg-[#0D162A]
-
-    sm:before:-top-20
-    sm:before:h-20
-
-    lg:before:-top-20
-    lg:before:h-20
-"
+        dark:before:bg-[#0D162A]
+      "
     >
       <Container>
-        {/* ====================================================
+        {/* ==================================================
             OUTER FRAME
-        ===================================================== */}
+        =================================================== */}
 
         <div
           className="
-    relative
-    overflow-hidden
-    rounded-[28px]
-    border
-    border-slate-200
-    bg-slate-50
-    p-1.5
-    shadow-[0_20px_60px_rgba(15,23,42,0.08)]
-    transition-colors
-    duration-300
-
-    dark:border-white/10
-    dark:bg-[#0D162A]
-    dark:shadow-[0_20px_60px_rgba(0,0,0,0.25)]
-
-    sm:rounded-[32px]
-    sm:p-2
-
-    lg:rounded-[36px]
-    lg:p-2.5
-  "
+            relative
+            overflow-hidden
+            rounded-[28px]
+            border
+            border-slate-200
+            bg-slate-50
+            p-1.5
+            shadow-[0_20px_60px_rgba(15,23,42,0.08)]
+            transition-all
+            duration-300
+            dark:border-white/10
+            dark:bg-[#0D162A]
+            dark:shadow-[0_20px_60px_rgba(0,0,0,0.25)]
+            sm:rounded-[32px]
+            sm:p-2
+            lg:rounded-[36px]
+            lg:p-2.5
+          "
         >
           {/* ==================================================
               MAIN BLUE PANEL
@@ -149,6 +168,8 @@ export default function Footer() {
               px-5
               py-7
               text-white
+              transition-all
+              duration-300
 
               dark:from-[#1d518f]
               dark:via-[#17457f]
@@ -232,9 +253,7 @@ export default function Footer() {
               =================================================== */}
 
               <div className="min-w-0">
-                {/* ==================================================
-                    DEALUP NAVBAR LOGO
-                =================================================== */}
+                {/* DealUp Logo */}
 
                 <Link
                   href="/"
@@ -280,16 +299,13 @@ export default function Footer() {
                         h-auto
                         w-[108px]
                         object-contain
-
                         sm:w-[120px]
                       "
                     />
                   </div>
                 </Link>
 
-                {/* ==================================================
-                    DESCRIPTION
-                =================================================== */}
+                {/* Description */}
 
                 <p
                   className="
@@ -298,18 +314,14 @@ export default function Footer() {
                     text-sm
                     leading-6
                     text-white/85
-
-                    sm:text-sm
-                    sm:leading-6
                   "
                 >
-                  Buy and sell products easily within your nearby cities.
-                  Connect with local buyers and trusted sellers on DealUp.
+                  Buy and sell products easily within your
+                  nearby cities. Connect with local buyers
+                  and trusted sellers on DealUp.
                 </p>
 
-                {/* ==================================================
-                    START SELLING
-                =================================================== */}
+                {/* Start Selling */}
 
                 <Link
                   href="/sell"
@@ -355,28 +367,42 @@ export default function Footer() {
                 </Link>
 
                 {/* ==================================================
-                    SOCIAL BUTTONS
+                    SOCIAL MEDIA
                 =================================================== */}
 
-                <div
-                  className="
-                    mt-6
-                    flex
-                    items-center
-                    gap-2
-                  "
-                >
-                  <SocialButton
-                    href="https://www.facebook.com/share/1WiTsb2cFx/"
-                    label="Facebook"
-                    text="f"
-                  />
+                <div className="mt-6">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
+                    Follow DealUp
+                  </p>
 
-                  <SocialButton href="#" label="Instagram" text="ig" />
+                  <div className="flex items-center gap-2.5">
+                    {/* Facebook */}
 
-                  <SocialButton href="#" label="LinkedIn" text="in" />
+                    <SocialIconButton
+                      href={facebookUrl}
+                      label="Facebook"
+                      icon={<FaFacebookF />}
+                      hoverClass="hover:text-[#1877F2]"
+                    />
 
-                  <SocialButton href="#" label="X" text="𝕏" />
+                    {/* Instagram */}
+
+                    <SocialIconButton
+                      href={instagramUrl}
+                      label="Instagram"
+                      icon={<FaInstagram />}
+                      hoverClass="hover:text-[#E1306C]"
+                    />
+
+                    {/* YouTube */}
+
+                    <SocialIconButton
+                      href={youtubeUrl}
+                      label="YouTube"
+                      icon={<FaYoutube />}
+                      hoverClass="hover:text-[#FF0000]"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -385,7 +411,10 @@ export default function Footer() {
               =================================================== */}
 
               <div className="pt-3 sm:pt-4">
-                <FooterColumn title="Company" links={companyLinks} />
+                <FooterColumn
+                  title="Company"
+                  links={companyLinks}
+                />
               </div>
 
               {/* ==================================================
@@ -393,7 +422,10 @@ export default function Footer() {
               =================================================== */}
 
               <div className="pt-3 sm:pt-4">
-                <FooterColumn title="Support" links={supportLinks} />
+                <FooterColumn
+                  title="Support"
+                  links={supportLinks}
+                />
               </div>
 
               {/* ==================================================
@@ -401,13 +433,7 @@ export default function Footer() {
               =================================================== */}
 
               <div className="min-w-0 pt-3 sm:pt-4">
-                <h3
-                  className="
-                    text-sm
-                    font-bold
-                    text-white
-                  "
-                >
+                <h3 className="text-sm font-bold text-white">
                   Subscribe to our Newsletter
                 </h3>
 
@@ -420,17 +446,14 @@ export default function Footer() {
                     text-white/75
                   "
                 >
-                  Get marketplace updates, useful tips and the latest DealUp
-                  news directly in your inbox.
+                  Get marketplace updates, useful tips
+                  and the latest DealUp news directly in
+                  your inbox.
                 </p>
-
-                {/* ==================================================
-                    NEWSLETTER PILL
-                =================================================== */}
 
                 <div
                   className="
-                    mt-20
+                    mt-8
                     w-full
                     max-w-[360px]
                   "
@@ -466,7 +489,7 @@ export default function Footer() {
 
                   sm:grid-cols-2
 
-                  lg:grid-cols-3
+                  lg:grid-cols-[1fr_auto_1.2fr]
                   lg:items-center
                 "
               >
@@ -476,41 +499,107 @@ export default function Footer() {
                   href="mailto:dealupmarketplace@gmail.com"
                   aria-label="Email DealUp"
                   className="
-    inline-flex
-    min-w-0
-    items-center
-    gap-2
-    text-xs
-    text-white/80
-    transition-colors
-    duration-200
-    hover:text-white
-    sm:text-sm
-  "
+                    inline-flex
+                    min-w-0
+                    items-center
+                    gap-2
+                    text-xs
+                    text-white/80
+                    transition-colors
+                    duration-200
+                    hover:text-white
+                    sm:text-sm
+                  "
                 >
                   <Mail className="h-4 w-4 shrink-0" />
 
-                  <span className="truncate">dealupmarketplace@gmail.com</span>
+                  <span className="truncate">
+                    dealupmarketplace@gmail.com
+                  </span>
                 </a>
 
-                {/* PHONE */}
+                {/* ==================================================
+                    PHONE + WHATSAPP + FACEBOOK
+                =================================================== */}
 
-                <a
-                  href="tel:+918240060110"
-                  aria-label="Call DealUp"
-                  title="Call DealUp"
-                  className="
-    inline-flex
-    items-center
-    justify-center
-    text-white/80
-    transition-colors
-    duration-200
-    hover:text-white
-  "
-                >
-                  <Phone className="h-4 w-4 shrink-0" />
-                </a>
+                <div className="flex items-center gap-2">
+                  {/* Phone */}
+
+                  <a
+                    href="tel:+918240060110"
+                    aria-label="Call DealUp"
+                    title="Call DealUp"
+                    className="
+                      flex
+                      h-9
+                      w-9
+                      items-center
+                      justify-center
+                      rounded-full
+                      border
+                      border-white/15
+                      bg-white/10
+                      text-white/85
+                      backdrop-blur-sm
+                      transition-all
+                      duration-200
+
+                      hover:-translate-y-0.5
+                      hover:bg-white
+                      hover:text-[#1565d8]
+                      hover:shadow-lg
+
+                      active:scale-95
+                    "
+                  >
+                    <Phone className="h-4 w-4" />
+                  </a>
+
+                  {/* WhatsApp */}
+
+                  <a
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp DealUp"
+                    title="WhatsApp DealUp"
+                    className="
+                      flex
+                      h-9
+                      w-9
+                      items-center
+                      justify-center
+                      rounded-full
+                      border
+                      border-white/15
+                      bg-white/10
+                      text-white/85
+                      backdrop-blur-sm
+                      transition-all
+                      duration-200
+
+                      hover:-translate-y-0.5
+                      hover:bg-white
+                      hover:text-[#25D366]
+                      hover:shadow-lg
+
+                      active:scale-95
+                    "
+                  >
+                    <FaWhatsapp className="h-4 w-4" />
+                  </a>
+
+                  {/* Facebook */}
+
+                  <SocialIconButton
+                    href={facebookUrl}
+                    label="Facebook"
+                    icon={<FaFacebookF />}
+                    hoverClass="hover:text-[#1877F2]"
+                    compact
+                  />
+                </div>
+
                 {/* LOCATION */}
 
                 <div
@@ -521,13 +610,14 @@ export default function Footer() {
                     text-xs
                     leading-5
                     text-white/80
-
                     sm:text-sm
                   "
                 >
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
 
-                  <span>Bansberia, Hooghly, West Bengal</span>
+                  <span>
+                    Bansberia, Hooghly, West Bengal
+                  </span>
                 </div>
               </div>
 
@@ -551,17 +641,14 @@ export default function Footer() {
                   sm:text-xs
                 "
               >
-                DealUp is built to make local buying and selling simple,
-                convenient and trustworthy.
+                DealUp is built to make local buying and
+                selling simple, convenient and trustworthy.
               </div>
             </div>
           </div>
 
           {/* ====================================================
               COPYRIGHT BAR
-
-              IMPORTANT:
-              mt-2 = visible gap from blue panel
           ===================================================== */}
 
           <div
@@ -587,9 +674,14 @@ export default function Footer() {
               lg:px-6
             "
           >
-            <p>© {new Date().getFullYear()} DealUp. All rights reserved.</p>
+            <p>
+              © {new Date().getFullYear()} DealUp. All
+              rights reserved.
+            </p>
 
-            <p>Built for local buying &amp; selling.</p>
+            <p>
+              Built for local buying &amp; selling.
+            </p>
           </div>
         </div>
       </Container>
@@ -613,13 +705,7 @@ function FooterColumn({
 }) {
   return (
     <div className="min-w-0">
-      <h3
-        className="
-          text-sm
-          font-bold
-          text-white
-        "
-      >
+      <h3 className="text-sm font-bold text-white">
         {title}
       </h3>
 
@@ -668,48 +754,97 @@ function FooterColumn({
 }
 
 /* ============================================================
-   SOCIAL BUTTON
+   SOCIAL ICON BUTTON
 ============================================================ */
 
-function SocialButton({
+function SocialIconButton({
   href,
   label,
-  text,
+  icon,
+  hoverClass,
+  compact = false,
 }: {
   href: string;
   label: string;
-  text: string;
+  icon: React.ReactNode;
+  hoverClass: string;
+  compact?: boolean;
 }) {
+  const isAvailable = href.trim().length > 0;
+
+  if (!isAvailable) {
+    return (
+      <span
+        aria-label={`${label} coming soon`}
+        title={`${label} coming soon`}
+        className={`
+          flex
+          ${compact ? "h-9 w-9" : "h-10 w-10"}
+          cursor-default
+          items-center
+          justify-center
+          rounded-full
+          border
+          border-white/15
+          bg-white/10
+          text-white/70
+          backdrop-blur-sm
+        `}
+      >
+        <span
+          className={
+            compact
+              ? "text-[15px]"
+              : "text-[17px]"
+          }
+        >
+          {icon}
+        </span>
+      </span>
+    );
+  }
+
   return (
     <a
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       aria-label={label}
-      className="
+      title={label}
+      className={`
+        group
         flex
-        h-8
-        w-8
+        ${compact ? "h-9 w-9" : "h-10 w-10"}
         items-center
         justify-center
         rounded-full
-        bg-white
-        text-[10px]
-        font-extrabold
-        text-[#1565d8]
-        shadow-md
+        border
+        border-white/15
+        bg-white/10
+        text-white/85
+        backdrop-blur-sm
+        shadow-sm
         transition-all
         duration-200
 
         hover:-translate-y-1
+        hover:bg-white
         hover:shadow-lg
 
         active:scale-95
 
-        sm:h-9
-        sm:w-9
-        sm:text-[11px]
-      "
+        ${hoverClass}
+      `}
     >
-      {text}
+      <span
+        className="
+          transition-transform
+          duration-200
+          group-hover:scale-110
+        "
+      >
+        {icon}
+      </span>
     </a>
   );
 }

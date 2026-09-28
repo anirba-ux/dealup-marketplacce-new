@@ -6,10 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import LanguageSwitcher from "./LanguageSwitcher";
 
-import {
-  signOut,
-  useSession,
-} from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 import {
   ChevronDown,
@@ -24,30 +21,21 @@ import {
 } from "lucide-react";
 
 export default function UserMenu() {
-  const [open, setOpen] =
-    useState(false);
+  const [open, setOpen] = useState(false);
 
-  const menuRef =
-    useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const {
-    data: session,
-  } = useSession();
+  const { data: session } = useSession();
 
-  const t =
-    useTranslations("common");
+  const t = useTranslations("common");
 
   // =====================================================
   // User Information
   // =====================================================
 
-  const name =
-    session?.user?.name ||
-    "User";
+  const name = session?.user?.name || "User";
 
-  const image =
-    session?.user?.image ||
-    "/images/default-avatar.png";
+  const image = session?.user?.image || "/images/default-avatar.png";
 
   // =====================================================
   // Admin Check
@@ -56,38 +44,23 @@ export default function UserMenu() {
   // will see the Admin Dashboard option.
   // =====================================================
 
-  const isAdmin =
-    session?.user?.role ===
-    "admin";
+  const isAdmin = session?.user?.role === "admin";
 
   // =====================================================
   // Close Menu On Outside Click
   // =====================================================
 
   useEffect(() => {
-    function handleClickOutside(
-      event: MouseEvent,
-    ) {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(
-          event.target as Node,
-        )
-      ) {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     }
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside,
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside,
-      );
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -138,31 +111,25 @@ export default function UserMenu() {
   // =====================================================
 
   return (
-    <div
-      className="relative"
-      ref={menuRef}
-    >
+    <div className="relative" ref={menuRef}>
       {/* =================================================
           Profile Button
       ================================================= */}
 
       <button
-        onClick={() =>
-          setOpen(
-            (prev) => !prev,
-          )
-        }
+        onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-3 rounded-full px-2 py-1 transition hover:bg-slate-100"
       >
         <Image
-          src={
-            image ||
-            "/images/default-avatar.png"
-          }
+          src={image}
           alt={name}
           width={42}
           height={42}
           className="h-10 w-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover"
+          unoptimized
+          onError={(event) => {
+            event.currentTarget.src = "/images/default-avatar.png";
+          }}
         />
 
         <div className="hidden text-left sm:block">
@@ -178,9 +145,7 @@ export default function UserMenu() {
         <ChevronDown
           size={18}
           className={`hidden text-slate-500 dark:text-slate-400 transition sm:block ${
-            open
-              ? "rotate-180"
-              : ""
+            open ? "rotate-180" : ""
           }`}
         />
       </button>
@@ -191,7 +156,6 @@ export default function UserMenu() {
 
       {open && (
         <div className="absolute right-0 top-14 z-50 w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-
           {/* =================================================
               User Header
           ================================================= */}
@@ -209,10 +173,7 @@ export default function UserMenu() {
 
             {isAdmin && (
               <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-2.5 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-                <ShieldCheck
-                  size={13}
-                />
-
+                <ShieldCheck size={13} />
                 Administrator
               </div>
             )}
@@ -222,37 +183,22 @@ export default function UserMenu() {
               Normal Menu Items
           ================================================= */}
 
-          {menuItems.map(
-            (item) => {
-              const Icon =
-                item.icon;
+          {menuItems.map((item) => {
+            const Icon = item.icon;
 
-              return (
-                <Link
-                  key={
-                    item.href
-                  }
-                  href={
-                    item.href
-                  }
-                  onClick={() =>
-                    setOpen(
-                      false,
-                    )
-                  }
-                  className="flex items-center gap-3 px-5 py-3 text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  <Icon
-                    size={18}
-                  />
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-5 py-3 text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <Icon size={18} />
 
-                  <span>
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            },
-          )}
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
 
           {/* =================================================
               ADMIN DASHBOARD
@@ -266,20 +212,12 @@ export default function UserMenu() {
 
               <Link
                 href="/admin"
-                onClick={() =>
-                  setOpen(
-                    false,
-                  )
-                }
+                onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-5 py-3 font-semibold text-purple-700 transition hover:bg-purple-50 dark:text-purple-300 dark:hover:bg-purple-900/20"
               >
-                <ShieldCheck
-                  size={18}
-                />
+                <ShieldCheck size={18} />
 
-                <span>
-                  Admin Dashboard
-                </span>
+                <span>Admin Dashboard</span>
               </Link>
             </>
           )}
@@ -299,19 +237,14 @@ export default function UserMenu() {
           <button
             onClick={() =>
               signOut({
-                callbackUrl:
-                  "/login",
+                callbackUrl: "/login",
               })
             }
             className="flex w-full items-center gap-3 px-5 py-3 font-medium text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"
           >
-            <LogOut
-              size={18}
-            />
+            <LogOut size={18} />
 
-            <span>
-              {t("logout")}
-            </span>
+            <span>{t("logout")}</span>
           </button>
         </div>
       )}

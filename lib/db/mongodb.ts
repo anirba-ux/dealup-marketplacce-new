@@ -28,55 +28,48 @@ const client = new MongoClient(uri, {
   // Connection Pool
   // ---------------------------------------------------
 
-  // Keep the pool controlled for Next.js / serverless
-  // workloads.
-  maxPoolSize: 10,
-
-  // Connections are created on demand.
-  minPoolSize: 0,
+  maxPoolSize: 20,
+  minPoolSize: 2,
+  waitQueueTimeoutMS: 5000,
+  maxConnecting: 4,
 
   // ---------------------------------------------------
   // Connection Establishment
   // ---------------------------------------------------
 
-  // Allow enough time for MongoDB replica-set
-  // server selection during temporary network delay.
-  serverSelectionTimeoutMS: 30000,
-
-  // Allow more time for an individual TCP/TLS
-  // connection to establish.
-  connectTimeoutMS: 20000,
+  serverSelectionTimeoutMS: 10000,
+  connectTimeoutMS: 10000,
 
   // ---------------------------------------------------
   // Socket
   // ---------------------------------------------------
 
-  // Protect against long/inactive socket problems
-  // without being unnecessarily aggressive.
   socketTimeoutMS: 30000,
 
   // ---------------------------------------------------
   // Idle Connection Management
   // ---------------------------------------------------
 
-  // Keep reusable connections available longer,
-  // reducing unnecessary reconnects after short idle periods.
-  maxIdleTimeMS: 300000,
+  maxIdleTimeMS: 120000,
+
+  // ---------------------------------------------------
+  // Retryable Operations
+  // ---------------------------------------------------
+
+  retryReads: true,
+  retryWrites: true,
 });
 
 // =====================================================
-// Reuse Existing Connection
+// Reuse Existing MongoDB Connection
 // =====================================================
 
 const clientPromise =
   global._mongoClientPromise ??
-  client.connect().then((connectedClient) => {
-    console.log("[MONGO] Connected successfully");
-    return connectedClient;
-  });
+  client.connect();
 
 // =====================================================
-// Cache Connection
+// Cache Connection Globally
 // =====================================================
 
 global._mongoClientPromise = clientPromise;

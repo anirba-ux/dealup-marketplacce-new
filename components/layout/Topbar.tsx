@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Headset, ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -15,7 +16,6 @@ export default function Topbar() {
         {/* =========================================
             Desktop Location
         ========================================= */}
-
         <button
           type="button"
           aria-label="Current location"
@@ -40,10 +40,11 @@ export default function Topbar() {
         {/* =========================================
             Help + Language
         ========================================= */}
-
         <div className="flex items-center gap-5">
-          <button
-            type="button"
+          {/* Help Center */}
+          <Link
+            href="/help"
+            aria-label={t("helpCenter")}
             className="
               flex items-center gap-2
               text-sm font-medium
@@ -54,13 +55,21 @@ export default function Topbar() {
               dark:hover:text-blue-400
             "
           >
-            <Headset size={15} strokeWidth={2} />
+            <Headset
+              size={15}
+              strokeWidth={2}
+              className="shrink-0"
+            />
 
-            <span>{t("helpCenter")}</span>
-          </button>
+            <span className="whitespace-nowrap">
+              {t("helpCenter")}
+            </span>
+          </Link>
 
+          {/* Divider */}
           <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />
 
+          {/* Language */}
           <div
             className="
               flex items-center
