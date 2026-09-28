@@ -87,8 +87,8 @@ const whatsappUrl =
   when they are available.
 */
 
-const instagramUrl = "";
-const youtubeUrl = "";
+const instagramUrl = "https://www.instagram.com/dealupmarketplace/";
+const youtubeUrl = "https://www.youtube.com/channel/UCTtWf7wJ393j_kQ4w3HiG8A";
 
 /* ============================================================
    FOOTER
