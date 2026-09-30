@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { load } from "@cashfreepayments/cashfree-js";
 
 import type { ProductStatus } from "@/lib/models/product";
 
@@ -19,39 +20,6 @@ import {
   ExternalLink,
   CheckCircle2,
 } from "lucide-react";
-
-// =====================================================
-// Razorpay
-// =====================================================
-
-declare global {
-  interface Window {
-    Razorpay: new (options: {
-      key: string;
-      amount: number;
-      currency: string;
-      name: string;
-      description: string;
-      order_id: string;
-
-      handler: (response: {
-        razorpay_order_id: string;
-        razorpay_payment_id: string;
-        razorpay_signature: string;
-      }) => void;
-
-      modal?: {
-        ondismiss?: () => void;
-      };
-
-      theme?: {
-        color?: string;
-      };
-    }) => {
-      open: () => void;
-    };
-  }
-}
 
 // =====================================================
 // Props
@@ -106,6 +74,68 @@ export default function MyProductCard({
   const [loading, setLoading] = useState(false);
 
   // =====================================================
+  // Cashfree Checkout
+  // =====================================================
+
+  async function openCashfreeCheckout(options: {
+    type: "BOOST_AD" | "FEATURED_AD";
+  }) {
+    const orderResponse = await fetch("/api/payment/cashfree/create-order", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        type: options.type,
+        productId: id,
+      }),
+    });
+
+    const orderData = await orderResponse.json();
+
+    if (!orderResponse.ok || !orderData?.success) {
+      throw new Error(
+        orderData?.message || "Unable to create Cashfree payment order.",
+      );
+    }
+
+    const paymentSessionId = orderData.paymentSessionId;
+
+    if (!paymentSessionId) {
+      throw new Error(
+        "Cashfree payment session was not created. Please try again.",
+      );
+    }
+
+    const cashfree = await load({
+      mode: orderData.environment === "PRODUCTION" ? "production" : "sandbox",
+    });
+
+    if (!cashfree) {
+      throw new Error(
+        "Unable to load Cashfree Checkout. Please refresh and try again.",
+      );
+    }
+
+    const result = await cashfree.checkout({
+      paymentSessionId,
+      redirectTarget: "_self",
+    });
+
+    if (result?.error) {
+      console.error("CASHFREE CHECKOUT ERROR:", result.error);
+
+      throw new Error(
+        result.error.message || "Cashfree payment could not be completed.",
+      );
+    }
+  }
+
+  // =====================================================
+  // Status
+  // =====================================================
+
+  // =====================================================
   // Status
   // =====================================================
 
@@ -118,353 +148,64 @@ export default function MyProductCard({
   > = {
     draft: {
       label: "Draft",
-      className:
-        "bg-slate-700 text-white dark:bg-slate-600",
+      className: "bg-slate-700 text-white dark:bg-slate-600",
     },
 
     active: {
       label: "Active",
-      className:
-        "bg-emerald-500 text-white",
+      className: "bg-emerald-500 text-white",
     },
 
     sold: {
       label: "Sold",
-      className:
-        "bg-slate-600 text-white",
+      className: "bg-slate-600 text-white",
     },
 
     expired: {
       label: "Expired",
-      className:
-        "bg-orange-500 text-white",
+      className: "bg-orange-500 text-white",
     },
 
     blocked: {
       label: "Blocked",
-      className:
-        "bg-red-500 text-white",
+      className: "bg-red-500 text-white",
     },
   };
 
-  const currentStatus =
-    statusConfig[status] ?? statusConfig.active;
-
-  // =====================================================
-  // Razorpay Script
-  // =====================================================
-
-  function loadRazorpayScript(): Promise<boolean> {
-    return new Promise((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-
-      const existingScript = document.querySelector(
-        'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
-      );
-
-      if (existingScript) {
-        existingScript.addEventListener("load", () =>
-          resolve(true),
-        );
-
-        existingScript.addEventListener("error", () =>
-          resolve(false),
-        );
-
-        return;
-      }
-
-      const script = document.createElement("script");
-
-      script.src =
-        "https://checkout.razorpay.com/v1/checkout.js";
-
-      script.async = true;
-
-      script.onload = () => {
-        resolve(true);
-      };
-
-      script.onerror = () => {
-        resolve(false);
-      };
-
-      document.body.appendChild(script);
-    });
-  }
-
-  // =====================================================
-  // Verify Payment
-  // =====================================================
-
-  async function verifyPayment(
-    razorpayOrderId: string,
-    razorpayPaymentId: string,
-    razorpaySignature: string,
-  ) {
-    const response = await fetch(
-      "/api/payment/verify",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          razorpayOrderId,
-          razorpayPaymentId,
-          razorpaySignature,
-        }),
-      },
-    );
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message ||
-          "Payment verification failed.",
-      );
-    }
-
-    return data;
-  }
-
-  // =====================================================
-  // Razorpay Checkout
-  // =====================================================
-
-  async function openRazorpayCheckout(options: {
-    type:
-      | "BOOST_AD"
-      | "FEATURED_AD";
-
-    price: number;
-    durationDays: number;
-    description: string;
-  }) {
-    // -----------------------------------------------------
-    // Load Razorpay
-    // -----------------------------------------------------
-
-    const loaded =
-      await loadRazorpayScript();
-
-    if (!loaded) {
-      throw new Error(
-        "Unable to load Razorpay Checkout. Please try again.",
-      );
-    }
-
-    // -----------------------------------------------------
-    // Create Order
-    // -----------------------------------------------------
-
-    const orderResponse = await fetch(
-      "/api/payment/create-order",
-      {
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          type: options.type,
-          productId: id,
-        }),
-      },
-    );
-
-    const orderData =
-      await orderResponse.json();
-
-    if (!orderResponse.ok) {
-      throw new Error(
-        orderData.message ||
-          "Unable to create payment order.",
-      );
-    }
-
-    // -----------------------------------------------------
-    // Razorpay Key
-    // -----------------------------------------------------
-
-    const keyId =
-      orderData.razorpayKeyId ||
-      process.env
-        .NEXT_PUBLIC_RAZORPAY_KEY_ID;
-
-    if (!keyId) {
-      throw new Error(
-        "Razorpay Key ID is not configured.",
-      );
-    }
-
-    // -----------------------------------------------------
-    // Order
-    // -----------------------------------------------------
-
-    const order = orderData.order;
-
-    if (!order?.id) {
-      throw new Error(
-        "Invalid Razorpay order.",
-      );
-    }
-
-    // -----------------------------------------------------
-    // Checkout
-    // -----------------------------------------------------
-
-    await new Promise<void>(
-      (resolve, reject) => {
-        let settled = false;
-
-        const finishSuccess = () => {
-          if (settled) return;
-
-          settled = true;
-          resolve();
-        };
-
-        const finishFailure = (
-          error: Error,
-        ) => {
-          if (settled) return;
-
-          settled = true;
-          reject(error);
-        };
-
-        const razorpay =
-          new window.Razorpay({
-            key: keyId,
-
-            amount: order.amount,
-
-            currency:
-              order.currency || "INR",
-
-            name: "DealUp Marketplace",
-
-            description:
-              options.description,
-
-            order_id: order.id,
-
-            handler: async (
-              response,
-            ) => {
-              try {
-                // -----------------------------------------
-                // Server-side verification
-                // -----------------------------------------
-
-                const verification =
-                  await verifyPayment(
-                    response.razorpay_order_id,
-                    response.razorpay_payment_id,
-                    response.razorpay_signature,
-                  );
-
-                if (verification.success) {
-                  alert(
-                    "Payment verified successfully.\n\n" +
-                      "Your payment has been recorded. " +
-                      "The service activation will be completed next.",
-                  );
-
-                  router.refresh();
-
-                  finishSuccess();
-
-                  return;
-                }
-
-                finishFailure(
-                  new Error(
-                    "Payment verification failed.",
-                  ),
-                );
-              } catch (error) {
-                finishFailure(
-                  error instanceof Error
-                    ? error
-                    : new Error(
-                        "Payment verification failed.",
-                      ),
-                );
-              }
-            },
-
-            modal: {
-              ondismiss: () => {
-                finishSuccess();
-              },
-            },
-
-            theme: {
-              color: "#1565d8",
-            },
-          });
-
-        razorpay.open();
-      },
-    );
-  }
+  const currentStatus = statusConfig[status] ?? statusConfig.active;
 
   // =====================================================
   // Delete Product
   // =====================================================
 
   async function handleDelete() {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to delete this product?",
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this product?",
+    );
 
     if (!confirmed) return;
 
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `/api/products/${id}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`/api/products/${id}`, {
+        method: "DELETE",
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to delete product.",
-        );
+        throw new Error(data.message || "Failed to delete product.");
       }
 
-      alert(
-        "Product deleted successfully.",
-      );
+      alert("Product deleted successfully.");
 
       router.refresh();
     } catch (error) {
-      console.error(
-        "DELETE PRODUCT ERROR:",
-        error,
-      );
+      console.error("DELETE PRODUCT ERROR:", error);
 
       alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete product.",
+        error instanceof Error ? error.message : "Failed to delete product.",
       );
     } finally {
       setLoading(false);
@@ -476,43 +217,30 @@ export default function MyProductCard({
   // =====================================================
 
   async function handleMarkSold() {
-    const confirmed =
-      window.confirm(
-        "Are you sure you want to mark this product as sold?",
-      );
+    const confirmed = window.confirm(
+      "Are you sure you want to mark this product as sold?",
+    );
 
     if (!confirmed) return;
 
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `/api/products/${id}`,
-        {
-          method: "PATCH",
-        },
-      );
+      const response = await fetch(`/api/products/${id}`, {
+        method: "PATCH",
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to mark product as sold.",
-        );
+        throw new Error(data.message || "Failed to mark product as sold.");
       }
 
-      alert(
-        "Product marked as sold.",
-      );
+      alert("Product marked as sold.");
 
       router.refresh();
     } catch (error) {
-      console.error(
-        "MARK SOLD ERROR:",
-        error,
-      );
+      console.error("MARK SOLD ERROR:", error);
 
       alert(
         error instanceof Error
@@ -532,66 +260,43 @@ export default function MyProductCard({
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `/api/products/${id}/boost`,
-        {
-          method: "PATCH",
-        },
-      );
+      const response = await fetch(`/api/products/${id}/boost`, {
+        method: "PATCH",
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       // ---------------------------------------------------
       // Payment required
       // ---------------------------------------------------
 
-      if (
-        response.status === 402 &&
-        data.paymentRequired === true
-      ) {
-        const price = Number(
-          data.price ?? 29,
-        );
+      if (response.status === 402 && data.paymentRequired === true) {
+        const price = Number(data.price ?? 29);
 
-        const durationDays =
-          Number(
-            data.durationDays ?? 7,
-          );
+        const durationDays = Number(data.durationDays ?? 7);
 
-        const isPremiumSeller =
-          data.isPremiumSeller === true;
+        const isPremiumSeller = data.isPremiumSeller === true;
 
         // Server remains the source of truth
-        const confirmed =
-          window.confirm(
-            isPremiumSeller
-              ? `Your free Boost Ads quota has been exhausted.\n\n` +
-                  `Premium Seller Boost Ad\n` +
-                  `Price: ₹${price}\n` +
-                  `Duration: ${durationDays} days\n\n` +
-                  `Continue to Razorpay payment?`
-              : `Boost Ad payment is required.\n\n` +
-                  `Price: ₹${price}\n` +
-                  `Duration: ${durationDays} days\n\n` +
-                  `Continue to Razorpay payment?`,
-          );
+        const confirmed = window.confirm(
+          isPremiumSeller
+            ? `Your free Boost Ads quota has been exhausted.\n\n` +
+                `Premium Seller Boost Ad\n` +
+                `Price: ₹${price}\n` +
+                `Duration: ${durationDays} days\n\n` +
+                `Continue to Cashfree payment?`
+            : `Boost Ad payment is required.\n\n` +
+                `Price: ₹${price}\n` +
+                `Duration: ${durationDays} days\n\n` +
+                `Continue to Cashfree payment?`,
+        );
 
         if (!confirmed) {
           return;
         }
 
-        await openRazorpayCheckout({
+        await openCashfreeCheckout({
           type: "BOOST_AD",
-
-          price,
-
-          durationDays,
-
-          description:
-            isPremiumSeller
-              ? "DealUp Premium Seller Boost Ad - 7 Days"
-              : "DealUp Boost Ad - 7 Days",
         });
 
         return;
@@ -602,10 +307,7 @@ export default function MyProductCard({
       // ---------------------------------------------------
 
       if (response.status === 409) {
-        alert(
-          data.message ||
-            "This product is already boosted.",
-        );
+        alert(data.message || "This product is already boosted.");
 
         return;
       }
@@ -615,48 +317,33 @@ export default function MyProductCard({
       // ---------------------------------------------------
 
       if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to boost product.",
-        );
+        throw new Error(data.message || "Failed to boost product.");
       }
 
       // ---------------------------------------------------
       // Free boost success
       // ---------------------------------------------------
 
-      const isPremiumSeller =
-        data.isPremiumSeller === true;
+      const isPremiumSeller = data.isPremiumSeller === true;
 
-      const boostAdsRemaining =
-        data.boostAdsRemaining;
+      const boostAdsRemaining = data.boostAdsRemaining;
 
-      if (
-        isPremiumSeller &&
-        typeof boostAdsRemaining === "number"
-      ) {
+      if (isPremiumSeller && typeof boostAdsRemaining === "number") {
         alert(
           `Product boosted successfully.\n\n` +
             `Duration: 7 days\n` +
             `Free Boosts remaining: ${boostAdsRemaining}`,
         );
       } else {
-        alert(
-          "Product boosted successfully.",
-        );
+        alert("Product boosted successfully.");
       }
 
       router.refresh();
     } catch (error) {
-      console.error(
-        "BOOST PRODUCT ERROR:",
-        error,
-      );
+      console.error("BOOST PRODUCT ERROR:", error);
 
       alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to boost product.",
+        error instanceof Error ? error.message : "Failed to boost product.",
       );
     } finally {
       setLoading(false);
@@ -671,57 +358,36 @@ export default function MyProductCard({
     try {
       setLoading(true);
 
-      const response = await fetch(
-        `/api/products/${id}/feature`,
-        {
-          method: "PATCH",
-        },
-      );
+      const response = await fetch(`/api/products/${id}/feature`, {
+        method: "PATCH",
+      });
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       // ---------------------------------------------------
       // Payment required
       // ---------------------------------------------------
 
-      if (
-        response.status === 402 &&
-        data.paymentRequired === true
-      ) {
-        const price = Number(
-          data.price ?? 29,
+      if (response.status === 402 && data.paymentRequired === true) {
+        const price = Number(data.price ?? 29);
+
+        const durationDays = Number(data.durationDays ?? 14);
+
+        const confirmed = window.confirm(
+          `Your free Featured Ad quota has been exhausted.\n\n` +
+            `Featured Ad\n` +
+            `Price: ₹${price}\n` +
+            `Duration: ${durationDays} days\n\n` +
+            `Continue to Cashfree payment?`,
         );
-
-        const durationDays =
-          Number(
-            data.durationDays ?? 14,
-          );
-
-        const confirmed =
-          window.confirm(
-            `Your free Featured Ad quota has been exhausted.\n\n` +
-              `Featured Ad\n` +
-              `Price: ₹${price}\n` +
-              `Duration: ${durationDays} days\n\n` +
-              `Continue to Razorpay payment?`,
-          );
 
         if (!confirmed) {
           return;
         }
 
-        await openRazorpayCheckout({
+        await openCashfreeCheckout({
           type: "FEATURED_AD",
-
-          price,
-
-          durationDays,
-
-          description:
-            "DealUp Featured Ad - 14 Days",
         });
-
         return;
       }
 
@@ -730,10 +396,7 @@ export default function MyProductCard({
       // ---------------------------------------------------
 
       if (response.status === 409) {
-        alert(
-          data.message ||
-            "This product is already featured.",
-        );
+        alert(data.message || "This product is already featured.");
 
         return;
       }
@@ -743,45 +406,31 @@ export default function MyProductCard({
       // ---------------------------------------------------
 
       if (!response.ok) {
-        throw new Error(
-          data.message ||
-            "Failed to feature product.",
-        );
+        throw new Error(data.message || "Failed to feature product.");
       }
 
       // ---------------------------------------------------
       // Free featured success
       // ---------------------------------------------------
 
-      const featuredAdsRemaining =
-        data.featuredAdsRemaining;
+      const featuredAdsRemaining = data.featuredAdsRemaining;
 
-      if (
-        typeof featuredAdsRemaining ===
-        "number"
-      ) {
+      if (typeof featuredAdsRemaining === "number") {
         alert(
           `Product featured successfully.\n\n` +
             `Duration: 14 days\n` +
             `Free Featured Ads remaining: ${featuredAdsRemaining}`,
         );
       } else {
-        alert(
-          "Product featured successfully.",
-        );
+        alert("Product featured successfully.");
       }
 
       router.refresh();
     } catch (error) {
-      console.error(
-        "FEATURE PRODUCT ERROR:",
-        error,
-      );
+      console.error("FEATURE PRODUCT ERROR:", error);
 
       alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to feature product.",
+        error instanceof Error ? error.message : "Failed to feature product.",
       );
     } finally {
       setLoading(false);
@@ -792,29 +441,20 @@ export default function MyProductCard({
   // Date Formatter
   // =====================================================
 
-  function formatDate(
-    date?: Date | string,
-  ) {
+  function formatDate(date?: Date | string) {
     if (!date) return "--";
 
     const parsedDate = new Date(date);
 
-    if (
-      Number.isNaN(
-        parsedDate.getTime(),
-      )
-    ) {
+    if (Number.isNaN(parsedDate.getTime())) {
       return "--";
     }
 
-    return parsedDate.toLocaleDateString(
-      "en-IN",
-      {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      },
-    );
+    return parsedDate.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   }
 
   // =====================================================
@@ -855,10 +495,7 @@ export default function MyProductCard({
         "
       >
         <Image
-          src={
-            image ||
-            "/placeholder-product.jpg"
-          }
+          src={image || "/placeholder-product.jpg"}
           alt={title}
           fill
           sizes="
@@ -954,10 +591,7 @@ export default function MyProductCard({
               sm:text-xs
             "
           >
-            <Rocket
-              size={12}
-              strokeWidth={2.5}
-            />
+            <Rocket size={12} strokeWidth={2.5} />
 
             <span>BOOSTED</span>
           </div>
@@ -991,18 +625,10 @@ export default function MyProductCard({
               sm:px-3
               sm:py-1.5
               sm:text-xs
-              ${
-                isBoosted
-                  ? "top-10 sm:top-12"
-                  : "top-3 sm:top-4"
-              }
+              ${isBoosted ? "top-10 sm:top-12" : "top-3 sm:top-4"}
             `}
           >
-            <Star
-              size={12}
-              strokeWidth={2.5}
-              fill="#1565d8"
-            />
+            <Star size={12} strokeWidth={2.5} fill="#1565d8" />
 
             <span>Featured</span>
           </div>
@@ -1071,14 +697,9 @@ export default function MyProductCard({
             sm:text-sm
           "
         >
-          <MapPin
-            size={15}
-            className="shrink-0 text-slate-400"
-          />
+          <MapPin size={15} className="shrink-0 text-slate-400" />
 
-          <span className="truncate">
-            {location}
-          </span>
+          <span className="truncate">{location}</span>
         </div>
 
         {/* =================================================
@@ -1119,10 +740,7 @@ export default function MyProductCard({
               sm:py-3.5
             "
           >
-            <Eye
-              size={15}
-              className="shrink-0 text-[#1565d8]"
-            />
+            <Eye size={15} className="shrink-0 text-[#1565d8]" />
 
             <div className="min-w-0">
               <p
@@ -1169,10 +787,7 @@ export default function MyProductCard({
               sm:py-3.5
             "
           >
-            <Heart
-              size={15}
-              className="shrink-0 text-red-500"
-            />
+            <Heart size={15} className="shrink-0 text-red-500" />
 
             <div className="min-w-0">
               <p
@@ -1220,10 +835,7 @@ export default function MyProductCard({
               sm:py-3.5
             "
           >
-            <MessageCircle
-              size={15}
-              className="shrink-0 text-green-500"
-            />
+            <MessageCircle size={15} className="shrink-0 text-green-500" />
 
             <div className="min-w-0">
               <p
@@ -1303,10 +915,7 @@ export default function MyProductCard({
               sm:text-xs
             "
           >
-            <ExternalLink
-              size={14}
-              className="shrink-0"
-            />
+            <ExternalLink size={14} className="shrink-0" />
 
             <span>View</span>
           </Link>
@@ -1341,10 +950,7 @@ export default function MyProductCard({
                   sm:text-xs
                 "
               >
-                <Pencil
-                  size={14}
-                  className="shrink-0"
-                />
+                <Pencil size={14} className="shrink-0" />
 
                 <span>Edit</span>
               </Link>
@@ -1379,16 +985,9 @@ export default function MyProductCard({
                   sm:text-xs
                 "
               >
-                <Trash2
-                  size={14}
-                  className="shrink-0"
-                />
+                <Trash2 size={14} className="shrink-0" />
 
-                <span>
-                  {loading
-                    ? "..."
-                    : "Delete"}
-                </span>
+                <span>{loading ? "..." : "Delete"}</span>
               </button>
             </>
           ) : (
@@ -1416,16 +1015,9 @@ export default function MyProductCard({
                   sm:text-xs
                 "
               >
-                <CheckCircle2
-                  size={14}
-                  className="shrink-0"
-                />
+                <CheckCircle2 size={14} className="shrink-0" />
 
-                <span>
-                  {status === "sold"
-                    ? "SOLD"
-                    : currentStatus.label}
-                </span>
+                <span>{status === "sold" ? "SOLD" : currentStatus.label}</span>
               </div>
 
               {/* Delete */}
@@ -1457,16 +1049,9 @@ export default function MyProductCard({
                   sm:text-xs
                 "
               >
-                <Trash2
-                  size={14}
-                  className="shrink-0"
-                />
+                <Trash2 size={14} className="shrink-0" />
 
-                <span>
-                  {loading
-                    ? "..."
-                    : "Delete"}
-                </span>
+                <span>{loading ? "..." : "Delete"}</span>
               </button>
             </>
           )}
@@ -1510,15 +1095,9 @@ export default function MyProductCard({
                 sm:text-sm
               "
             >
-              <CheckCircle2
-                size={16}
-              />
+              <CheckCircle2 size={16} />
 
-              <span>
-                {loading
-                  ? "Processing..."
-                  : "Mark Sold"}
-              </span>
+              <span>{loading ? "Processing..." : "Mark Sold"}</span>
             </button>
 
             {/* =================================================
@@ -1547,10 +1126,7 @@ export default function MyProductCard({
                     gap-2
                   "
                 >
-                  <Rocket
-                    size={17}
-                    className="text-amber-600"
-                  />
+                  <Rocket size={17} className="text-amber-600" />
 
                   <p
                     className="
@@ -1584,9 +1160,7 @@ export default function MyProductCard({
                     dark:text-slate-200
                   "
                 >
-                  {formatDate(
-                    boostedUntil,
-                  )}
+                  {formatDate(boostedUntil)}
                 </p>
               </div>
             ) : (
@@ -1620,11 +1194,7 @@ export default function MyProductCard({
               >
                 <Rocket size={16} />
 
-                <span>
-                  {loading
-                    ? "Processing..."
-                    : "Boost This Ad"}
-                </span>
+                <span>{loading ? "Processing..." : "Boost This Ad"}</span>
               </button>
             )}
 
@@ -1681,8 +1251,7 @@ export default function MyProductCard({
                     dark:text-slate-400
                   "
                 >
-                  Your product is getting
-                  extra visibility.
+                  Your product is getting extra visibility.
                 </p>
 
                 {featuredUntil && (
@@ -1695,10 +1264,7 @@ export default function MyProductCard({
                       dark:text-slate-300
                     "
                   >
-                    Active until{" "}
-                    {formatDate(
-                      featuredUntil,
-                    )}
+                    Active until {formatDate(featuredUntil)}
                   </p>
                 )}
               </div>
@@ -1731,16 +1297,9 @@ export default function MyProductCard({
                   sm:text-sm
                 "
               >
-                <Star
-                  size={16}
-                  fill="currentColor"
-                />
+                <Star size={16} fill="currentColor" />
 
-                <span>
-                  {loading
-                    ? "Processing..."
-                    : "Feature This Ad"}
-                </span>
+                <span>{loading ? "Processing..." : "Feature This Ad"}</span>
               </button>
             )}
           </div>
@@ -1773,10 +1332,7 @@ export default function MyProductCard({
                 gap-2
               "
             >
-              <CheckCircle2
-                size={16}
-                className="text-green-600"
-              />
+              <CheckCircle2 size={16} className="text-green-600" />
 
               <p
                 className="
@@ -1799,8 +1355,7 @@ export default function MyProductCard({
                 dark:text-slate-400
               "
             >
-              Buyers can no longer contact
-              you for this product.
+              Buyers can no longer contact you for this product.
             </p>
           </div>
         )}
