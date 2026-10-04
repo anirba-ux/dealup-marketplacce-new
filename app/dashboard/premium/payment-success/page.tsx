@@ -32,25 +32,43 @@ interface PaymentResult {
 
   payment?: {
     orderId?: string;
-
     paymentId?: string | null;
-
     type?: string;
-
     amount?: number;
-
     currency?: string;
+  };
+
+  promotion?: {
+    type?: "BOOST_AD" | "FEATURED_AD";
+
+    jobId?: string;
+
+    productId?: string;
+
+    boostedAt?: string | Date;
+
+    boostedUntil?: string | Date;
+
+    featuredAt?: string | Date;
+
+    featuredUntil?: string | Date;
   };
 }
 
 export default function CashfreePaymentSuccessPage() {
   const [status, setStatus] = useState<PaymentState>("loading");
 
-  const [message, setMessage] = useState("Verifying your Cashfree payment...");
+  const [message, setMessage] = useState(
+    "Verifying your Cashfree payment...",
+  );
 
   const [orderId, setOrderId] = useState<string | null>(null);
 
-  const [payment, setPayment] = useState<PaymentResult["payment"]>();
+  const [payment, setPayment] =
+    useState<PaymentResult["payment"]>();
+
+  const [promotion, setPromotion] =
+    useState<PaymentResult["promotion"]>();
 
   const [copied, setCopied] = useState(false);
 
@@ -63,15 +81,15 @@ export default function CashfreePaymentSuccessPage() {
   useEffect(() => {
     const verifyPayment = async () => {
       try {
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(
+          window.location.search,
+        );
 
         const currentOrderId = params.get("order_id");
 
         if (!currentOrderId) {
           setStatus("failed");
-
           setMessage("Payment order ID is missing.");
-
           return;
         }
 
@@ -90,7 +108,9 @@ export default function CashfreePaymentSuccessPage() {
         const data = (await response.json()) as PaymentResult;
 
         if (!response.ok) {
-          throw new Error(data?.message ?? "Unable to verify payment.");
+          throw new Error(
+            data?.message ?? "Unable to verify payment.",
+          );
         }
 
         // Save payment information
@@ -98,18 +118,33 @@ export default function CashfreePaymentSuccessPage() {
           setPayment(data.payment);
         }
 
+        // Save promotion information
+        if (data.promotion) {
+          setPromotion(data.promotion);
+        }
+
+        // =================================================
         // SUCCESS
-        if (data.status === "success" || data.success === true) {
+        // =================================================
+
+        if (
+          data.status === "success" ||
+          data.success === true
+        ) {
           setStatus("success");
 
           setMessage(
-            data.message ?? "Your payment was completed successfully.",
+            data.message ??
+              "Your payment was completed successfully.",
           );
 
           return;
         }
 
+        // =================================================
         // PENDING
+        // =================================================
+
         if (data.status === "pending") {
           setStatus("pending");
 
@@ -121,23 +156,80 @@ export default function CashfreePaymentSuccessPage() {
           return;
         }
 
+        // =================================================
         // FAILED
-        setStatus("failed");
-
-        setMessage(data.message ?? "Your Cashfree payment was not successful.");
-      } catch (error) {
-        console.error("CASHFREE PAYMENT SUCCESS PAGE ERROR:", error);
+        // =================================================
 
         setStatus("failed");
 
         setMessage(
-          error instanceof Error ? error.message : "Unable to verify payment.",
+          data.message ??
+            "Your Cashfree payment was not successful.",
+        );
+      } catch (error) {
+        console.error(
+          "CASHFREE PAYMENT SUCCESS PAGE ERROR:",
+          error,
+        );
+
+        setStatus("failed");
+
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to verify payment.",
         );
       }
     };
 
     verifyPayment();
   }, []);
+
+  // =====================================================
+  // DESTINATION HELPERS
+  // =====================================================
+
+  const getSuccessDestination = () => {
+    // Job promotion
+    if (promotion?.jobId) {
+      return "/dashboard/my-jobs";
+    }
+
+    // Product promotion
+    if (promotion?.productId) {
+      return "/dashboard/my-ads";
+    }
+
+    // Premium payment
+    return "/dashboard/premium";
+  };
+
+  const getSuccessDestinationLabel = () => {
+    // Job promotion
+    if (promotion?.jobId) {
+      return "My Jobs";
+    }
+
+    // Product promotion
+    if (promotion?.productId) {
+      return "My Ads";
+    }
+
+    // Premium
+    return "Premium";
+  };
+
+  const getSuccessActionLabel = () => {
+    if (promotion?.jobId) {
+      return "Go to My Jobs";
+    }
+
+    if (promotion?.productId) {
+      return "Go to My Ads";
+    }
+
+    return "Go to Premium Dashboard";
+  };
 
   // =====================================================
   // SUCCESS AUTO REDIRECT
@@ -155,7 +247,7 @@ export default function CashfreePaymentSuccessPage() {
         if (current <= 1) {
           window.clearInterval(interval);
 
-          window.location.href = "/dashboard/premium";
+          window.location.href = getSuccessDestination();
 
           return 0;
         }
@@ -167,7 +259,7 @@ export default function CashfreePaymentSuccessPage() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [status]);
+  }, [status, promotion]);
 
   // =====================================================
   // COPY ORDER ID
@@ -187,12 +279,69 @@ export default function CashfreePaymentSuccessPage() {
         setCopied(false);
       }, 2000);
     } catch (error) {
-      console.error("COPY ORDER ID ERROR:", error);
+      console.error(
+        "COPY ORDER ID ERROR:",
+        error,
+      );
     }
   };
 
   // =====================================================
-  // HELPERS
+  // PAYMENT TYPE
+  // =====================================================
+
+  const paymentType = (() => {
+    switch (payment?.type) {
+      case "BOOST_AD":
+        if (promotion?.jobId) {
+          return "Job Boost";
+        }
+
+        if (promotion?.productId) {
+          return "Product Boost";
+        }
+
+        return "Boost Promotion";
+
+      case "FEATURED_AD":
+        if (promotion?.jobId) {
+          return "Featured Job";
+        }
+
+        if (promotion?.productId) {
+          return "Featured Product";
+        }
+
+        return "Featured Promotion";
+
+      case "PREMIUM_MONTHLY":
+        return "Premium Monthly";
+
+      case "PREMIUM_QUARTERLY":
+        return "Premium Quarterly";
+
+      case "PREMIUM_YEARLY":
+        return "Premium Yearly";
+
+      default:
+        return "DealUp Payment";
+    }
+  })();
+
+  // =====================================================
+  // PAYMENT DATE
+  // =====================================================
+
+  const paymentDate = new Intl.DateTimeFormat(
+    "en-IN",
+    {
+      dateStyle: "medium",
+      timeStyle: "short",
+    },
+  ).format(new Date());
+
+  // =====================================================
+  // FORMATTED AMOUNT
   // =====================================================
 
   const formattedAmount =
@@ -204,14 +353,147 @@ export default function CashfreePaymentSuccessPage() {
         }).format(payment.amount)
       : null;
 
-  const paymentType =
-    payment?.type?.replaceAll("_", " ").replace("PREMIUM", "").trim() ||
-    "Premium Seller";
+  // =====================================================
+  // SUCCESS TITLE
+  // =====================================================
 
-  const paymentDate = new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date());
+  const successTitle = (() => {
+    if (promotion?.type === "BOOST_AD") {
+      if (promotion.jobId) {
+        return "Job Boost Activated";
+      }
+
+      if (promotion.productId) {
+        return "Product Boost Activated";
+      }
+
+      return "Boost Activated";
+    }
+
+    if (promotion?.type === "FEATURED_AD") {
+      if (promotion.jobId) {
+        return "Job Featured Successfully";
+      }
+
+      if (promotion.productId) {
+        return "Product Featured Successfully";
+      }
+
+      return "Featured Promotion Activated";
+    }
+
+    return "Premium Seller Activated";
+  })();
+
+  // =====================================================
+  // SUCCESS DESCRIPTION
+  // =====================================================
+
+  const successDescription = (() => {
+    if (promotion?.type === "BOOST_AD") {
+      if (promotion.jobId) {
+        return "Your job is now boosted and will receive increased visibility.";
+      }
+
+      if (promotion.productId) {
+        return "Your product is now boosted and will receive increased visibility.";
+      }
+
+      return "Your Boost promotion has been activated successfully.";
+    }
+
+    if (promotion?.type === "FEATURED_AD") {
+      if (promotion.jobId) {
+        return "Your job is now featured and will receive enhanced visibility.";
+      }
+
+      if (promotion.productId) {
+        return "Your product is now featured and will receive enhanced visibility.";
+      }
+
+      return "Your Featured promotion has been activated successfully.";
+    }
+
+    return "Your Premium benefits are now available.";
+  })();
+
+  // =====================================================
+  // FAILED TITLE
+  // =====================================================
+
+  const failedTitle = (() => {
+    if (payment?.type === "BOOST_AD") {
+      if (promotion?.jobId) {
+        return "Your Job Boost was not activated";
+      }
+
+      if (promotion?.productId) {
+        return "Your Product Boost was not activated";
+      }
+
+      return "Your Boost promotion was not activated";
+    }
+
+    if (payment?.type === "FEATURED_AD") {
+      if (promotion?.jobId) {
+        return "Your Job Featured promotion was not activated";
+      }
+
+      if (promotion?.productId) {
+        return "Your Product Featured promotion was not activated";
+      }
+
+      return "Your Featured promotion was not activated";
+    }
+
+    return "Your Premium plan was not activated";
+  })();
+
+  // =====================================================
+  // FAILED DESCRIPTION
+  // =====================================================
+
+  const failedDescription = (() => {
+    if (payment?.type === "BOOST_AD") {
+      return "No Boost promotion has been activated for this payment.";
+    }
+
+    if (payment?.type === "FEATURED_AD") {
+      return "No Featured promotion has been activated for this payment.";
+    }
+
+    return "No Premium benefits have been activated for this payment.";
+  })();
+
+  // =====================================================
+  // RETRY DESTINATION
+  // =====================================================
+
+  const getRetryDestination = () => {
+    if (payment?.type === "BOOST_AD") {
+      if (promotion?.jobId) {
+        return "/dashboard/my-jobs";
+      }
+
+      if (promotion?.productId) {
+        return "/dashboard/my-ads";
+      }
+    }
+
+    if (payment?.type === "FEATURED_AD") {
+      if (promotion?.jobId) {
+        return "/dashboard/my-jobs";
+      }
+
+      if (promotion?.productId) {
+        return "/dashboard/my-ads";
+      }
+    }
+
+    return "/dashboard/premium";
+  };
+
+  const retryDestination = getRetryDestination();
 
   // =====================================================
   // RENDER
@@ -306,15 +588,16 @@ export default function CashfreePaymentSuccessPage() {
             href="/"
             aria-label="DealUp Home"
             className="
-    group
-    inline-flex
-    items-center
-    transition-transform
-    duration-200
-    hover:scale-[1.02]
-  "
+              group
+              inline-flex
+              items-center
+              transition-transform
+              duration-200
+              hover:scale-[1.02]
+            "
           >
             {/* Light Theme Logo */}
+
             <Image
               src="/images/dealup-logo.png"
               alt="DealUp"
@@ -331,6 +614,7 @@ export default function CashfreePaymentSuccessPage() {
             />
 
             {/* Dark Theme Logo */}
+
             <Image
               src="/images/dealup-dark-logo.png"
               alt="DealUp"
@@ -347,7 +631,8 @@ export default function CashfreePaymentSuccessPage() {
               "
             />
           </Link>
-          {/* Secure payment */}
+
+          {/* Secure Payment */}
 
           <div
             className="
@@ -468,7 +753,7 @@ export default function CashfreePaymentSuccessPage() {
                   dark:text-slate-400
                 "
               >
-                DealUp Premium Seller
+                DealUp Secure Checkout
               </p>
             </div>
 
@@ -553,7 +838,10 @@ export default function CashfreePaymentSuccessPage() {
                     dark:ring-blue-500/5
                   "
                 >
-                  <Loader2 size={44} className="animate-spin" />
+                  <Loader2
+                    size={44}
+                    className="animate-spin"
+                  />
                 </div>
 
                 <p
@@ -593,8 +881,8 @@ export default function CashfreePaymentSuccessPage() {
                     dark:text-slate-400
                   "
                 >
-                  We are securely checking your Cashfree payment. Please do not
-                  close this page.
+                  We are securely checking your Cashfree
+                  payment. Please do not close this page.
                 </p>
 
                 <div
@@ -650,7 +938,10 @@ export default function CashfreePaymentSuccessPage() {
                       dark:ring-emerald-500/5
                     "
                   >
-                    <CheckCircle2 size={52} strokeWidth={1.8} />
+                    <CheckCircle2
+                      size={52}
+                      strokeWidth={1.8}
+                    />
 
                     <div
                       className="
@@ -753,10 +1044,13 @@ export default function CashfreePaymentSuccessPage() {
                         dark:text-emerald-400
                       "
                     >
-                      <Check size={21} strokeWidth={3} />
+                      <Check
+                        size={21}
+                        strokeWidth={3}
+                      />
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <p
                         className="
                           text-sm
@@ -765,7 +1059,7 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-emerald-300
                         "
                       >
-                        Premium Seller Activated
+                        {successTitle}
                       </p>
 
                       <p
@@ -776,10 +1070,122 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-emerald-400/70
                         "
                       >
-                        Your Premium benefits are now available.
+                        {successDescription}
                       </p>
                     </div>
                   </div>
+
+                  {/* Boost Details */}
+
+                  {promotion?.type === "BOOST_AD" &&
+                    promotion.boostedUntil && (
+                      <div
+                        className="
+                          mt-4
+                          rounded-xl
+                          border
+                          border-amber-200
+                          bg-amber-50
+                          px-4
+                          py-3
+                          dark:border-amber-500/20
+                          dark:bg-amber-500/10
+                        "
+                      >
+                        <p
+                          className="
+                            text-xs
+                            font-bold
+                            text-amber-700
+                            dark:text-amber-300
+                          "
+                        >
+                          🚀{" "}
+                          {promotion.jobId
+                            ? "Job Boost Active"
+                            : promotion.productId
+                              ? "Product Boost Active"
+                              : "Boost Active"}
+                        </p>
+
+                        <p
+                          className="
+                            mt-1
+                            text-xs
+                            text-amber-600
+                            dark:text-amber-400
+                          "
+                        >
+                          Active until{" "}
+                          {new Date(
+                            promotion.boostedUntil,
+                          ).toLocaleDateString(
+                            "en-IN",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </p>
+                      </div>
+                    )}
+
+                  {/* Featured Details */}
+
+                  {promotion?.type === "FEATURED_AD" &&
+                    promotion.featuredUntil && (
+                      <div
+                        className="
+                          mt-4
+                          rounded-xl
+                          border
+                          border-blue-200
+                          bg-blue-50
+                          px-4
+                          py-3
+                          dark:border-blue-500/20
+                          dark:bg-blue-500/10
+                        "
+                      >
+                        <p
+                          className="
+                            text-xs
+                            font-bold
+                            text-blue-700
+                            dark:text-blue-300
+                          "
+                        >
+                          ⭐{" "}
+                          {promotion.jobId
+                            ? "Job Featured Active"
+                            : promotion.productId
+                              ? "Product Featured Active"
+                              : "Featured Active"}
+                        </p>
+
+                        <p
+                          className="
+                            mt-1
+                            text-xs
+                            text-blue-600
+                            dark:text-blue-400
+                          "
+                        >
+                          Featured until{" "}
+                          {new Date(
+                            promotion.featuredUntil,
+                          ).toLocaleDateString(
+                            "en-IN",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )}
+                        </p>
+                      </div>
+                    )}
                 </div>
 
                 {/* Payment Information */}
@@ -810,14 +1216,20 @@ export default function CashfreePaymentSuccessPage() {
                       dark:divide-white/10
                     "
                   >
-                    <PaymentInfo label="Plan" value={paymentType} />
+                    <PaymentInfo
+                      label="Plan"
+                      value={paymentType}
+                    />
 
                     <PaymentInfo
                       label="Amount"
                       value={formattedAmount ?? "Paid"}
                     />
 
-                    <PaymentInfo label="Payment" value="Cashfree" />
+                    <PaymentInfo
+                      label="Payment"
+                      value="Cashfree"
+                    />
                   </div>
                 </div>
 
@@ -901,7 +1313,11 @@ export default function CashfreePaymentSuccessPage() {
                         "
                         aria-label="Copy Order ID"
                       >
-                        {copied ? <Check size={18} /> : <Copy size={18} />}
+                        {copied ? (
+                          <Check size={18} />
+                        ) : (
+                          <Copy size={18} />
+                        )}
                       </button>
                     </div>
 
@@ -954,7 +1370,8 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-slate-200
                         "
                       >
-                        Taking you to Premium
+                        Taking you to{" "}
+                        {getSuccessDestinationLabel()}
                       </p>
 
                       <p
@@ -1016,7 +1433,9 @@ export default function CashfreePaymentSuccessPage() {
                         ease-linear
                       "
                       style={{
-                        width: `${((8 - countdown) / 8) * 100}%`,
+                        width: `${
+                          ((8 - countdown) / 8) * 100
+                        }%`,
                       }}
                     />
                   </div>
@@ -1036,7 +1455,7 @@ export default function CashfreePaymentSuccessPage() {
                   "
                 >
                   <Link
-                    href="/dashboard/premium"
+                    href={getSuccessDestination()}
                     className="
                       inline-flex
                       flex-1
@@ -1057,7 +1476,7 @@ export default function CashfreePaymentSuccessPage() {
                       hover:bg-[#0f52ba]
                     "
                   >
-                    Go to Premium Dashboard
+                    {getSuccessActionLabel()}
                   </Link>
 
                   <Link
@@ -1122,7 +1541,10 @@ export default function CashfreePaymentSuccessPage() {
                     dark:ring-amber-500/5
                   "
                 >
-                  <Clock3 size={50} strokeWidth={1.8} />
+                  <Clock3
+                    size={50}
+                    strokeWidth={1.8}
+                  />
                 </div>
 
                 <p
@@ -1210,7 +1632,8 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-slate-400
                         "
                       >
-                        Your payment status may take a short time to be updated.
+                        Your payment status may take a short
+                        time to be updated.
                       </p>
                     </div>
                   </div>
@@ -1228,7 +1651,9 @@ export default function CashfreePaymentSuccessPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => window.location.reload()}
+                    onClick={() =>
+                      window.location.reload()
+                    }
                     className="
                       inline-flex
                       items-center
@@ -1250,7 +1675,7 @@ export default function CashfreePaymentSuccessPage() {
                   </button>
 
                   <Link
-                    href="/dashboard/premium"
+                    href="/dashboard"
                     className="
                       inline-flex
                       items-center
@@ -1271,7 +1696,7 @@ export default function CashfreePaymentSuccessPage() {
                     "
                   >
                     <ArrowLeft size={17} />
-                    Back to Premium
+                    Back to Dashboard
                   </Link>
                 </div>
               </div>
@@ -1305,7 +1730,10 @@ export default function CashfreePaymentSuccessPage() {
                       dark:ring-red-500/5
                     "
                   >
-                    <XCircle size={54} strokeWidth={1.8} />
+                    <XCircle
+                      size={54}
+                      strokeWidth={1.8}
+                    />
                   </div>
 
                   <p
@@ -1400,7 +1828,7 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-red-300
                         "
                       >
-                        Your Premium plan was not activated
+                        {failedTitle}
                       </p>
 
                       <p
@@ -1412,8 +1840,7 @@ export default function CashfreePaymentSuccessPage() {
                           dark:text-red-400/70
                         "
                       >
-                        No Premium benefits have been activated for this
-                        payment.
+                        {failedDescription}
                       </p>
                     </div>
                   </div>
@@ -1503,7 +1930,11 @@ export default function CashfreePaymentSuccessPage() {
                         "
                         aria-label="Copy Order ID"
                       >
-                        {copied ? <Check size={18} /> : <Copy size={18} />}
+                        {copied ? (
+                          <Check size={18} />
+                        ) : (
+                          <Copy size={18} />
+                        )}
                       </button>
                     </div>
                   )}
@@ -1548,7 +1979,7 @@ export default function CashfreePaymentSuccessPage() {
                           text-slate-400
                         "
                       >
-                        Failed At
+                        Checked At
                       </p>
 
                       <p
@@ -1580,7 +2011,7 @@ export default function CashfreePaymentSuccessPage() {
                   "
                 >
                   <Link
-                    href="/dashboard/premium"
+                    href={retryDestination}
                     className="
                       group
                       flex
@@ -1610,16 +2041,18 @@ export default function CashfreePaymentSuccessPage() {
                     />
 
                     <div className="text-left">
-                      <p className="text-sm font-black">Try Again</p>
+                      <p className="text-sm font-black">
+                        Try Again
+                      </p>
 
                       <p className="mt-0.5 text-xs text-white/70">
-                        Complete your payment
+                        Return to payment
                       </p>
                     </div>
                   </Link>
 
                   <Link
-                    href="/dashboard/premium"
+                    href="/dashboard"
                     className="
                       flex
                       min-h-[78px]
@@ -1646,10 +2079,12 @@ export default function CashfreePaymentSuccessPage() {
                     <ArrowLeft size={22} />
 
                     <div className="text-left">
-                      <p className="text-sm font-black">Go to Premium</p>
+                      <p className="text-sm font-black">
+                        Go to Dashboard
+                      </p>
 
                       <p className="mt-0.5 text-xs text-slate-400">
-                        Choose another plan
+                        Continue using DealUp
                       </p>
                     </div>
                   </Link>
@@ -1754,7 +2189,8 @@ export default function CashfreePaymentSuccessPage() {
                   dark:text-slate-400
                 "
               >
-                Your payment information is securely processed by Cashfree.
+                Your payment information is securely
+                processed by Cashfree.
               </p>
             </div>
 
@@ -1766,7 +2202,8 @@ export default function CashfreePaymentSuccessPage() {
                 text-slate-400
               "
             >
-              DealUp never stores your card, UPI or banking credentials.
+              DealUp never stores your card, UPI or banking
+              credentials.
             </p>
           </div>
         </section>
@@ -1796,7 +2233,9 @@ export default function CashfreePaymentSuccessPage() {
             DealUp
           </span>
 
-          <span className="text-slate-300 dark:text-slate-700">•</span>
+          <span className="text-slate-300 dark:text-slate-700">
+            •
+          </span>
 
           <span
             className="
@@ -1817,7 +2256,13 @@ export default function CashfreePaymentSuccessPage() {
 // PAYMENT INFO COMPONENT
 // =====================================================
 
-function PaymentInfo({ label, value }: { label: string; value: string }) {
+function PaymentInfo({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
   return (
     <div className="p-4 sm:p-5">
       <p

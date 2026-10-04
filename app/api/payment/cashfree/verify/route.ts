@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 
 import { auth } from "@/auth";
-
+import clientPromise from "@/lib/db/mongodb";
 import { cashfreeConfig } from "@/lib/cashfree";
 
 import {
@@ -16,17 +17,51 @@ import {
   activatePremiumSeller,
 } from "@/lib/repositories/premium.repository";
 
+import {
+  activatePaidBoost,
+  activatePaidFeatured,
+} from "@/lib/repositories/product.repository";
+
+import {
+  activatePaidBoostJob,
+  activatePaidFeaturedJob,
+} from "@/lib/repositories/job.repository";
+
+// =====================================================
+// DATABASE
+// =====================================================
+
+const DATABASE_NAME = "dealup";
+
+// =====================================================
+// Cashfree Payment Response
+// =====================================================
+
 interface CashfreePayment {
   cf_payment_id?: string | number;
-
   payment_status?: string;
-
   payment_amount?: number;
-
   payment_currency?: string;
-
   payment_completion_time?: string | null;
 }
+
+// =====================================================
+// Helper
+// =====================================================
+
+function isSuccessfulPayment(
+  payment: CashfreePayment,
+) {
+  return (
+    String(
+      payment.payment_status ?? "",
+    ).toUpperCase() === "SUCCESS"
+  );
+}
+
+// =====================================================
+// GET — Verify Cashfree Payment
+// =====================================================
 
 export async function GET(
   request: Request,
@@ -50,8 +85,9 @@ export async function GET(
       );
     }
 
-    const userId =
-      String(session.user.id);
+    const userId = String(
+      session.user.id,
+    );
 
     // =================================================
     // Read Order ID
@@ -61,7 +97,9 @@ export async function GET(
       new URL(request.url);
 
     const orderId =
-      searchParams.get("order_id")?.trim();
+      searchParams
+        .get("order_id")
+        ?.trim();
 
     if (!orderId) {
       return NextResponse.json(
@@ -100,10 +138,13 @@ export async function GET(
     }
 
     // =================================================
-    // Ownership Check
+    // Payment Ownership
     // =================================================
 
-    if (payment.userId !== userId) {
+    if (
+      String(payment.userId) !==
+      userId
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -130,22 +171,44 @@ export async function GET(
         success: true,
         status: "success",
         alreadyProcessed: true,
+
         message:
-          "Payment and Premium activation have already been completed.",
+          "Payment and activation have already been completed.",
+
         payment: {
           orderId:
             payment.cashfreeOrderId,
+
           paymentId:
             payment.cashfreePaymentId,
+
           type: payment.type,
+
           amount: payment.amount,
-          currency: payment.currency,
+
+          currency:
+            payment.currency,
         },
+
+        promotion:
+          payment.jobId
+            ? {
+                type: payment.type,
+                jobId:
+                  payment.jobId,
+              }
+            : payment.productId
+              ? {
+                  type: payment.type,
+                  productId:
+                    payment.productId,
+                }
+              : null,
       });
     }
 
     // =================================================
-    // Cashfree Get Payments For Order
+    // Ask Cashfree for Payment Status
     // =================================================
 
     const cashfreeResponse =
@@ -180,6 +243,10 @@ export async function GET(
     const cashfreeData =
       await cashfreeResponse.json();
 
+    // =================================================
+    // Cashfree API Error
+    // =================================================
+
     if (!cashfreeResponse.ok) {
       console.error(
         "CASHFREE PAYMENT STATUS ERROR:",
@@ -201,24 +268,21 @@ export async function GET(
     }
 
     // =================================================
-    // Find Successful Payment
+    // Payment Array
     // =================================================
 
     const payments =
       Array.isArray(cashfreeData)
-        ? cashfreeData
+        ? (cashfreeData as CashfreePayment[])
         : [];
+
+    // =================================================
+    // Find Successful Payment
+    // =================================================
 
     const successfulPayment =
       payments.find(
-        (
-          item: CashfreePayment,
-        ) =>
-          String(
-            item.payment_status ??
-              "",
-          ).toUpperCase() ===
-          "SUCCESS",
+        isSuccessfulPayment,
       );
 
     // =================================================
@@ -239,7 +303,8 @@ export async function GET(
 
             return (
               status === "PENDING" ||
-              status === "AUTHORIZED" ||
+              status ===
+                "AUTHORIZED" ||
               status === "ACTIVE"
             );
           },
@@ -267,11 +332,12 @@ export async function GET(
     }
 
     // =================================================
-    // Payment ID
+    // Cashfree Payment ID
     // =================================================
 
     const cashfreePaymentId =
-      successfulPayment.cf_payment_id
+      successfulPayment
+        .cf_payment_id
         ? String(
             successfulPayment.cf_payment_id,
           )
@@ -329,11 +395,21 @@ export async function GET(
       );
 
     const expectedAmount =
-      payment.amount / 100;
+      Number(payment.amount) / 100;
 
     if (
-      paymentAmount !== expectedAmount
+      paymentAmount !==
+      expectedAmount
     ) {
+      console.error(
+        "CASHFREE AMOUNT MISMATCH:",
+        {
+          orderId,
+          paymentAmount,
+          expectedAmount,
+        },
+      );
+
       await markCashfreePaymentAsFailed(
         orderId,
       );
@@ -387,7 +463,7 @@ export async function GET(
     );
 
     // =================================================
-    // Re-read Payment
+    // Re-read Paid Payment
     // =================================================
 
     const paidPayment =
@@ -410,7 +486,7 @@ export async function GET(
     }
 
     // =================================================
-    // PREMIUM
+    // PREMIUM SELLER
     // =================================================
 
     if (
@@ -421,6 +497,10 @@ export async function GET(
       paidPayment.type ===
         "PREMIUM_YEARLY"
     ) {
+      // -----------------------------------------------
+      // Get Plan
+      // -----------------------------------------------
+
       const plan =
         paidPayment.metadata
           ?.plan;
@@ -448,36 +528,67 @@ export async function GET(
         );
       }
 
+      // -----------------------------------------------
+      // Premium Start
+      // -----------------------------------------------
+
       const startedAt =
         new Date();
 
       const expiresAt =
         new Date(startedAt);
 
-      if (plan === "monthly") {
+      // -----------------------------------------------
+      // Monthly
+      // -----------------------------------------------
+
+      if (
+        plan === "monthly"
+      ) {
         expiresAt.setMonth(
-          expiresAt.getMonth() + 1,
+          expiresAt.getMonth() +
+            1,
         );
       }
 
-      if (plan === "quarterly") {
+      // -----------------------------------------------
+      // Quarterly
+      // -----------------------------------------------
+
+      if (
+        plan === "quarterly"
+      ) {
         expiresAt.setMonth(
-          expiresAt.getMonth() + 3,
+          expiresAt.getMonth() +
+            3,
         );
       }
 
-      if (plan === "yearly") {
+      // -----------------------------------------------
+      // Yearly
+      // -----------------------------------------------
+
+      if (
+        plan === "yearly"
+      ) {
         expiresAt.setFullYear(
-          expiresAt.getFullYear() + 1,
+          expiresAt.getFullYear() +
+            1,
         );
       }
+
+      // -----------------------------------------------
+      // Activate Premium
+      // -----------------------------------------------
 
       const activated =
         await activatePremiumSeller(
           userId,
           {
             plan,
+
             startedAt,
+
             expiresAt,
 
             paymentId:
@@ -507,6 +618,10 @@ export async function GET(
         );
       }
 
+      // -----------------------------------------------
+      // Mark Activation Complete
+      // -----------------------------------------------
+
       await markPaymentActivation(
         orderId,
         "completed",
@@ -515,18 +630,566 @@ export async function GET(
       return NextResponse.json({
         success: true,
         status: "success",
+
         message:
           "Payment successful! Premium Seller has been activated.",
+
         payment: {
           orderId:
             paidPayment.cashfreeOrderId,
+
           paymentId:
             paidPayment.cashfreePaymentId,
-          type: paidPayment.type,
-          amount: paidPayment.amount,
-          currency: paidPayment.currency,
+
+          type:
+            paidPayment.type,
+
+          amount:
+            paidPayment.amount,
+
+          currency:
+            paidPayment.currency,
         },
       });
+    }
+
+    // =================================================
+    // JOB / PRODUCT PROMOTIONS
+    // =================================================
+
+    if (
+      paidPayment.type ===
+        "BOOST_AD" ||
+      paidPayment.type ===
+        "FEATURED_AD"
+    ) {
+      // =================================================
+      // JOB PROMOTION
+      // =================================================
+
+      if (paidPayment.jobId) {
+        const jobId =
+          String(
+            paidPayment.jobId,
+          );
+
+        // -----------------------------------------------
+        // Validate Job ID
+        // -----------------------------------------------
+
+        if (
+          !ObjectId.isValid(
+            jobId,
+          )
+        ) {
+          await markPaymentActivation(
+            orderId,
+            "failed",
+          );
+
+          return NextResponse.json(
+            {
+              success: false,
+              status: "failed",
+              message:
+                "Invalid Job ID in payment record.",
+            },
+            {
+              status: 400,
+            },
+          );
+        }
+
+        // -----------------------------------------------
+        // Load Job
+        // -----------------------------------------------
+
+        const client =
+          await clientPromise;
+
+        const db =
+          client.db(
+            DATABASE_NAME,
+          );
+
+        const jobs =
+          db.collection("jobs");
+
+        const job =
+          await jobs.findOne({
+            _id: new ObjectId(
+              jobId,
+            ),
+          });
+
+        // -----------------------------------------------
+        // Job Not Found
+        // -----------------------------------------------
+
+        if (!job) {
+          await markPaymentActivation(
+            orderId,
+            "failed",
+          );
+
+          return NextResponse.json(
+            {
+              success: false,
+              status: "failed",
+              message:
+                "The Job associated with this payment was not found.",
+            },
+            {
+              status: 404,
+            },
+          );
+        }
+
+        // -----------------------------------------------
+        // IMPORTANT OWNERSHIP CHECK
+        // -----------------------------------------------
+
+        const jobEmployerId =
+          String(
+            job.employerId ??
+              "",
+          );
+
+        if (
+          !jobEmployerId ||
+          jobEmployerId !==
+            userId
+        ) {
+          await markPaymentActivation(
+            orderId,
+            "failed",
+          );
+
+          return NextResponse.json(
+            {
+              success: false,
+              status: "failed",
+              message:
+                "You are not allowed to activate promotion for this Job.",
+            },
+            {
+              status: 403,
+            },
+          );
+        }
+
+        // -----------------------------------------------
+        // Job must be active
+        // -----------------------------------------------
+
+        if (
+          job.status !== "active"
+        ) {
+          await markPaymentActivation(
+            orderId,
+            "failed",
+          );
+
+          return NextResponse.json(
+            {
+              success: false,
+              status: "failed",
+              message:
+                "Only active Jobs can be promoted.",
+            },
+            {
+              status: 400,
+            },
+          );
+        }
+
+        // =================================================
+        // JOB BOOST
+        // =================================================
+
+        if (
+          paidPayment.type ===
+          "BOOST_AD"
+        ) {
+          const activated =
+            await activatePaidBoostJob(
+              jobId,
+
+              jobEmployerId,
+
+              paidPayment.cashfreePaymentId ||
+                cashfreePaymentId,
+            );
+
+          if (
+            !activated.success
+          ) {
+            await markPaymentActivation(
+              orderId,
+              "failed",
+            );
+
+            return NextResponse.json(
+              {
+                success: false,
+                status: "failed",
+
+                message:
+                  "Payment was successful, but Job Boost activation failed.",
+
+                reason:
+                  activated.reason,
+              },
+              {
+                status: 500,
+              },
+            );
+          }
+
+          // ---------------------------------------------
+          // Mark Complete
+          // ---------------------------------------------
+
+          await markPaymentActivation(
+            orderId,
+            "completed",
+          );
+
+          return NextResponse.json({
+            success: true,
+            status: "success",
+
+            message:
+              "Payment successful! Job Boost has been activated.",
+
+            promotion: {
+              type: "BOOST_AD",
+
+              jobId,
+
+              boostedAt:
+                activated.boostedAt,
+
+              boostedUntil:
+                activated.boostedUntil,
+            },
+
+            payment: {
+              orderId:
+                paidPayment.cashfreeOrderId,
+
+              paymentId:
+                paidPayment.cashfreePaymentId,
+
+              type:
+                paidPayment.type,
+
+              amount:
+                paidPayment.amount,
+
+              currency:
+                paidPayment.currency,
+            },
+          });
+        }
+
+        // =================================================
+        // JOB FEATURED
+        // =================================================
+
+        if (
+          paidPayment.type ===
+          "FEATURED_AD"
+        ) {
+          const activated =
+            await activatePaidFeaturedJob(
+              jobId,
+
+              jobEmployerId,
+
+              paidPayment.cashfreePaymentId ||
+                cashfreePaymentId,
+            );
+
+          if (
+            !activated.success
+          ) {
+            await markPaymentActivation(
+              orderId,
+              "failed",
+            );
+
+            return NextResponse.json(
+              {
+                success: false,
+                status: "failed",
+
+                message:
+                  "Payment was successful, but Job Featured activation failed.",
+
+                reason:
+                  activated.reason,
+              },
+              {
+                status: 500,
+              },
+            );
+          }
+
+          // ---------------------------------------------
+          // Mark Complete
+          // ---------------------------------------------
+
+          await markPaymentActivation(
+            orderId,
+            "completed",
+          );
+
+          return NextResponse.json({
+            success: true,
+            status: "success",
+
+            message:
+              "Payment successful! Job has been featured.",
+
+            promotion: {
+              type: "FEATURED_AD",
+
+              jobId,
+
+              featuredAt:
+                activated.featuredAt,
+
+              featuredUntil:
+                activated.featuredUntil,
+            },
+
+            payment: {
+              orderId:
+                paidPayment.cashfreeOrderId,
+
+              paymentId:
+                paidPayment.cashfreePaymentId,
+
+              type:
+                paidPayment.type,
+
+              amount:
+                paidPayment.amount,
+
+              currency:
+                paidPayment.currency,
+            },
+          });
+        }
+      }
+
+      // =================================================
+      // PRODUCT PROMOTION
+      // =================================================
+
+      if (
+        paidPayment.productId
+      ) {
+        const productId =
+          String(
+            paidPayment.productId,
+          );
+
+        // -----------------------------------------------
+        // PRODUCT BOOST
+        // -----------------------------------------------
+
+        if (
+          paidPayment.type ===
+          "BOOST_AD"
+        ) {
+          const activated =
+            await activatePaidBoost(
+              productId,
+
+              userId,
+
+              paidPayment.cashfreePaymentId ||
+                cashfreePaymentId,
+            );
+
+          if (
+            !activated.success
+          ) {
+            await markPaymentActivation(
+              orderId,
+              "failed",
+            );
+
+            return NextResponse.json(
+              {
+                success: false,
+                status: "failed",
+
+                message:
+                  "Payment was successful, but Product Boost activation failed.",
+
+                reason:
+                  activated.reason,
+              },
+              {
+                status: 500,
+              },
+            );
+          }
+
+          await markPaymentActivation(
+            orderId,
+            "completed",
+          );
+
+          return NextResponse.json({
+            success: true,
+            status: "success",
+
+            message:
+              "Payment successful! Product Boost has been activated.",
+
+            promotion: {
+              type: "BOOST_AD",
+
+              productId,
+
+              boostedAt:
+                activated.boostedAt,
+
+              boostedUntil:
+                activated.boostedUntil,
+            },
+
+            payment: {
+              orderId:
+                paidPayment.cashfreeOrderId,
+
+              paymentId:
+                paidPayment.cashfreePaymentId,
+
+              type:
+                paidPayment.type,
+
+              amount:
+                paidPayment.amount,
+
+              currency:
+                paidPayment.currency,
+            },
+          });
+        }
+
+        // -----------------------------------------------
+        // PRODUCT FEATURED
+        // -----------------------------------------------
+
+        if (
+          paidPayment.type ===
+          "FEATURED_AD"
+        ) {
+          const activated =
+            await activatePaidFeatured(
+              productId,
+
+              userId,
+
+              paidPayment.cashfreePaymentId ||
+                cashfreePaymentId,
+            );
+
+          if (
+            !activated.success
+          ) {
+            await markPaymentActivation(
+              orderId,
+              "failed",
+            );
+
+            return NextResponse.json(
+              {
+                success: false,
+                status: "failed",
+
+                message:
+                  "Payment was successful, but Product Featured activation failed.",
+
+                reason:
+                  activated.reason,
+              },
+              {
+                status: 500,
+              },
+            );
+          }
+
+          await markPaymentActivation(
+            orderId,
+            "completed",
+          );
+
+          return NextResponse.json({
+            success: true,
+            status: "success",
+
+            message:
+              "Payment successful! Product has been featured.",
+
+            promotion: {
+              type: "FEATURED_AD",
+
+              productId,
+
+              featuredAt:
+                activated.featuredAt,
+
+              featuredUntil:
+                activated.featuredUntil,
+            },
+
+            payment: {
+              orderId:
+                paidPayment.cashfreeOrderId,
+
+              paymentId:
+                paidPayment.cashfreePaymentId,
+
+              type:
+                paidPayment.type,
+
+              amount:
+                paidPayment.amount,
+
+              currency:
+                paidPayment.currency,
+            },
+          });
+        }
+      }
+
+      // =================================================
+      // Missing Promotion Target
+      // =================================================
+
+      await markPaymentActivation(
+        orderId,
+        "failed",
+      );
+
+      return NextResponse.json(
+        {
+          success: false,
+          status: "failed",
+
+          message:
+            "Promotion target is missing from the payment record.",
+        },
+        {
+          status: 400,
+        },
+      );
     }
 
     // =================================================
@@ -542,14 +1205,15 @@ export async function GET(
       {
         success: false,
         status: "failed",
+
         message:
-          "This Cashfree payment type is not supported by this verification route yet.",
+          "Unsupported payment type.",
       },
       {
         status: 400,
       },
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error(
       "CASHFREE VERIFY ERROR:",
       error,
@@ -559,6 +1223,7 @@ export async function GET(
       {
         success: false,
         status: "failed",
+
         message:
           error instanceof Error
             ? error.message

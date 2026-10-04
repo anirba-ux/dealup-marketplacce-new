@@ -25,7 +25,11 @@ export type PaymentType =
 // Payment Status
 // =====================================================
 
-export type PaymentStatus = "created" | "paid" | "failed" | "refunded";
+export type PaymentStatus =
+  | "created"
+  | "paid"
+  | "failed"
+  | "refunded";
 
 // =====================================================
 // Payment Record
@@ -38,7 +42,11 @@ export interface PaymentRecord {
 
   type: PaymentType;
 
+  // Product payment
   productId: string | null;
+
+  // Job payment
+  jobId?: string | null;
 
   // ===================================================
   // Razorpay
@@ -59,6 +67,11 @@ export interface PaymentRecord {
   cashfreePaymentSessionId: string | null;
 
   cashfreePaymentId: string | null;
+
+  // ===================================================
+  // Amount
+  // ===================================================
+
   amount: number;
 
   currency: "INR";
@@ -83,17 +96,23 @@ async function getPaymentsCollection() {
 
   const db = client.db(DATABASE_NAME);
 
-  return db.collection<PaymentRecord>(PAYMENTS_COLLECTION);
+  return db.collection<PaymentRecord>(
+    PAYMENTS_COLLECTION,
+  );
 }
 
 // =====================================================
 // Create Payment Record
 // =====================================================
 
-export async function createPaymentRecord(payment: Omit<PaymentRecord, "_id">) {
-  const collection = await getPaymentsCollection();
+export async function createPaymentRecord(
+  payment: Omit<PaymentRecord, "_id">,
+) {
+  const collection =
+    await getPaymentsCollection();
 
-  const result = await collection.insertOne(payment);
+  const result =
+    await collection.insertOne(payment);
 
   return result.insertedId;
 }
@@ -102,8 +121,11 @@ export async function createPaymentRecord(payment: Omit<PaymentRecord, "_id">) {
 // Find Payment By Razorpay Order ID
 // =====================================================
 
-export async function findPaymentByOrderId(razorpayOrderId: string) {
-  const collection = await getPaymentsCollection();
+export async function findPaymentByOrderId(
+  razorpayOrderId: string,
+) {
+  const collection =
+    await getPaymentsCollection();
 
   return collection.findOne({
     razorpayOrderId,
@@ -114,8 +136,11 @@ export async function findPaymentByOrderId(razorpayOrderId: string) {
 // Find Payment By Razorpay Payment ID
 // =====================================================
 
-export async function findPaymentByPaymentId(razorpayPaymentId: string) {
-  const collection = await getPaymentsCollection();
+export async function findPaymentByPaymentId(
+  razorpayPaymentId: string,
+) {
+  const collection =
+    await getPaymentsCollection();
 
   return collection.findOne({
     razorpayPaymentId,
@@ -131,37 +156,41 @@ export async function markPaymentAsPaid(
   razorpayPaymentId: string,
   razorpaySignature: string,
 ) {
-  const collection = await getPaymentsCollection();
+  const collection =
+    await getPaymentsCollection();
 
   const now = new Date();
 
-  const result = await collection.updateOne(
-    {
-      razorpayOrderId,
+  const result =
+    await collection.updateOne(
+      {
+        razorpayOrderId,
 
-      status: {
-        $ne: "paid",
+        status: {
+          $ne: "paid",
+        },
       },
-    },
-    {
-      $set: {
-        status: "paid",
+      {
+        $set: {
+          status: "paid",
 
-        razorpayPaymentId,
+          razorpayPaymentId,
 
-        razorpaySignature,
+          razorpaySignature,
 
-        paidAt: now,
+          paidAt: now,
 
-        updatedAt: now,
+          updatedAt: now,
+        },
       },
-    },
-  );
+    );
 
   return {
-    success: result.modifiedCount > 0,
+    success:
+      result.modifiedCount > 0,
 
-    modifiedCount: result.modifiedCount,
+    modifiedCount:
+      result.modifiedCount,
   };
 }
 
@@ -171,8 +200,12 @@ export async function markPaymentAsPaid(
 
 export async function markPaymentActivation(
   orderId: string,
-  activationStatus: "completed" | "failed",
-  gateway: "razorpay" | "cashfree" = "razorpay",
+  activationStatus:
+    | "completed"
+    | "failed",
+  gateway:
+    | "razorpay"
+    | "cashfree" = "razorpay",
 ) {
   const collection =
     await getPaymentsCollection();
@@ -203,37 +236,40 @@ export async function markPaymentActivation(
 // Mark Payment As Failed
 // =====================================================
 
-export async function markPaymentAsFailed(razorpayOrderId: string) {
-  const collection = await getPaymentsCollection();
+export async function markPaymentAsFailed(
+  razorpayOrderId: string,
+) {
+  const collection =
+    await getPaymentsCollection();
 
-  const result = await collection.updateOne(
-    {
-      razorpayOrderId,
+  const result =
+    await collection.updateOne(
+      {
+        razorpayOrderId,
 
-      status: "created",
-    },
-    {
-      $set: {
-        status: "failed",
-
-        updatedAt: new Date(),
+        status: "created",
       },
-    },
-  );
+      {
+        $set: {
+          status: "failed",
+
+          updatedAt: new Date(),
+        },
+      },
+    );
 
   return result.modifiedCount > 0;
 }
 
 // =====================================================
-// Cashfree Payment Functions
+// Cashfree
 // =====================================================
 
-// =====================================================
-// Find Payment By Cashfree Order ID
-// =====================================================
-
-export async function findPaymentByCashfreeOrderId(cashfreeOrderId: string) {
-  const collection = await getPaymentsCollection();
+export async function findPaymentByCashfreeOrderId(
+  cashfreeOrderId: string,
+) {
+  const collection =
+    await getPaymentsCollection();
 
   return collection.findOne({
     cashfreeOrderId,
@@ -247,7 +283,8 @@ export async function findPaymentByCashfreeOrderId(cashfreeOrderId: string) {
 export async function findPaymentByCashfreePaymentId(
   cashfreePaymentId: string,
 ) {
-  const collection = await getPaymentsCollection();
+  const collection =
+    await getPaymentsCollection();
 
   return collection.findOne({
     cashfreePaymentId,
@@ -262,35 +299,39 @@ export async function markCashfreePaymentAsPaid(
   cashfreeOrderId: string,
   cashfreePaymentId: string,
 ) {
-  const collection = await getPaymentsCollection();
+  const collection =
+    await getPaymentsCollection();
 
   const now = new Date();
 
-  const result = await collection.updateOne(
-    {
-      cashfreeOrderId,
+  const result =
+    await collection.updateOne(
+      {
+        cashfreeOrderId,
 
-      status: {
-        $ne: "paid",
+        status: {
+          $ne: "paid",
+        },
       },
-    },
-    {
-      $set: {
-        status: "paid",
+      {
+        $set: {
+          status: "paid",
 
-        cashfreePaymentId,
+          cashfreePaymentId,
 
-        paidAt: now,
+          paidAt: now,
 
-        updatedAt: now,
+          updatedAt: now,
+        },
       },
-    },
-  );
+    );
 
   return {
-    success: result.modifiedCount > 0,
+    success:
+      result.modifiedCount > 0,
 
-    modifiedCount: result.modifiedCount,
+    modifiedCount:
+      result.modifiedCount,
   };
 }
 
@@ -298,33 +339,33 @@ export async function markCashfreePaymentAsPaid(
 // Mark Cashfree Payment As Failed
 // =====================================================
 
-export async function markCashfreePaymentAsFailed(cashfreeOrderId: string) {
-  const collection = await getPaymentsCollection();
+export async function markCashfreePaymentAsFailed(
+  cashfreeOrderId: string,
+) {
+  const collection =
+    await getPaymentsCollection();
 
-  const result = await collection.updateOne(
-    {
-      cashfreeOrderId,
+  const result =
+    await collection.updateOne(
+      {
+        cashfreeOrderId,
 
-      status: "created",
-    },
-    {
-      $set: {
-        status: "failed",
-
-        updatedAt: new Date(),
+        status: "created",
       },
-    },
-  );
+      {
+        $set: {
+          status: "failed",
+
+          updatedAt: new Date(),
+        },
+      },
+    );
 
   return result.modifiedCount > 0;
 }
+
 // =====================================================
-// Update Razorpay Payment ID
-// =====================================================
-//
-// Useful if a payment record needs to be updated
-// before final activation.
-//
+// Update Razorpay Payment Details
 // =====================================================
 
 export async function updatePaymentDetails(
@@ -337,20 +378,22 @@ export async function updatePaymentDetails(
     status?: PaymentStatus;
   },
 ) {
-  const collection = await getPaymentsCollection();
+  const collection =
+    await getPaymentsCollection();
 
-  const result = await collection.updateOne(
-    {
-      razorpayOrderId,
-    },
-    {
-      $set: {
-        ...data,
-
-        updatedAt: new Date(),
+  const result =
+    await collection.updateOne(
+      {
+        razorpayOrderId,
       },
-    },
-  );
+      {
+        $set: {
+          ...data,
+
+          updatedAt: new Date(),
+        },
+      },
+    );
 
   return result.modifiedCount > 0;
 }

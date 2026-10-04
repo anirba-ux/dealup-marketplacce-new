@@ -1,9 +1,10 @@
+
 import Link from "next/link";
 import { Home } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import ProductForm from "@/components/product/ProductForm";
+import SellListingSelector from "@/components/sell/SellListingSelector";
 
 export default async function SellPage() {
   const session = await auth();
@@ -99,44 +100,63 @@ export default async function SellPage() {
         "
       />
 
+      {/* =====================================================
+          MAIN CONTENT
+      ====================================================== */}
+
       <div className="relative z-10 mx-auto w-full max-w-6xl">
-        {/* Back & Home */}
+        {/* =====================================================
+            TOP NAVIGATION
+        ====================================================== */}
+
         <div className="mb-6 flex items-center justify-between sm:mb-8">
           <BackButton />
 
           <Link
             href="/"
             className="
-      inline-flex items-center gap-2
-      rounded-xl
-      border border-slate-200
-      bg-white
-      px-3 py-2
-      text-sm font-semibold
-      text-slate-700
-      shadow-sm
-      transition-all duration-200
-      hover:-translate-y-0.5
-      hover:border-[#1565d8]/30
-      hover:bg-blue-50
-      hover:text-[#1565d8]
-      hover:shadow-md
-      active:scale-95
-      dark:border-white/10
-      dark:bg-white/5
-      dark:text-slate-200
-      dark:hover:border-[#1565d8]/40
-      dark:hover:bg-[#1565d8]/10
-      dark:hover:text-white
-      sm:px-4
-    "
+              inline-flex
+              items-center
+              gap-2
+              rounded-xl
+              border
+              border-slate-200
+              bg-white
+              px-3
+              py-2
+              text-sm
+              font-semibold
+              text-slate-700
+              shadow-sm
+              transition-all
+              duration-200
+
+              hover:-translate-y-0.5
+              hover:border-[#1565d8]/30
+              hover:bg-blue-50
+              hover:text-[#1565d8]
+              hover:shadow-md
+
+              active:scale-95
+
+              dark:border-white/10
+              dark:bg-white/5
+              dark:text-slate-200
+
+              dark:hover:border-[#1565d8]/40
+              dark:hover:bg-[#1565d8]/10
+              dark:hover:text-white
+
+              sm:px-4
+            "
           >
             <Home className="h-4 w-4 shrink-0" />
             <span>Home</span>
           </Link>
         </div>
+
         {/* =====================================================
-            HEADER
+            PAGE HEADER
         ====================================================== */}
 
         <div
@@ -151,7 +171,7 @@ export default async function SellPage() {
             lg:mb-12
           "
         >
-          {/* Badge */}
+          {/* Brand Badge */}
 
           <span
             className="
@@ -204,11 +224,7 @@ export default async function SellPage() {
               dark:text-white
             "
           >
-            {/* Buy & Sell */}
-
             <span className="block">Buy &amp; Sell</span>
-
-            {/* Anything */}
 
             <span
               className="
@@ -220,8 +236,6 @@ export default async function SellPage() {
             >
               Anything
             </span>
-
-            {/* Near You */}
 
             <span
               className="
@@ -266,13 +280,13 @@ export default async function SellPage() {
               dark:text-slate-300
             "
           >
-            Publish your product and connect with thousands of buyers across
-            India.
+            Publish your product or post job opportunities and connect with
+            people across India.
           </p>
         </div>
 
         {/* =====================================================
-            PRODUCT FORM CARD
+            POST AN AD CARD
         ====================================================== */}
 
         <div
@@ -298,7 +312,7 @@ export default async function SellPage() {
             dark:shadow-[0_25px_80px_rgba(0,0,0,0.35)]
           "
         >
-          <ProductForm />
+          <SellListingSelector />
         </div>
       </div>
     </main>

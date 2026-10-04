@@ -10,7 +10,15 @@ export async function POST(request: NextRequest) {
 
     const file = formData.get("file") as File | null;
 
-    const type = (formData.get("type") as string) || "product";
+    const type =
+  (formData.get("type") as
+    | "product"
+    | "profile"
+    | "chat"
+    | "verification"
+    | "job"
+    | "document"
+    | "video") || "product";
 
     // =====================================================
     // Validate File
@@ -33,11 +41,12 @@ export async function POST(request: NextRequest) {
     // =====================================================
 
     if (
-      type === "product" ||
-      type === "profile" ||
-      type === "chat" ||
-      type === "verification"
-    ) {
+  type === "product" ||
+  type === "profile" ||
+  type === "chat" ||
+  type === "verification" ||
+  type === "job"
+) {
       // ===================================================
       // Supported Image MIME Types
       // ===================================================
@@ -117,14 +126,13 @@ export async function POST(request: NextRequest) {
       // ===================================================
 
       const folder =
-        type === "profile"
-          ? "dealup/profile"
-          : type === "chat"
-            ? "dealup/chat"
-            : type === "verification"
-              ? "dealup/verification"
-              : "dealup/products";
-
+  type === "profile"
+    ? "dealup/profile"
+    : type === "chat"
+      ? "dealup/chat"
+      : type === "verification"
+        ? "dealup/verification"
+        : "dealup/products";
       // ===================================================
       // Cloudinary Image Upload
       // ===================================================

@@ -7,6 +7,7 @@ import FeaturedCategory from "@/components/home/FeaturedCategory";
 import FeaturedProducts from "@/components/home/FeaturedProducts";
 import NearbyProducts from "@/components/home/NearbyProducts";
 import LatestProducts from "@/components/home/LatestProduct";
+import LatestJobs from "@/components/home/LatestJobs";
 import PremiumBanner from "@/components/home/PremiumBanner";
 import PopularCities from "@/components/home/PopularCities";
 import WhyChooseDealUp from "@/components/home/WhyChooseDealup";
@@ -19,6 +20,8 @@ import {
   findFeaturedProducts,
 } from "@/lib/repositories/product.repository";
 
+import { findActiveJobs } from "@/lib/repositories/job.repository";
+
 export default async function Home() {
   // =========================================================
   // PERFORMANCE TEST
@@ -30,20 +33,25 @@ export default async function Home() {
   console.log("[PERF] HOME PAGE START");
 
   // =========================================================
-  // FETCH HOMEPAGE PRODUCTS IN PARALLEL
+  // FETCH HOMEPAGE DATA IN PARALLEL
   // =========================================================
 
   const productsStart = performance.now();
 
-  const [featuredProducts, latestProducts] = await Promise.all([
+  const [
+    featuredProducts,
+    latestProducts,
+    latestJobs,
+  ] = await Promise.all([
     findFeaturedProducts(20),
     findLatestProducts(8),
+    findActiveJobs(8),
   ]);
 
   const productsEnd = performance.now();
 
   console.log(
-    `[PERF] Featured + Latest queries: ${(
+    `[PERF] Homepage queries: ${(
       productsEnd - productsStart
     ).toFixed(0)}ms`,
   );
@@ -56,98 +64,134 @@ export default async function Home() {
     `[PERF] Latest products count: ${latestProducts.length}`,
   );
 
+  console.log(
+    `[PERF] Active jobs count: ${latestJobs.length}`,
+  );
+
+  // =========================================================
+  // SERIALIZE LATEST JOBS
+  //
+  // MongoDB returns:
+  // _id → ObjectId
+  //
+  // LatestJobs expects:
+  // _id → string
+  //
+  // So we convert ObjectId to string before passing
+  // the data to the client component.
+  // =========================================================
+
+  const serializedLatestJobs = latestJobs.map((job) => ({
+    ...job,
+
+    _id: job._id.toString(),
+  }));
+
   // =========================================================
   // SERIALIZE FEATURED PRODUCTS
   // =========================================================
 
   const serializeStart = performance.now();
 
-  const serializedFeaturedProducts = featuredProducts.map((product) => ({
-    id: product._id?.toString() ?? "",
+  const serializedFeaturedProducts =
+    featuredProducts.map((product) => ({
+      // -------------------------------------------------------
+      // Basic Product Information
+      // -------------------------------------------------------
 
-    slug: product.slug ?? "",
+      id: product._id?.toString() ?? "",
 
-    title: product.title ?? "",
+      slug: product.slug ?? "",
 
-    price: product.price ?? 0,
+      title: product.title ?? "",
 
-    location: product.location?.city ?? "",
+      price: product.price ?? 0,
 
-    image: product.thumbnail ?? "",
+      location: product.location?.city ?? "",
 
-    seller: product.sellerName ?? "",
+      image: product.thumbnail ?? "",
 
-    condition: product.condition ?? "",
+      seller: product.sellerName ?? "",
 
-    // -------------------------------------------------------
-    // Seller Verification
-    // -------------------------------------------------------
+      condition: product.condition ?? "",
 
-    sellerIsPhoneVerified:
-      product.sellerIsPhoneVerified ?? false,
+      // -------------------------------------------------------
+      // Seller Verification
+      // -------------------------------------------------------
 
-    sellerVerificationStatus:
-      product.sellerVerificationStatus ?? null,
+      sellerIsPhoneVerified:
+        product.sellerIsPhoneVerified ?? false,
 
-    // -------------------------------------------------------
-    // Seller Badge
-    // -------------------------------------------------------
+      sellerVerificationStatus:
+        product.sellerVerificationStatus ?? null,
 
-    sellerBadge: product.sellerBadge
-      ? typeof product.sellerBadge === "string"
-        ? product.sellerBadge
-        : {
-            label: product.sellerBadge.label ?? undefined,
+      // -------------------------------------------------------
+      // Seller Badge
+      // -------------------------------------------------------
 
-            name: product.sellerBadge.name ?? undefined,
+      sellerBadge: product.sellerBadge
+        ? typeof product.sellerBadge === "string"
+          ? product.sellerBadge
+          : {
+              label:
+                product.sellerBadge.label ??
+                undefined,
 
-            type: product.sellerBadge.type ?? undefined,
+              name:
+                product.sellerBadge.name ??
+                undefined,
 
-            badge: product.sellerBadge.badge ?? undefined,
-          }
-      : null,
+              type:
+                product.sellerBadge.type ??
+                undefined,
 
-    // -------------------------------------------------------
-    // Premium Seller
-    // -------------------------------------------------------
+              badge:
+                product.sellerBadge.badge ??
+                undefined,
+            }
+        : null,
 
-    sellerPremiumSeller:
-      product.sellerPremiumSeller === true,
+      // -------------------------------------------------------
+      // Premium Seller
+      // -------------------------------------------------------
 
-    sellerPremiumBadge:
-      product.sellerPremiumBadge === true,
+      sellerPremiumSeller:
+        product.sellerPremiumSeller === true,
 
-    // -------------------------------------------------------
-    // Date
-    // -------------------------------------------------------
+      sellerPremiumBadge:
+        product.sellerPremiumBadge === true,
 
-    createdAt:
-      product.createdAt instanceof Date
-        ? product.createdAt.toISOString()
-        : product.createdAt
-          ? String(product.createdAt)
-          : null,
+      // -------------------------------------------------------
+      // Date
+      // -------------------------------------------------------
 
-    // -------------------------------------------------------
-    // Product Status
-    // -------------------------------------------------------
+      createdAt:
+        product.createdAt instanceof Date
+          ? product.createdAt.toISOString()
+          : product.createdAt
+            ? String(product.createdAt)
+            : null,
 
-    isFeatured:
-      product.isFeatured ?? false,
+      // -------------------------------------------------------
+      // Product Status
+      // -------------------------------------------------------
 
-    isPremium:
-      product.isPremium ?? false,
+      isFeatured:
+        product.isFeatured ?? false,
 
-    isBoosted:
-      product.isBoosted ?? false,
+      isPremium:
+        product.isPremium ?? false,
 
-    // -------------------------------------------------------
-    // Views
-    // -------------------------------------------------------
+      isBoosted:
+        product.isBoosted ?? false,
 
-    views:
-      product.views ?? 0,
-  }));
+      // -------------------------------------------------------
+      // Views
+      // -------------------------------------------------------
+
+      views:
+        product.views ?? 0,
+    }));
 
   const serializeEnd = performance.now();
 
@@ -158,7 +202,7 @@ export default async function Home() {
   );
 
   // =========================================================
-  // PAGE
+  // TOTAL SERVER EXECUTION TIME
   // =========================================================
 
   const totalEnd = performance.now();
@@ -170,6 +214,10 @@ export default async function Home() {
   );
 
   console.log("========================================");
+
+  // =========================================================
+  // HOME PAGE
+  // =========================================================
 
   return (
     <>
@@ -208,6 +256,14 @@ export default async function Home() {
       ====================================================== */}
 
       <NearbyProducts />
+
+      {/* =====================================================
+          JOBS NEAR YOU
+      ====================================================== */}
+
+      <LatestJobs
+        jobs={serializedLatestJobs}
+      />
 
       {/* =====================================================
           LATEST PRODUCTS

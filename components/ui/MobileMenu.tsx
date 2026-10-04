@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
 
@@ -11,6 +13,9 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import NotificationBell from "./NotificationBell";
 
 import {
+  BriefcaseBusiness,
+  ChevronDown,
+  ChevronRight,
   Headphones,
   Heart,
   LayoutDashboard,
@@ -26,13 +31,47 @@ import {
 } from "lucide-react";
 
 export default function MobileMenu() {
+  // =======================================================
+  // STATE
+  // =======================================================
+
   const [open, setOpen] = useState(false);
 
+  const [myAdsOpen, setMyAdsOpen] = useState(false);
+
+  // =======================================================
+  // ROUTER
+  // =======================================================
+
   const pathname = usePathname();
+
+  // =======================================================
+  // SESSION
+  // =======================================================
 
   const { data: session } = useSession();
 
   const t = useTranslations("common");
+
+  // =======================================================
+  // MY ADS ACTIVE SECTION
+  // =======================================================
+
+  const isMyAdsSection =
+    pathname === "/dashboard/my-ads" ||
+    pathname.startsWith("/dashboard/my-ads/") ||
+    pathname === "/dashboard/my-jobs" ||
+    pathname.startsWith("/dashboard/my-jobs/");
+
+  // =======================================================
+  // AUTO OPEN MY ADS
+  // =======================================================
+
+  useEffect(() => {
+    if (isMyAdsSection) {
+      setMyAdsOpen(true);
+    }
+  }, [isMyAdsSection]);
 
   // =======================================================
   // CLOSE MENU WITH ESCAPE
@@ -41,7 +80,9 @@ export default function MobileMenu() {
   useEffect(() => {
     if (!open) return;
 
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleEscape = (
+      event: KeyboardEvent,
+    ) => {
       if (event.key === "Escape") {
         setOpen(false);
       }
@@ -103,7 +144,11 @@ export default function MobileMenu() {
     session?.user?.role === "admin";
 
   // =======================================================
-  // MENU ITEMS
+  // STANDARD MENU ITEMS
+  //
+  // My Ads is intentionally NOT included here.
+  // It is rendered separately as a parent menu
+  // with My Products + My Jobs submenu.
   // =======================================================
 
   const menuItems = [
@@ -112,31 +157,31 @@ export default function MobileMenu() {
       href: "/dashboard",
       icon: LayoutDashboard,
     },
+
     {
       label: t("myProfile"),
       href: "/dashboard/profile",
       icon: User,
     },
-    {
-      label: t("myAds"),
-      href: "/dashboard/my-ads",
-      icon: Package,
-    },
+
     {
       label: t("wishlist"),
       href: "/wishlist",
       icon: Heart,
     },
+
     {
       label: t("messages"),
       href: "/messages",
       icon: MessageCircle,
     },
+
     {
       label: t("settings"),
       href: "/dashboard/settings",
       icon: Settings,
     },
+
     {
       label: "Help Center",
       href: "/help",
@@ -160,7 +205,7 @@ export default function MobileMenu() {
     <>
       {/* ===================================================
           HAMBURGER BUTTON
-      ==================================================== */}
+      =================================================== */}
 
       <button
         type="button"
@@ -200,7 +245,7 @@ export default function MobileMenu() {
 
       {/* ===================================================
           FULL SCREEN MOBILE MENU
-      ==================================================== */}
+      =================================================== */}
 
       {open && (
         <div
@@ -269,7 +314,13 @@ export default function MobileMenu() {
             >
               {/* Brand */}
 
-              <div className="flex items-center gap-3">
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-3
+                "
+              >
                 <div
                   className="
                     flex
@@ -357,7 +408,13 @@ export default function MobileMenu() {
                     dark:bg-slate-900
                   "
                 >
-                  <div className="flex items-center gap-3">
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-3
+                    "
+                  >
                     <Image
                       src={image}
                       alt={name}
@@ -427,7 +484,10 @@ export default function MobileMenu() {
                         dark:text-purple-300
                       "
                     >
-                      <ShieldCheck size={13} />
+                      <ShieldCheck
+                        size={13}
+                      />
+
                       Administrator
                     </div>
                   )}
@@ -482,19 +542,27 @@ export default function MobileMenu() {
                     My Account
                   </p>
 
-                  {/* =================================================
-                      STANDARD MENU
-                  ================================================= */}
-
                   <div className="space-y-1">
+                    {/* =====================================
+                        STANDARD MENU
+                    ====================================== */}
+
                     {menuItems.map((item) => {
-                      const Icon = item.icon;
+                      const Icon =
+                        item.icon;
+
+                      const isActive =
+                        pathname ===
+                          item.href ||
+                        pathname.startsWith(
+                          `${item.href}/`,
+                        );
 
                       return (
                         <Link
                           key={item.href}
                           href={item.href}
-                          className="
+                          className={`
                             group
                             flex
                             items-center
@@ -504,24 +572,31 @@ export default function MobileMenu() {
                             py-3
                             text-sm
                             font-medium
-                            text-slate-700
                             transition
                             duration-200
-                            hover:bg-blue-50
-                            hover:text-[#1565D8]
-                            dark:text-slate-200
-                            dark:hover:bg-[#1565D8]/10
-                            dark:hover:text-[#1976F3]
-                          "
+
+                            ${
+                              isActive
+                                ? `
+                                  bg-blue-50
+                                  text-[#1565D8]
+                                  dark:bg-[#1565D8]/10
+                                  dark:text-[#1976F3]
+                                `
+                                : `
+                                  text-slate-700
+                                  hover:bg-blue-50
+                                  hover:text-[#1565D8]
+                                  dark:text-slate-200
+                                  dark:hover:bg-[#1565D8]/10
+                                  dark:hover:text-[#1976F3]
+                                `
+                            }
+                          `}
                         >
                           <Icon
                             size={19}
                             strokeWidth={1.9}
-                            className="
-                              transition
-                              group-hover:text-[#1565D8]
-                              dark:group-hover:text-[#1976F3]
-                            "
                           />
 
                           <span>
@@ -531,9 +606,205 @@ export default function MobileMenu() {
                       );
                     })}
 
-                    {/* =================================================
+                    {/* ===================================
+                        MY ADS PARENT
+                    ==================================== */}
+
+                    <button
+                      type="button"
+                      aria-expanded={myAdsOpen}
+                      onClick={() =>
+                        setMyAdsOpen(
+                          (current) =>
+                            !current,
+                        )
+                      }
+                      className={`
+                        group
+                        flex
+                        w-full
+                        items-center
+                        justify-between
+                        rounded-xl
+                        px-3
+                        py-3
+                        text-left
+                        text-sm
+                        font-medium
+                        transition
+                        duration-200
+
+                        ${
+                          isMyAdsSection
+                            ? `
+                              bg-blue-50
+                              text-[#1565D8]
+                              dark:bg-[#1565D8]/10
+                              dark:text-[#1976F3]
+                            `
+                            : `
+                              text-slate-700
+                              hover:bg-blue-50
+                              hover:text-[#1565D8]
+                              dark:text-slate-200
+                              dark:hover:bg-[#1565D8]/10
+                              dark:hover:text-[#1976F3]
+                            `
+                        }
+                      `}
+                    >
+                      <span
+                        className="
+                          flex
+                          items-center
+                          gap-3
+                        "
+                      >
+                        <Package
+                          size={19}
+                          strokeWidth={1.9}
+                        />
+
+                        <span>
+                          {t("myAds")}
+                        </span>
+                      </span>
+
+                      {myAdsOpen ? (
+                        <ChevronDown
+                          size={18}
+                          strokeWidth={2}
+                        />
+                      ) : (
+                        <ChevronRight
+                          size={18}
+                          strokeWidth={2}
+                        />
+                      )}
+                    </button>
+
+                    {/* ===================================
+                        MY ADS SUBMENU
+                    ==================================== */}
+
+                    {myAdsOpen && (
+                      <div
+                        className="
+                          ml-4
+                          space-y-1
+                          border-l-2
+                          border-blue-100
+                          pl-3
+                          dark:border-blue-900/40
+                        "
+                      >
+                        {/* ---------------------------------
+                            MY PRODUCTS
+                        ---------------------------------- */}
+
+                        <Link
+                          href="/dashboard/my-ads"
+                          className={`
+                            group
+                            flex
+                            items-center
+                            gap-3
+                            rounded-xl
+                            px-3
+                            py-2.5
+                            text-sm
+                            font-medium
+                            transition
+
+                            ${
+                              pathname ===
+                                "/dashboard/my-ads" ||
+                              pathname.startsWith(
+                                "/dashboard/my-ads/",
+                              )
+                                ? `
+                                  bg-[#1565D8]/10
+                                  text-[#1565D8]
+                                  dark:bg-[#1976F3]/10
+                                  dark:text-[#1976F3]
+                                `
+                                : `
+                                  text-slate-600
+                                  hover:bg-blue-50
+                                  hover:text-[#1565D8]
+                                  dark:text-slate-300
+                                  dark:hover:bg-[#1565D8]/10
+                                  dark:hover:text-[#1976F3]
+                                `
+                            }
+                          `}
+                        >
+                          <Package
+                            size={17}
+                            strokeWidth={1.9}
+                          />
+
+                          <span>
+                            My Products
+                          </span>
+                        </Link>
+
+                        {/* ---------------------------------
+                            MY JOBS
+                        ---------------------------------- */}
+
+                        <Link
+                          href="/dashboard/my-jobs"
+                          className={`
+                            group
+                            flex
+                            items-center
+                            gap-3
+                            rounded-xl
+                            px-3
+                            py-2.5
+                            text-sm
+                            font-medium
+                            transition
+
+                            ${
+                              pathname ===
+                                "/dashboard/my-jobs" ||
+                              pathname.startsWith(
+                                "/dashboard/my-jobs/",
+                              )
+                                ? `
+                                  bg-[#1565D8]/10
+                                  text-[#1565D8]
+                                  dark:bg-[#1976F3]/10
+                                  dark:text-[#1976F3]
+                                `
+                                : `
+                                  text-slate-600
+                                  hover:bg-blue-50
+                                  hover:text-[#1565D8]
+                                  dark:text-slate-300
+                                  dark:hover:bg-[#1565D8]/10
+                                  dark:hover:text-[#1976F3]
+                                `
+                            }
+                          `}
+                        >
+                          <BriefcaseBusiness
+                            size={17}
+                            strokeWidth={1.9}
+                          />
+
+                          <span>
+                            My Jobs
+                          </span>
+                        </Link>
+                      </div>
+                    )}
+
+                    {/* ===================================
                         NOTIFICATIONS
-                    ================================================= */}
+                    ==================================== */}
 
                     <NotificationBell
                       variant="menu"
@@ -541,9 +812,9 @@ export default function MobileMenu() {
                     />
                   </div>
 
-                  {/* =============================================
+                  {/* =========================================
                       ADMIN
-                  ============================================== */}
+                  ========================================== */}
 
                   {isAdmin && (
                     <Link
@@ -565,7 +836,9 @@ export default function MobileMenu() {
                         dark:hover:bg-purple-900/20
                       "
                     >
-                      <ShieldCheck size={19} />
+                      <ShieldCheck
+                        size={19}
+                      />
 
                       <span>
                         Admin Dashboard
@@ -649,7 +922,8 @@ export default function MobileMenu() {
                   type="button"
                   onClick={() =>
                     signOut({
-                      callbackUrl: "/login",
+                      callbackUrl:
+                        "/login",
                     })
                   }
                   className="
