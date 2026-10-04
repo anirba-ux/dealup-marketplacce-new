@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+
 import {
   BriefcaseBusiness,
   Building2,
@@ -132,7 +133,12 @@ function formatSalary(salary?: JobPosition["salary"]) {
 
   let amount = "";
 
-  if (max !== undefined && max !== null && max > 0 && max !== min) {
+  if (
+    max !== undefined &&
+    max !== null &&
+    max > 0 &&
+    max !== min
+  ) {
     amount = `₹${formatAmount(min)} - ₹${formatAmount(max)}`;
   } else if (min > 0) {
     amount = `₹${formatAmount(min)}`;
@@ -140,7 +146,10 @@ function formatSalary(salary?: JobPosition["salary"]) {
     return "Salary not specified";
   }
 
-  const periodMap: Record<"hour" | "day" | "month" | "year", string> = {
+  const periodMap: Record<
+    "hour" | "day" | "month" | "year",
+    string
+  > = {
     hour: "/hr",
     day: "/day",
     month: "/month",
@@ -148,10 +157,9 @@ function formatSalary(salary?: JobPosition["salary"]) {
   };
 
   const period =
-  salary.period &&
-  periodMap[salary.period]
-    ? periodMap[salary.period]
-    : "";
+    salary.period && periodMap[salary.period]
+      ? periodMap[salary.period]
+      : "";
 
   return `${amount}${period}`;
 }
@@ -205,29 +213,33 @@ function JobCard({ job }: { job: Job }) {
   const position = job.jobs?.[0];
 
   const imageUrl =
-  job.thumbnail?.url?.trim() ||
-  job.infographic?.url?.trim() ||
-  "";
-
-  console.log("JOB CARD IMAGE DATA:", {
-  jobId: job._id,
-  thumbnail: job.thumbnail,
-  infographic: job.infographic,
-  imageUrl,
-});
+    job.thumbnail?.url?.trim() ||
+    job.infographic?.url?.trim() ||
+    "";
 
   const companyName =
-    job.employer?.companyName || job.employerName || "Company";
+    job.employer?.companyName ||
+    job.employerName ||
+    "Company";
 
-  const jobTitle = position?.title || "Job Opportunity";
+  const jobTitle =
+    position?.title ||
+    "Job Opportunity";
 
   const location = getLocation(job);
 
-  const employmentType = formatEmploymentType(position?.employmentType);
+  const employmentType =
+    formatEmploymentType(
+      position?.employmentType,
+    );
 
-  const workMode = formatWorkMode(position?.workMode);
+  const workMode =
+    formatWorkMode(
+      position?.workMode,
+    );
 
-  const salary = formatSalary(position?.salary);
+  const salary =
+    formatSalary(position?.salary);
 
   return (
     <article
@@ -235,9 +247,11 @@ function JobCard({ job }: { job: Job }) {
         group
         flex
         h-full
-        min-w-[290px]
+        w-[calc(100vw-3rem)]
         max-w-[320px]
-        flex-shrink-0
+        min-w-[290px]
+        shrink-0
+        snap-start
         flex-col
         overflow-hidden
         rounded-3xl
@@ -253,8 +267,10 @@ function JobCard({ job }: { job: Job }) {
         dark:border-slate-800
         dark:bg-slate-950
 
+        sm:w-full
         sm:min-w-0
         sm:max-w-none
+        sm:snap-none
       "
     >
       {/* =================================================
@@ -266,6 +282,7 @@ function JobCard({ job }: { job: Job }) {
           relative
           h-48
           w-full
+          shrink-0
           overflow-hidden
           bg-slate-100
 
@@ -323,7 +340,9 @@ function JobCard({ job }: { job: Job }) {
                 dark:bg-slate-950
               "
             >
-              <BriefcaseBusiness size={30} />
+              <BriefcaseBusiness
+                size={30}
+              />
             </div>
           </div>
         )}
@@ -348,7 +367,9 @@ function JobCard({ job }: { job: Job }) {
             dark:bg-slate-950/90
           "
         >
-          {job.listingType === "multiple" ? "Multiple Jobs" : "Job Opening"}
+          {job.listingType === "multiple"
+            ? "Multiple Jobs"
+            : "Job Opening"}
         </div>
       </div>
 
@@ -374,7 +395,10 @@ function JobCard({ job }: { job: Job }) {
             gap-2
           "
         >
-          <Building2 size={15} className="shrink-0 text-[#1565d8]" />
+          <Building2
+            size={15}
+            className="shrink-0 text-[#1565d8]"
+          />
 
           <span
             className="
@@ -432,7 +456,9 @@ function JobCard({ job }: { job: Job }) {
             "
           />
 
-          <span className="line-clamp-2">{location}</span>
+          <span className="line-clamp-2">
+            {location}
+          </span>
         </div>
 
         {/* Employment + Work mode */}
@@ -499,7 +525,10 @@ function JobCard({ job }: { job: Job }) {
             dark:text-white
           "
         >
-          <WalletCards size={16} className="text-[#f5a623]" />
+          <WalletCards
+            size={16}
+            className="text-[#f5a623]"
+          />
 
           <span>{salary}</span>
         </div>
@@ -534,7 +563,9 @@ function JobCard({ job }: { job: Job }) {
           >
             {position?.vacancies
               ? `${position.vacancies} ${
-                  position.vacancies === 1 ? "vacancy" : "vacancies"
+                  position.vacancies === 1
+                    ? "vacancy"
+                    : "vacancies"
                 }`
               : "Hiring now"}
           </span>
@@ -553,7 +584,10 @@ function JobCard({ job }: { job: Job }) {
             "
           >
             View
-            <ChevronRight size={16} />
+
+            <ChevronRight
+              size={16}
+            />
           </Link>
         </div>
       </div>
@@ -565,7 +599,9 @@ function JobCard({ job }: { job: Job }) {
 // LATEST JOBS / CAREER OPPORTUNITIES
 // =====================================================
 
-export default function LatestJobs({ jobs }: LatestJobsProps) {
+export default function LatestJobs({
+  jobs,
+}: LatestJobsProps) {
   const visibleJobs =
     jobs
       ?.filter(
@@ -637,7 +673,9 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
                   text-[#1565d8]
                 "
               >
-                <BriefcaseBusiness size={19} />
+                <BriefcaseBusiness
+                  size={19}
+                />
               </div>
 
               <span
@@ -677,7 +715,8 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
                 dark:text-slate-400
               "
             >
-              Discover the latest job opportunities on DealUp.
+              Discover the latest job
+              opportunities on DealUp.
             </p>
           </div>
 
@@ -709,6 +748,7 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
             "
           >
             View All
+
             <ChevronRight
               size={16}
               className="
@@ -720,29 +760,38 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
         </div>
 
         {/* =================================================
-            MOBILE SLIDER
+            MOBILE HORIZONTAL SLIDER
+            DESKTOP RESPONSIVE GRID
         ================================================== */}
 
         <div
           className="
             -mx-4
             overflow-x-auto
+            overscroll-x-contain
             px-4
             pb-4
+            snap-x
+            snap-mandatory
 
-            scrollbar-hide
+            [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden
 
             sm:mx-0
-            sm:px-0
             sm:overflow-visible
+            sm:px-0
+            sm:pb-0
+            sm:snap-none
           "
         >
           <div
             className="
               flex
+              w-max
               gap-4
 
               sm:grid
+              sm:w-auto
               sm:grid-cols-2
 
               lg:grid-cols-3
@@ -751,36 +800,13 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
             "
           >
             {visibleJobs.map((job) => (
-              <JobCard key={job._id} job={job} />
+              <JobCard
+                key={job._id}
+                job={job}
+              />
             ))}
           </div>
         </div>
-
-        {/* =================================================
-            MOBILE SLIDER HINT
-        ================================================== */}
-
-        {visibleJobs.length > 1 && (
-          <div
-            className="
-              mt-1
-              flex
-              justify-center
-              sm:hidden
-            "
-          >
-            <div
-              className="
-                h-1
-                w-10
-                rounded-full
-                bg-slate-200
-
-                dark:bg-slate-700
-              "
-            />
-          </div>
-        )}
       </div>
     </section>
   );
