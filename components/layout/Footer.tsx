@@ -76,7 +76,7 @@ const legalLinks = [
 ============================================================ */
 
 const facebookUrl =
-  "https://www.facebook.com/share/1WiTsb2cFx/";
+  "https://www.facebook.com/share/1DdpwdbnAR/";
 
 const whatsappUrl =
   "https://wa.me/918240060110";
