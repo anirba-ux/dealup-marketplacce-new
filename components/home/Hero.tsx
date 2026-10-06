@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+
 import Container from "@/components/ui/Container";
 
 export default function Hero() {
@@ -13,7 +14,8 @@ export default function Hero() {
         via-white
         to-blue-50/70
         py-12
-        transition-colors duration-500
+        transition-colors
+        duration-500
 
         dark:from-[#020817]
         dark:via-[#030a18]
@@ -106,7 +108,8 @@ export default function Hero() {
                 font-semibold
                 text-[#1565d8]
                 shadow-sm
-                transition-all duration-300
+                transition-all
+                duration-300
 
                 hover:-translate-y-0.5
                 hover:shadow-md
@@ -125,17 +128,17 @@ export default function Hero() {
 
             {/* =================================================
                 MAIN HEADING
+                SEO-FOCUSED BRAND HEADING
             ================================================== */}
 
             <h1
               className="
                 mt-7
                 max-w-3xl
-                text-[3.25rem]
+                text-[3rem]
                 font-black
                 leading-[0.98]
                 tracking-[-0.045em]
-
                 text-slate-950
 
                 sm:mt-8
@@ -149,21 +152,27 @@ export default function Hero() {
                 dark:text-white
               "
             >
-              {/* Buy & Sell */}
-              <span className="block">Buy &amp; Sell</span>
+              {/* Brand Name */}
 
-              {/* Anything */}
+              <span className="block">
+                DealUp Marketplace
+              </span>
+
+              {/* Buy & Sell */}
+
               <span
                 className="
                   block
                   text-[#1565d8]
+
                   dark:text-[#1976f3]
                 "
               >
-                Anything
+                Buy &amp; Sell
               </span>
 
               {/* Near You */}
+
               <span
                 className="
                   block
@@ -208,8 +217,9 @@ export default function Hero() {
                 dark:text-slate-300
               "
             >
-              Discover trusted local deals, connect with nearby buyers and
-              sellers, and trade safely with confidence using DealUp.
+              Discover trusted local deals, buy and sell products
+              near you, connect with local buyers and sellers, and
+              trade safely with DealUp Marketplace.
             </p>
 
             {/* =================================================
@@ -233,54 +243,64 @@ export default function Hero() {
                 lg:max-w-none
               "
             >
-              {/* Browse Products */}
+              {/* =================================================
+                  BROWSE PRODUCTS
+              ================================================== */}
+
               <Link
                 href="/search"
                 className="
-    inline-flex
-    min-w-0
-    flex-1
-    shrink-0
-    items-center
-    justify-center
-    gap-1
-    whitespace-nowrap
-    rounded-xl
-    bg-[#1565d8]
-    px-2.5
-    py-3
-    text-center
-    text-[13px]
-    font-bold
-    leading-none
-    text-white
-    shadow-lg
-    shadow-blue-500/20
-    transition-all
-    duration-300
+                  inline-flex
+                  min-w-0
+                  flex-1
+                  shrink-0
+                  items-center
+                  justify-center
+                  gap-1
+                  whitespace-nowrap
+                  rounded-xl
+                  bg-[#1565d8]
+                  px-2.5
+                  py-3
+                  text-center
+                  text-[13px]
+                  font-bold
+                  leading-none
+                  text-white
+                  shadow-lg
+                  shadow-blue-500/20
+                  transition-all
+                  duration-300
 
-    hover:-translate-y-1
-    hover:bg-[#0f52ba]
-    hover:shadow-xl
+                  hover:-translate-y-1
+                  hover:bg-[#0f52ba]
+                  hover:shadow-xl
 
-    active:scale-95
+                  active:scale-95
 
-    sm:gap-2
-    sm:px-6
-    sm:py-3.5
-    sm:text-base
+                  sm:gap-2
+                  sm:px-6
+                  sm:py-3.5
+                  sm:text-base
 
-    lg:flex-none
-    lg:px-8
-    lg:py-4
-  "
+                  lg:flex-none
+                  lg:px-8
+                  lg:py-4
+                "
               >
-                <span className="whitespace-nowrap">Explore Products</span>
+                <span className="whitespace-nowrap">
+                  Explore Products
+                </span>
 
-                <span className="text-base leading-none sm:text-lg">→</span>
+                <span className="text-base leading-none sm:text-lg">
+                  →
+                </span>
               </Link>
 
-              {/* Start Selling */}
+              {/* =================================================
+                  START SELLING
+              ================================================== */}
+
               <Link
                 href="/sell"
                 className="
@@ -300,7 +320,8 @@ export default function Hero() {
                   font-bold
                   text-slate-800
                   shadow-sm
-                  transition-all duration-300
+                  transition-all
+                  duration-300
 
                   hover:-translate-y-1
                   hover:border-[#1565d8]
@@ -355,7 +376,10 @@ export default function Hero() {
                 dark:border-white/10
               "
             >
-              {/* Products */}
+              {/* =================================================
+                  PRODUCTS
+              ================================================== */}
+
               <div className="text-center lg:text-left">
                 <h3
                   className="
@@ -369,12 +393,23 @@ export default function Hero() {
                   10K+
                 </h3>
 
-                <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
+                <p
+                  className="
+                    mt-1
+                    text-xs
+                    text-slate-500
+                    sm:text-sm
+                    dark:text-slate-400
+                  "
+                >
                   Products
                 </p>
               </div>
 
-              {/* Sellers */}
+              {/* =================================================
+                  SELLERS
+              ================================================== */}
+
               <div className="text-center lg:text-left">
                 <h3
                   className="
@@ -388,12 +423,23 @@ export default function Hero() {
                   5K+
                 </h3>
 
-                <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
+                <p
+                  className="
+                    mt-1
+                    text-xs
+                    text-slate-500
+                    sm:text-sm
+                    dark:text-slate-400
+                  "
+                >
                   Sellers
                 </p>
               </div>
 
-              {/* Cities */}
+              {/* =================================================
+                  CITIES
+              ================================================== */}
+
               <div className="text-center lg:text-left">
                 <h3
                   className="
@@ -407,7 +453,15 @@ export default function Hero() {
                   50+
                 </h3>
 
-                <p className="mt-1 text-xs text-slate-500 sm:text-sm dark:text-slate-400">
+                <p
+                  className="
+                    mt-1
+                    text-xs
+                    text-slate-500
+                    sm:text-sm
+                    dark:text-slate-400
+                  "
+                >
                   Cities
                 </p>
               </div>
@@ -428,7 +482,10 @@ export default function Hero() {
               lg:max-w-2xl
             "
           >
-            {/* Blue glow */}
+            {/* =================================================
+                BLUE GLOW
+            ================================================== */}
+
             <div
               className="
                 pointer-events-none
@@ -445,7 +502,10 @@ export default function Hero() {
               "
             />
 
-            {/* Gold glow */}
+            {/* =================================================
+                GOLD GLOW
+            ================================================== */}
+
             <div
               className="
                 pointer-events-none
@@ -462,7 +522,10 @@ export default function Hero() {
               "
             />
 
-            {/* Image card */}
+            {/* =================================================
+                IMAGE CARD
+            ================================================== */}
+
             <div
               className="
                 relative
@@ -474,7 +537,8 @@ export default function Hero() {
                 p-2
                 shadow-[0_25px_80px_rgba(15,23,42,0.14)]
                 backdrop-blur-sm
-                transition-all duration-500
+                transition-all
+                duration-500
 
                 hover:-translate-y-1
                 hover:shadow-[0_30px_90px_rgba(21,101,216,0.18)]
@@ -489,7 +553,7 @@ export default function Hero() {
             >
               <Image
                 src="/images/hero.png"
-                alt="DealUp Marketplace"
+                alt="DealUp Marketplace - Buy and Sell Locally in India"
                 width={900}
                 height={700}
                 priority
