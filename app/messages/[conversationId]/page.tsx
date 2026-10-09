@@ -39,8 +39,7 @@ export default async function MessagePage({ params }: Props) {
   // Get conversation
   // =========================================
 
-  const conversation =
-    await getConversationById(conversationId);
+  const conversation = await getConversationById(conversationId);
 
   if (!conversation) {
     notFound();
@@ -50,10 +49,7 @@ export default async function MessagePage({ params }: Props) {
   // Check access
   // =========================================
 
-  if (
-    conversation.buyerId !== userId &&
-    conversation.sellerId !== userId
-  ) {
+  if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
     notFound();
   }
 
@@ -61,20 +57,13 @@ export default async function MessagePage({ params }: Props) {
   // Mark conversation as read
   // =========================================
 
-  await markConversationRead(
-    conversationId,
-    userId,
-  );
+  await markConversationRead(conversationId, userId);
 
   // =========================================
-// Get messages
-// =========================================
+  // Get messages
+  // =========================================
 
-const messages =
-  await getMessages(
-    conversationId,
-    userId,
-  );
+  const messages = await getMessages(conversationId, userId);
 
   // =========================================
   // Serialize Conversation
@@ -85,44 +74,35 @@ const messages =
 
     productId: conversation.productId,
 
+    listingType: conversation.listingType ?? "product",
+
     buyerId: conversation.buyerId,
 
     sellerId: conversation.sellerId,
 
     lastMessage: conversation.lastMessage,
 
-    lastMessageAt:
-      conversation.lastMessageAt?.toISOString(),
+    lastMessageAt: conversation.lastMessageAt?.toISOString(),
 
-    unreadCountBuyer:
-      conversation.unreadCountBuyer,
+    unreadCountBuyer: conversation.unreadCountBuyer,
 
-    unreadCountSeller:
-      conversation.unreadCountSeller,
+    unreadCountSeller: conversation.unreadCountSeller,
 
-    buyerMuted:
-      conversation.buyerMuted ?? false,
+    buyerMuted: conversation.buyerMuted ?? false,
 
-    sellerMuted:
-      conversation.sellerMuted ?? false,
+    sellerMuted: conversation.sellerMuted ?? false,
 
-    buyerMutedAt:
-      conversation.buyerMutedAt?.toISOString(),
+    buyerMutedAt: conversation.buyerMutedAt?.toISOString(),
 
-    sellerMutedAt:
-      conversation.sellerMutedAt?.toISOString(),
+    sellerMutedAt: conversation.sellerMutedAt?.toISOString(),
 
-    buyerDeleted:
-      conversation.buyerDeleted ?? false,
+    buyerDeleted: conversation.buyerDeleted ?? false,
 
-    sellerDeleted:
-      conversation.sellerDeleted ?? false,
+    sellerDeleted: conversation.sellerDeleted ?? false,
 
-    createdAt:
-      conversation.createdAt?.toISOString(),
+    createdAt: conversation.createdAt?.toISOString(),
 
-    updatedAt:
-      conversation.updatedAt?.toISOString(),
+    updatedAt: conversation.updatedAt?.toISOString(),
 
     // =========================================
     // Product
@@ -130,20 +110,15 @@ const messages =
 
     product: conversation.product
       ? {
-          _id:
-            conversation.product._id?.toString(),
+          _id: conversation.product._id?.toString(),
 
-          title:
-            conversation.product.title,
+          title: conversation.product.title,
 
-          thumbnail:
-            conversation.product.thumbnail,
+          thumbnail: conversation.product.thumbnail,
 
-          price:
-            conversation.product.price,
+          price: conversation.product.price,
 
-          slug:
-            conversation.product.slug,
+          slug: conversation.product.slug,
         }
       : null,
 
@@ -153,17 +128,13 @@ const messages =
 
     seller: conversation.seller
       ? {
-          _id:
-            conversation.seller._id?.toString(),
+          _id: conversation.seller._id?.toString(),
 
-          name:
-            conversation.seller.name,
+          name: conversation.seller.name,
 
-          image:
-            conversation.seller.image,
+          image: conversation.seller.image,
 
-          phone:
-            conversation.seller.phone,
+          phone: conversation.seller.phone,
         }
       : null,
 
@@ -173,17 +144,13 @@ const messages =
 
     buyer: conversation.buyer
       ? {
-          _id:
-            conversation.buyer._id?.toString(),
+          _id: conversation.buyer._id?.toString(),
 
-          name:
-            conversation.buyer.name,
+          name: conversation.buyer.name,
 
-          image:
-            conversation.buyer.image,
+          image: conversation.buyer.image,
 
-          phone:
-            conversation.buyer.phone,
+          phone: conversation.buyer.phone,
         }
       : null,
   };
@@ -192,49 +159,35 @@ const messages =
   // Serialize Messages
   // =========================================
 
-  const serializedMessages = messages.map(
-    (msg) => ({
-      _id:
-        msg._id?.toString(),
+  const serializedMessages = messages.map((msg) => ({
+    _id: msg._id?.toString(),
 
-      conversationId:
-        msg.conversationId,
+    conversationId: msg.conversationId,
 
-      senderId:
-        msg.senderId,
+    senderId: msg.senderId,
 
-      receiverId:
-        msg.receiverId,
+    receiverId: msg.receiverId,
 
-      message:
-        msg.message,
+    message: msg.message,
 
-      // =====================================
-      // Attachment fields
-      // =====================================
+    // =====================================
+    // Attachment fields
+    // =====================================
 
-      messageType:
-        msg.messageType ?? "text",
+    messageType: msg.messageType ?? "text",
 
-      attachmentUrl:
-        msg.attachmentUrl,
+    attachmentUrl: msg.attachmentUrl,
 
-      attachmentPublicId:
-        msg.attachmentPublicId,
+    attachmentPublicId: msg.attachmentPublicId,
 
-      attachmentName:
-        msg.attachmentName,
+    attachmentName: msg.attachmentName,
 
-      attachmentSize:
-        msg.attachmentSize,
+    attachmentSize: msg.attachmentSize,
 
-      isRead:
-        msg.isRead,
+    isRead: msg.isRead,
 
-      createdAt:
-        msg.createdAt?.toISOString(),
-    }),
-  );
+    createdAt: msg.createdAt?.toISOString(),
+  }));
 
   // =========================================
   // Render Chat

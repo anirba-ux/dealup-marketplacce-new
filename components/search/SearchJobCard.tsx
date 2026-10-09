@@ -1,5 +1,5 @@
-import Link from "next/link";
 
+import Link from "next/link";
 import {
   BriefcaseBusiness,
   ChevronRight,
@@ -10,6 +10,14 @@ import {
 } from "lucide-react";
 
 import type { Job } from "@/lib/models/job";
+
+/* =========================================================
+   Types
+========================================================= */
+
+type JobWithDistance = Job & {
+  _distanceKm?: number;
+};
 
 /* =========================================================
    Helpers
@@ -34,9 +42,14 @@ function getLocation(job: Job) {
     location?.city,
     location?.district,
     location?.state,
-  ].filter(Boolean);
+  ].filter(
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0,
+  );
 
-  return parts.join(", ") || "Location not specified";
+  return parts.length > 0
+    ? [...new Set(parts)].join(", ")
+    : "Location not specified";
 }
 
 function getSalaryLabel(
@@ -53,28 +66,20 @@ function getSalaryLabel(
   const min = Number(salary.min ?? 0);
   const max = Number(salary.max ?? 0);
 
-  const period = salary.period
-    ? ` / ${salary.period}`
-    : "";
+  const period = salary.period ? ` / ${salary.period}` : "";
 
   if (min > 0 && max > 0) {
-    return `₹${min.toLocaleString(
-      "en-IN",
-    )} – ₹${max.toLocaleString(
+    return `₹${min.toLocaleString("en-IN")} – ₹${max.toLocaleString(
       "en-IN",
     )}${period}`;
   }
 
   if (min > 0) {
-    return `From ₹${min.toLocaleString(
-      "en-IN",
-    )}${period}`;
+    return `From ₹${min.toLocaleString("en-IN")}${period}`;
   }
 
   if (max > 0) {
-    return `Up to ₹${max.toLocaleString(
-      "en-IN",
-    )}${period}`;
+    return `Up to ₹${max.toLocaleString("en-IN")}${period}`;
   }
 
   return "Salary not specified";
@@ -87,9 +92,49 @@ function formatLabel(value?: string) {
 
   return value
     .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase(),
-    );
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function isPromotionActive(until?: Date | string | null) {
+  if (!until) {
+    return false;
+  }
+
+  const timestamp = new Date(until).getTime();
+
+  return Number.isFinite(timestamp) && timestamp > Date.now();
+}
+
+/* =========================================================
+   Small reusable information item
+========================================================= */
+
+function InfoItem({
+  icon,
+  children,
+  strong = false,
+}: {
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  strong?: boolean;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-2.5">
+      <span className="mt-0.5 shrink-0 text-slate-400">
+        {icon}
+      </span>
+
+      <span
+        className={`min-w-0 truncate text-sm ${
+          strong
+            ? "font-semibold text-slate-800 dark:text-slate-200"
+            : "text-slate-600 dark:text-slate-300"
+        }`}
+      >
+        {children}
+      </span>
+    </div>
+  );
 }
 
 /* =========================================================
@@ -102,226 +147,109 @@ export default function SearchJobCard({
   job: Job;
 }) {
   const firstPosition = getFirstPosition(job);
-
-  /* =======================================================
-     Basic Job Information
-  ======================================================= */
+  const jobWithDistance = job as JobWithDistance;
 
   const title =
-    firstPosition?.title?.trim() ||
-    "Job Opportunity";
+    firstPosition?.title?.trim() || "Job Opportunity";
 
-  const company =
-    getCompanyName(job);
+  const company = getCompanyName(job);
+  const location = getLocation(job);
+  const positions = job.jobs ?? [];
 
-  const location =
-    getLocation(job);
+  const extraPositions = Math.max(positions.length - 1, 0);
 
-  const positions =
-    job.jobs ?? [];
+  const employmentType = formatLabel(
+    firstPosition?.employmentType,
+  );
 
-  const extraPositions =
-    Math.max(
-      0,
-      positions.length - 1,
-    );
+  const workMode = formatLabel(firstPosition?.workMode);
 
-  /* =======================================================
-     Position Information
-  ======================================================= */
+  const salary = getSalaryLabel(firstPosition?.salary);
 
-  const employmentType =
-    formatLabel(
-      firstPosition?.employmentType,
-    );
+  const vacancies = Number(firstPosition?.vacancies ?? 0);
 
-  const workMode =
-    formatLabel(
-      firstPosition?.workMode,
-    );
+  const experience = firstPosition?.experience?.trim() || "";
 
-  const salary =
-    getSalaryLabel(
-      firstPosition?.salary,
-    );
+  const category = firstPosition?.category?.trim() || "";
 
-  const vacancies =
-    Number(
-      firstPosition?.vacancies ?? 0,
-    );
+  const distanceKm = jobWithDistance._distanceKm;
 
-  const experience =
-    firstPosition?.experience?.trim() ||
-    "";
+  const hasNearbyDistance =
+    typeof distanceKm === "number" &&
+    Number.isFinite(distanceKm) &&
+    distanceKm >= 0;
 
-  const category =
-    firstPosition?.category?.trim() ||
-    "";
+  const isFeatured = isPromotionActive(job.featuredUntil);
+  const isBoosted = isPromotionActive(job.boostedUntil);
 
-  /* =======================================================
-     Promotion Status
-
-     IMPORTANT:
-     Job model does NOT use:
-       job.featured
-       job.boosted
-
-     It uses:
-       featuredAt
-       featuredUntil
-       boostedAt
-       boostedUntil
-
-     A promotion is active only when its
-     corresponding "Until" date is still in
-     the future.
-  ======================================================= */
-
-  const now = new Date();
-
-  const isFeatured =
-    !!job.featuredUntil &&
-    new Date(
-      job.featuredUntil,
-    ).getTime() > now.getTime();
-
-  const isBoosted =
-    !!job.boostedUntil &&
-    new Date(
-      job.boostedUntil,
-    ).getTime() > now.getTime();
-
-  /* =======================================================
-     Job URL
-  ======================================================= */
-
-  const href =
-    `/jobs/${String(job._id)}`;
-
-  /* =======================================================
-     Render
-  ======================================================= */
+  const href = `/jobs/${String(job._id)}`;
 
   return (
     <Link
       href={href}
       className="
-        group
-        block
-        overflow-hidden
-        rounded-3xl
-        border
-        border-slate-200
-        bg-white
-        shadow-sm
-        transition-all
-        duration-200
-        hover:-translate-y-0.5
-        hover:border-[#1565d8]/30
+        group block overflow-hidden rounded-3xl
+        border border-slate-200 bg-white shadow-sm
+        transition-all duration-200
+        hover:-translate-y-0.5 hover:border-[#1565d8]/30
         hover:shadow-lg
-
-        dark:border-white/10
-        dark:bg-[#0d1b2a]
+        dark:border-white/10 dark:bg-[#0d1b2a]
         dark:hover:border-blue-400/30
       "
     >
       <div className="p-5 sm:p-6">
-
-        {/* =================================================
-            Header
-        ================================================= */}
+        {/* Header */}
 
         <div className="flex items-start justify-between gap-4">
-
           <div className="min-w-0 flex-1">
+            {/* Badges */}
 
             <div className="mb-3 flex flex-wrap items-center gap-2">
-
-              {/* Job Badge */}
-
               <span
                 className="
-                  inline-flex
-                  items-center
-                  gap-1.5
-                  rounded-full
-                  bg-blue-50
-                  px-3
-                  py-1
-                  text-xs
-                  font-semibold
+                  inline-flex items-center gap-1.5 rounded-full
+                  bg-blue-50 px-3 py-1 text-xs font-semibold
                   text-[#1565d8]
-
-                  dark:bg-blue-500/10
-                  dark:text-blue-300
+                  dark:bg-blue-500/10 dark:text-blue-300
                 "
               >
-                <BriefcaseBusiness
-                  className="h-3.5 w-3.5"
-                />
-
+                <BriefcaseBusiness className="h-3.5 w-3.5" />
                 Job
               </span>
-
-              {/* Featured */}
 
               {isFeatured && (
                 <span
                   className="
-                    rounded-full
-                    bg-amber-50
-                    px-3
-                    py-1
-                    text-xs
-                    font-semibold
-                    text-amber-700
-
-                    dark:bg-amber-500/10
-                    dark:text-amber-300
+                    rounded-full bg-amber-50 px-3 py-1
+                    text-xs font-semibold text-amber-700
+                    dark:bg-amber-500/10 dark:text-amber-300
                   "
                 >
                   Featured
                 </span>
               )}
 
-              {/* Boosted */}
-
               {isBoosted && (
                 <span
                   className="
-                    rounded-full
-                    bg-orange-50
-                    px-3
-                    py-1
-                    text-xs
-                    font-semibold
-                    text-orange-700
-
-                    dark:bg-orange-500/10
-                    dark:text-orange-300
+                    rounded-full bg-orange-50 px-3 py-1
+                    text-xs font-semibold text-orange-700
+                    dark:bg-orange-500/10 dark:text-orange-300
                   "
                 >
                   Boosted
                 </span>
               )}
-
             </div>
 
-            {/* Job Title */}
+            {/* Job title */}
 
             <h2
               className="
-                line-clamp-2
-                text-xl
-                font-bold
-                tracking-tight
-                text-slate-900
-                transition-colors
+                line-clamp-2 text-xl font-bold tracking-tight
+                text-slate-900 transition-colors
                 group-hover:text-[#1565d8]
-
-                dark:text-white
-                dark:group-hover:text-blue-300
-
+                dark:text-white dark:group-hover:text-blue-300
                 sm:text-2xl
               "
             >
@@ -332,363 +260,155 @@ export default function SearchJobCard({
 
             <p
               className="
-                mt-1
-                text-sm
-                font-medium
-                text-slate-600
-
-                dark:text-slate-300
+                mt-1 truncate text-sm font-medium
+                text-slate-600 dark:text-slate-300
               "
             >
               {company}
             </p>
-
           </div>
 
-          {/* Desktop Arrow */}
+          {/* Desktop arrow */}
 
           <div
             className="
-              hidden
-              shrink-0
-              rounded-full
-              border
-              border-slate-200
-              p-2
-              text-slate-400
-              transition-all
-
-              group-hover:border-[#1565d8]/30
-              group-hover:bg-blue-50
-              group-hover:text-[#1565d8]
-
-              sm:block
-
-              dark:border-white/10
-              dark:text-slate-500
+              hidden shrink-0 rounded-full border
+              border-slate-200 p-2 text-slate-400
+              transition-all group-hover:border-[#1565d8]/30
+              group-hover:bg-blue-50 group-hover:text-[#1565d8]
+              dark:border-white/10 dark:text-slate-500
               dark:group-hover:bg-blue-500/10
-              dark:group-hover:text-blue-300
+              dark:group-hover:text-blue-300 sm:block
             "
           >
-            <ChevronRight
-              className="h-5 w-5"
-            />
+            <ChevronRight className="h-5 w-5" />
           </div>
-
         </div>
 
-        {/* =================================================
-            Job Information
-        ================================================= */}
+        {/* Job information */}
 
-        <div
-          className="
-            mt-5
-            grid
-            gap-3
-            sm:grid-cols-2
-          "
-        >
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {/* Location and nearby distance */}
 
-          {/* Location */}
+          <div className="flex min-w-0 items-start gap-2.5">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#1565d8]" />
 
-          <div
-            className="
-              flex
-              min-w-0
-              items-start
-              gap-2.5
-            "
-          >
-            <MapPin
-              className="
-                mt-0.5
-                h-4
-                w-4
-                shrink-0
-                text-[#1565d8]
-              "
-            />
+            <div className="min-w-0 flex-1">
+              <p
+                className="
+                  truncate text-sm text-slate-600
+                  dark:text-slate-300
+                "
+                title={location}
+              >
+                {location}
+              </p>
 
-            <span
-              className="
-                truncate
-                text-sm
-                text-slate-600
-
-                dark:text-slate-300
-              "
-            >
-              {location}
-            </span>
+              {hasNearbyDistance && (
+                <span
+                  className="
+                    mt-1.5 inline-flex max-w-full items-center gap-1
+                    rounded-full bg-emerald-50 px-2.5 py-1
+                    text-xs font-semibold text-emerald-700
+                    dark:bg-emerald-500/10 dark:text-emerald-300
+                  "
+                >
+                  <MapPin className="h-3 w-3 shrink-0" />
+                  <span className="truncate">
+                    Nearby · {distanceKm.toFixed(1)} km away
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Salary */}
 
-          <div
-            className="
-              flex
-              min-w-0
-              items-start
-              gap-2.5
-            "
+          <InfoItem
+            icon={<WalletCards className="h-4 w-4" />}
+            strong
           >
-            <WalletCards
-              className="
-                mt-0.5
-                h-4
-                w-4
-                shrink-0
-                text-[#1565d8]
-              "
-            />
+            {salary}
+          </InfoItem>
 
-            <span
-              className="
-                truncate
-                text-sm
-                font-semibold
-                text-slate-800
-
-                dark:text-slate-200
-              "
-            >
-              {salary}
-            </span>
-          </div>
-
-          {/* Employment Type */}
+          {/* Employment type */}
 
           {employmentType && (
-            <div
-              className="
-                flex
-                min-w-0
-                items-start
-                gap-2.5
-              "
+            <InfoItem
+              icon={<BriefcaseBusiness className="h-4 w-4" />}
             >
-              <BriefcaseBusiness
-                className="
-                  mt-0.5
-                  h-4
-                  w-4
-                  shrink-0
-                  text-slate-400
-                "
-              />
-
-              <span
-                className="
-                  truncate
-                  text-sm
-                  text-slate-600
-
-                  dark:text-slate-300
-                "
-              >
-                {employmentType}
-              </span>
-            </div>
+              {employmentType}
+            </InfoItem>
           )}
 
-          {/* Work Mode */}
+          {/* Work mode */}
 
           {workMode && (
-            <div
-              className="
-                flex
-                min-w-0
-                items-start
-                gap-2.5
-              "
-            >
-              <Clock3
-                className="
-                  mt-0.5
-                  h-4
-                  w-4
-                  shrink-0
-                  text-slate-400
-                "
-              />
-
-              <span
-                className="
-                  truncate
-                  text-sm
-                  text-slate-600
-
-                  dark:text-slate-300
-                "
-              >
-                {workMode}
-              </span>
-            </div>
+            <InfoItem icon={<Clock3 className="h-4 w-4" />}>
+              {workMode}
+            </InfoItem>
           )}
 
           {/* Experience */}
 
           {experience && (
-            <div
-              className="
-                flex
-                min-w-0
-                items-start
-                gap-2.5
-              "
-            >
-              <Clock3
-                className="
-                  mt-0.5
-                  h-4
-                  w-4
-                  shrink-0
-                  text-slate-400
-                "
-              />
-
-              <span
-                className="
-                  truncate
-                  text-sm
-                  text-slate-600
-
-                  dark:text-slate-300
-                "
-              >
-                {experience}
-              </span>
-            </div>
+            <InfoItem icon={<Clock3 className="h-4 w-4" />}>
+              {experience}
+            </InfoItem>
           )}
 
           {/* Vacancies */}
 
           {vacancies > 0 && (
-            <div
-              className="
-                flex
-                min-w-0
-                items-start
-                gap-2.5
-              "
-            >
-              <Users
-                className="
-                  mt-0.5
-                  h-4
-                  w-4
-                  shrink-0
-                  text-slate-400
-                "
-              />
-
-              <span
-                className="
-                  truncate
-                  text-sm
-                  text-slate-600
-
-                  dark:text-slate-300
-                "
-              >
-                {vacancies}{" "}
-                {vacancies === 1
-                  ? "vacancy"
-                  : "vacancies"}
-              </span>
-            </div>
+            <InfoItem icon={<Users className="h-4 w-4" />}>
+              {vacancies}{" "}
+              {vacancies === 1 ? "vacancy" : "vacancies"}
+            </InfoItem>
           )}
-
         </div>
 
-        {/* =================================================
-            Footer
-        ================================================= */}
+        {/* Footer */}
 
         <div
           className="
-            mt-5
-            flex
-            flex-wrap
-            items-center
-            justify-between
-            gap-3
-            border-t
-            border-slate-100
-            pt-4
-
+            mt-5 flex flex-wrap items-center justify-between
+            gap-3 border-t border-slate-100 pt-4
             dark:border-white/10
           "
         >
-
-          <div
-            className="
-              flex
-              flex-wrap
-              items-center
-              gap-2
-            "
-          >
-
-            {/* Category */}
-
+          <div className="flex flex-wrap items-center gap-2">
             {category && (
               <span
                 className="
-                  rounded-lg
-                  bg-slate-100
-                  px-2.5
-                  py-1
-                  text-xs
-                  font-medium
-                  text-slate-600
-
-                  dark:bg-white/5
-                  dark:text-slate-300
+                  rounded-lg bg-slate-100 px-2.5 py-1
+                  text-xs font-medium text-slate-600
+                  dark:bg-white/5 dark:text-slate-300
                 "
               >
                 {category}
               </span>
             )}
 
-            {/* Multiple Jobs */}
-
             {extraPositions > 0 && (
               <span
                 className="
-                  rounded-lg
-                  bg-purple-50
-                  px-2.5
-                  py-1
-                  text-xs
-                  font-semibold
-                  text-purple-700
-
-                  dark:bg-purple-500/10
-                  dark:text-purple-300
+                  rounded-lg bg-purple-50 px-2.5 py-1
+                  text-xs font-semibold text-purple-700
+                  dark:bg-purple-500/10 dark:text-purple-300
                 "
               >
                 +{extraPositions} more{" "}
-                {extraPositions === 1
-                  ? "position"
-                  : "positions"}
+                {extraPositions === 1 ? "position" : "positions"}
               </span>
             )}
-
           </div>
 
-          {/* View Job */}
+          {/* View job */}
 
           <span
             className="
-              inline-flex
-              items-center
-              gap-1
-              text-sm
-              font-semibold
-              text-[#1565d8]
-
+              inline-flex items-center gap-1 text-sm
+              font-semibold text-[#1565d8]
               dark:text-blue-300
             "
           >
@@ -696,16 +416,12 @@ export default function SearchJobCard({
 
             <ChevronRight
               className="
-                h-4
-                w-4
-                transition-transform
+                h-4 w-4 transition-transform
                 group-hover:translate-x-0.5
               "
             />
           </span>
-
         </div>
-
       </div>
     </Link>
   );

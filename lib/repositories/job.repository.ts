@@ -82,6 +82,13 @@ export async function findActiveJobs(limit = 20) {
 // SEARCH JOBS
 // =====================================================
 
+
+
+
+/* =========================================================
+   SEARCH JOBS
+========================================================= */
+
 export interface SearchJobsOptions {
   query?: string;
   category?: string;
@@ -89,126 +96,480 @@ export interface SearchJobsOptions {
   district?: string;
   page?: number;
   limit?: number;
+  lat?: number;
+  lng?: number;
+  radius?: number;
 }
 
-export async function searchJobsPage(options: SearchJobsOptions = {}) {
+type JobCoordinates = {
+  lat: number;
+  lng: number;
+};
+
+type JobWithDistance = Job & {
+  _distanceKm: number;
+};
+
+/* =========================================================
+   Approximate city-centre coordinates
+========================================================= */
+
+const JOB_SEARCH_CITY_COORDINATES: Record<
+  string,
+  JobCoordinates
+> = {
+  bansberia: {
+    lat: 22.9707,
+    lng: 88.4003,
+  },
+  chinsurah: {
+    lat: 22.8992,
+    lng: 88.3921,
+  },
+  "hugli-chuchura": {
+    lat: 22.8992,
+    lng: 88.3921,
+  },
+  "hooghly-chinsurah": {
+    lat: 22.8992,
+    lng: 88.3921,
+  },
+};
+
+/* =========================================================
+   Search helpers
+========================================================= */
+
+function escapeSearchRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizeCity(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, "-");
+}
+
+function readJobCoordinates(
+  value: unknown,
+): JobCoordinates | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const coordinates = value as Record<string, unknown>;
+
+  const rawLat = coordinates.lat ?? coordinates.latitude;
+  const rawLng =
+    coordinates.lng ??
+    coordinates.lon ??
+    coordinates.longitude;
+
+  if (
+    rawLat === undefined ||
+    rawLat === null ||
+    rawLng === undefined ||
+    rawLng === null
+  ) {
+    return null;
+  }
+
+  const lat = Number(rawLat);
+  const lng = Number(rawLng);
+
+  if (
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    lat < -90 ||
+    lat > 90 ||
+    lng < -180 ||
+    lng > 180
+  ) {
+    return null;
+  }
+
+  return { lat, lng };
+}
+
+function getJobCoordinates(
+  job: unknown,
+): JobCoordinates | null {
+  if (!job || typeof job !== "object") {
+    return null;
+  }
+
+  const document = job as {
+    location?: {
+      coordinates?: unknown;
+    };
+    jobs?: Array<{
+      location?: {
+        coordinates?: unknown;
+      };
+    }>;
+  };
+
+  // First, use the main listing's coordinates.
+  const mainCoordinates = readJobCoordinates(
+    document.location?.coordinates,
+  );
+
+  if (mainCoordinates) {
+    return mainCoordinates;
+  }
+
+  // Multiple-job listings may store coordinates per position.
+  for (const position of document.jobs ?? []) {
+    const coordinates = readJobCoordinates(
+      position.location?.coordinates,
+    );
+
+    if (coordinates) {
+      return coordinates;
+    }
+  }
+
+  return null;
+}
+
+function calculateDistanceKm(
+  from: JobCoordinates,
+  to: JobCoordinates,
+): number {
+  const toRadians = (degrees: number) =>
+    (degrees * Math.PI) / 180;
+
+  const latDifference = toRadians(to.lat - from.lat);
+  const lngDifference = toRadians(to.lng - from.lng);
+
+  const a =
+    Math.sin(latDifference / 2) ** 2 +
+    Math.cos(toRadians(from.lat)) *
+      Math.cos(toRadians(to.lat)) *
+      Math.sin(lngDifference / 2) ** 2;
+
+  const safeA = Math.min(1, Math.max(0, a));
+
+  return (
+    6371 *
+    2 *
+    Math.atan2(
+      Math.sqrt(safeA),
+      Math.sqrt(1 - safeA),
+    )
+  );
+}
+
+function getCityCoordinates(
+  city: string,
+  lat?: number,
+  lng?: number,
+): JobCoordinates | null {
+  // Explicit coordinates take priority over city-centre coordinates.
+  if (
+    lat !== undefined &&
+    lng !== undefined &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lng >= -180 &&
+    lng <= 180
+  ) {
+    return { lat, lng };
+  }
+
+  return (
+    JOB_SEARCH_CITY_COORDINATES[normalizeCity(city)] ??
+    null
+  );
+}
+
+function getDateTimestamp(value: unknown): number {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = new Date(
+    value as string | number | Date,
+  ).getTime();
+
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function isDateActive(value: unknown, now: number): boolean {
+  return getDateTimestamp(value) > now;
+}
+
+/* =========================================================
+   Search jobs with exact-city priority and nearby fallback
+========================================================= */
+
+export async function searchJobsPage(
+  options: SearchJobsOptions = {},
+) {
   const collection = await getCollection();
 
-  const { query, category, city, district, page = 1, limit = 20 } = options;
+  const {
+    query,
+    category,
+    city,
+    district,
+    page = 1,
+    limit = 20,
+    lat,
+    lng,
+    radius = 10,
+  } = options;
 
-  const safePage = Math.max(1, Number(page) || 1);
-  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+
+  const safeLimit = Math.min(
+    50,
+    Math.max(1, Math.floor(Number(limit) || 20)),
+  );
+
+  const safeRadius = Math.min(
+    100,
+    Math.max(1, Number(radius) || 10),
+  );
 
   const skip = (safePage - 1) * safeLimit;
 
-  // ---------------------------------------------------
-  // Build MongoDB filter
-  // ---------------------------------------------------
+  /* -------------------------------------------------------
+     STEP 1: Common filters
+  ------------------------------------------------------- */
 
-  const filter: Record<string, unknown> = {
-    status: "active",
-  };
-
-  // ---------------------------------------------------
-  // Keyword Search
-  // ---------------------------------------------------
+  const conditions: Record<string, unknown>[] = [
+    { status: "active" },
+  ];
 
   if (query?.trim()) {
-    const searchRegex = {
-      $regex: query.trim(),
+    const queryRegex = {
+      $regex: escapeSearchRegex(query.trim()),
       $options: "i",
     };
 
-    filter.$or = [
-      { "jobs.title": searchRegex },
-      { "jobs.category": searchRegex },
-      { "jobs.subcategory": searchRegex },
-      { "jobs.description": searchRegex },
-      { "employer.companyName": searchRegex },
-      { employerName: searchRegex },
-    ];
+    conditions.push({
+      $or: [
+        { "jobs.title": queryRegex },
+        { "jobs.category": queryRegex },
+        { "jobs.subcategory": queryRegex },
+        { "jobs.description": queryRegex },
+        { "employer.companyName": queryRegex },
+        { employerName: queryRegex },
+      ],
+    });
   }
 
-  // ---------------------------------------------------
-  // Category
-  // ---------------------------------------------------
-
-  if (category?.trim() && category.trim().toLowerCase() !== "jobs") {
-    filter["jobs.category"] = {
-      $regex: category.trim(),
-      $options: "i",
-    };
-  }
-
-  // ---------------------------------------------------
-  // City
-  // ---------------------------------------------------
-
-  if (city?.trim()) {
-    filter.$or = [
-      ...(Array.isArray(filter.$or) ? filter.$or : []),
-      {
-        "location.city": {
-          $regex: city.trim(),
-          $options: "i",
-        },
+  if (
+    category?.trim() &&
+    category.trim().toLowerCase() !== "jobs"
+  ) {
+    conditions.push({
+      "jobs.category": {
+        $regex: escapeSearchRegex(category.trim()),
+        $options: "i",
       },
-      {
-        "jobs.location.city": {
-          $regex: city.trim(),
-          $options: "i",
-        },
-      },
-    ];
+    });
   }
-
-  // ---------------------------------------------------
-  // District
-  // ---------------------------------------------------
 
   if (district?.trim()) {
-    filter.$or = [
-      ...(Array.isArray(filter.$or) ? filter.$or : []),
-      {
-        "location.district": {
-          $regex: district.trim(),
-          $options: "i",
-        },
-      },
-      {
-        "jobs.location.district": {
-          $regex: district.trim(),
-          $options: "i",
-        },
-      },
-    ];
+    const districtRegex = {
+      $regex: escapeSearchRegex(district.trim()),
+      $options: "i",
+    };
+
+    conditions.push({
+      $or: [
+        { "location.district": districtRegex },
+        { "jobs.location.district": districtRegex },
+      ],
+    });
   }
 
-  // ---------------------------------------------------
-  // Count
-  // ---------------------------------------------------
+  const baseFilter: Record<string, unknown> =
+    conditions.length === 1
+      ? conditions[0]
+      : { $and: conditions };
 
-  const total = await collection.countDocuments(filter);
+  const now = Date.now();
 
-  // ---------------------------------------------------
-  // Fetch
-  // ---------------------------------------------------
+  /* -------------------------------------------------------
+     STEP 2: No city selected
+     Return normal search results.
+  ------------------------------------------------------- */
 
-  const jobs = await collection
-    .find(filter)
-    .sort({
-      featuredUntil: -1,
-      boostedUntil: -1,
-      createdAt: -1,
-    })
-    .skip(skip)
-    .limit(safeLimit)
+  if (!city?.trim()) {
+    const total = await collection.countDocuments(baseFilter);
+
+    const jobs = await collection
+      .find(baseFilter)
+      .sort({
+        featuredUntil: -1,
+        boostedUntil: -1,
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(safeLimit)
+      .toArray();
+
+    const totalPages = Math.ceil(total / safeLimit);
+
+    return {
+      jobs,
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+      isNearbyFallback: false,
+      searchRadiusKm: null,
+    };
+  }
+
+  /* -------------------------------------------------------
+     STEP 3: Exact-city search first
+  ------------------------------------------------------- */
+
+  const cityRegex = {
+    $regex: `^${escapeSearchRegex(city.trim())}$`,
+    $options: "i",
+  };
+
+  const exactCityFilter = {
+    $and: [
+      baseFilter,
+      {
+        $or: [
+          { "location.city": cityRegex },
+          { "jobs.location.city": cityRegex },
+        ],
+      },
+    ],
+  };
+
+  const exactTotal =
+    await collection.countDocuments(exactCityFilter);
+
+  // If the selected city has jobs, do not mix in nearby jobs.
+  if (exactTotal > 0) {
+    const jobs = await collection
+      .find(exactCityFilter)
+      .sort({
+        featuredUntil: -1,
+        boostedUntil: -1,
+        createdAt: -1,
+      })
+      .skip(skip)
+      .limit(safeLimit)
+      .toArray();
+
+    const totalPages = Math.ceil(exactTotal / safeLimit);
+
+    return {
+      jobs,
+      total: exactTotal,
+      page: safePage,
+      limit: safeLimit,
+      totalPages,
+      hasNextPage: safePage < totalPages,
+      hasPreviousPage: safePage > 1,
+      isNearbyFallback: false,
+      searchRadiusKm: null,
+    };
+  }
+
+  /* -------------------------------------------------------
+     STEP 4: No exact-city jobs — find nearby jobs
+  ------------------------------------------------------- */
+
+  const origin = getCityCoordinates(city, lat, lng);
+
+  // Do not invent distances if the city coordinates are unknown.
+  if (!origin) {
+    return {
+      jobs: [],
+      total: 0,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+      isNearbyFallback: false,
+      searchRadiusKm: null,
+    };
+  }
+
+  // Apply active status, query, category and district filters first.
+  const candidates = await collection
+    .find(baseFilter)
     .toArray();
 
-  // ---------------------------------------------------
-  // Pagination
-  // ---------------------------------------------------
+  const nearbyJobs: JobWithDistance[] = candidates.flatMap(
+    (job): JobWithDistance[] => {
+      const coordinates = getJobCoordinates(job);
 
+      if (!coordinates) {
+        return [];
+      }
+
+      const distanceKm = calculateDistanceKm(
+        origin,
+        coordinates,
+      );
+
+      if (distanceKm > safeRadius) {
+        return [];
+      }
+
+      return [
+        {
+          ...job,
+          _distanceKm: Math.round(distanceKm * 10) / 10,
+        },
+      ];
+    },
+  );
+
+  /* -------------------------------------------------------
+     STEP 5: Sort by distance
+     Promotion status breaks distance ties.
+  ------------------------------------------------------- */
+
+  nearbyJobs.sort((a, b) => {
+    if (a._distanceKm !== b._distanceKm) {
+      return a._distanceKm - b._distanceKm;
+    }
+
+    const aFeatured = isDateActive(a.featuredUntil, now);
+    const bFeatured = isDateActive(b.featuredUntil, now);
+
+    if (aFeatured !== bFeatured) {
+      return Number(bFeatured) - Number(aFeatured);
+    }
+
+    const aBoosted = isDateActive(a.boostedUntil, now);
+    const bBoosted = isDateActive(b.boostedUntil, now);
+
+    if (aBoosted !== bBoosted) {
+      return Number(bBoosted) - Number(aBoosted);
+    }
+
+    return (
+      getDateTimestamp(b.createdAt) -
+      getDateTimestamp(a.createdAt)
+    );
+  });
+
+  /* -------------------------------------------------------
+     STEP 6: Pagination
+  ------------------------------------------------------- */
+
+  const total = nearbyJobs.length;
+  const jobs = nearbyJobs.slice(skip, skip + safeLimit);
   const totalPages = Math.ceil(total / safeLimit);
 
   return {
@@ -219,8 +580,11 @@ export async function searchJobsPage(options: SearchJobsOptions = {}) {
     totalPages,
     hasNextPage: safePage < totalPages,
     hasPreviousPage: safePage > 1,
+    isNearbyFallback: true,
+    searchRadiusKm: safeRadius,
   };
 }
+
 // =====================================================
 // Delete Job
 // =====================================================

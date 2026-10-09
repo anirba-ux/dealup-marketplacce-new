@@ -22,6 +22,10 @@ import {
 
 import { findActiveJobs } from "@/lib/repositories/job.repository";
 
+import LocalServicesAndBusinesses from "@/components/home/LocalServicesAndBusinesses";
+
+import { findHomepageServicesAndBusinesses } from "@/lib/repositories/service.repository";
+
 export default async function Home() {
   // =========================================================
   // PERFORMANCE TEST
@@ -38,35 +42,25 @@ export default async function Home() {
 
   const productsStart = performance.now();
 
-  const [
-    featuredProducts,
-    latestProducts,
-    latestJobs,
-  ] = await Promise.all([
-    findFeaturedProducts(20),
-    findLatestProducts(8),
-    findActiveJobs(8),
-  ]);
+  const [featuredProducts, latestProducts, latestJobs, localListings] =
+    await Promise.all([
+      findFeaturedProducts(20),
+      findLatestProducts(8),
+      findActiveJobs(8),
+      findHomepageServicesAndBusinesses(4),
+    ]);
 
   const productsEnd = performance.now();
 
   console.log(
-    `[PERF] Homepage queries: ${(
-      productsEnd - productsStart
-    ).toFixed(0)}ms`,
+    `[PERF] Homepage queries: ${(productsEnd - productsStart).toFixed(0)}ms`,
   );
 
-  console.log(
-    `[PERF] Featured products count: ${featuredProducts.length}`,
-  );
+  console.log(`[PERF] Featured products count: ${featuredProducts.length}`);
 
-  console.log(
-    `[PERF] Latest products count: ${latestProducts.length}`,
-  );
+  console.log(`[PERF] Latest products count: ${latestProducts.length}`);
 
-  console.log(
-    `[PERF] Active jobs count: ${latestJobs.length}`,
-  );
+  console.log(`[PERF] Active jobs count: ${latestJobs.length}`);
 
   // =========================================================
   // SERIALIZE LATEST JOBS
@@ -93,112 +87,95 @@ export default async function Home() {
 
   const serializeStart = performance.now();
 
-  const serializedFeaturedProducts =
-    featuredProducts.map((product) => ({
-      // -------------------------------------------------------
-      // Basic Product Information
-      // -------------------------------------------------------
+  const serializedFeaturedProducts = featuredProducts.map((product) => ({
+    // -------------------------------------------------------
+    // Basic Product Information
+    // -------------------------------------------------------
 
-      id: product._id?.toString() ?? "",
+    id: product._id?.toString() ?? "",
 
-      slug: product.slug ?? "",
+    slug: product.slug ?? "",
 
-      title: product.title ?? "",
+    title: product.title ?? "",
 
-      price: product.price ?? 0,
+    price: product.price ?? 0,
 
-      location: product.location?.city ?? "",
+    location: product.location?.city ?? "",
 
-      image: product.thumbnail ?? "",
+    image: product.thumbnail ?? "",
 
-      seller: product.sellerName ?? "",
+    seller: product.sellerName ?? "",
 
-      condition: product.condition ?? "",
+    condition: product.condition ?? "",
 
-      // -------------------------------------------------------
-      // Seller Verification
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Seller Verification
+    // -------------------------------------------------------
 
-      sellerIsPhoneVerified:
-        product.sellerIsPhoneVerified ?? false,
+    sellerIsPhoneVerified: product.sellerIsPhoneVerified ?? false,
 
-      sellerVerificationStatus:
-        product.sellerVerificationStatus ?? null,
+    sellerVerificationStatus: product.sellerVerificationStatus ?? null,
 
-      // -------------------------------------------------------
-      // Seller Badge
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Seller Badge
+    // -------------------------------------------------------
 
-      sellerBadge: product.sellerBadge
-        ? typeof product.sellerBadge === "string"
-          ? product.sellerBadge
-          : {
-              label:
-                product.sellerBadge.label ??
-                undefined,
+    sellerBadge: product.sellerBadge
+      ? typeof product.sellerBadge === "string"
+        ? product.sellerBadge
+        : {
+            label: product.sellerBadge.label ?? undefined,
 
-              name:
-                product.sellerBadge.name ??
-                undefined,
+            name: product.sellerBadge.name ?? undefined,
 
-              type:
-                product.sellerBadge.type ??
-                undefined,
+            type: product.sellerBadge.type ?? undefined,
 
-              badge:
-                product.sellerBadge.badge ??
-                undefined,
-            }
-        : null,
+            badge: product.sellerBadge.badge ?? undefined,
+          }
+      : null,
 
-      // -------------------------------------------------------
-      // Premium Seller
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Premium Seller
+    // -------------------------------------------------------
 
-      sellerPremiumSeller:
-        product.sellerPremiumSeller === true,
+    sellerPremiumSeller: product.sellerPremiumSeller === true,
 
-      sellerPremiumBadge:
-        product.sellerPremiumBadge === true,
+    sellerPremiumBadge: product.sellerPremiumBadge === true,
 
-      // -------------------------------------------------------
-      // Date
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Date
+    // -------------------------------------------------------
 
-      createdAt:
-        product.createdAt instanceof Date
-          ? product.createdAt.toISOString()
-          : product.createdAt
-            ? String(product.createdAt)
-            : null,
+    createdAt:
+      product.createdAt instanceof Date
+        ? product.createdAt.toISOString()
+        : product.createdAt
+          ? String(product.createdAt)
+          : null,
 
-      // -------------------------------------------------------
-      // Product Status
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Product Status
+    // -------------------------------------------------------
 
-      isFeatured:
-        product.isFeatured ?? false,
+    isFeatured: product.isFeatured ?? false,
 
-      isPremium:
-        product.isPremium ?? false,
+    isPremium: product.isPremium ?? false,
 
-      isBoosted:
-        product.isBoosted ?? false,
+    isBoosted: product.isBoosted ?? false,
 
-      // -------------------------------------------------------
-      // Views
-      // -------------------------------------------------------
+    // -------------------------------------------------------
+    // Views
+    // -------------------------------------------------------
 
-      views:
-        product.views ?? 0,
-    }));
+    views: product.views ?? 0,
+  }));
 
   const serializeEnd = performance.now();
 
   console.log(
-    `[PERF] Featured serialization: ${(
-      serializeEnd - serializeStart
-    ).toFixed(0)}ms`,
+    `[PERF] Featured serialization: ${(serializeEnd - serializeStart).toFixed(
+      0,
+    )}ms`,
   );
 
   // =========================================================
@@ -208,9 +185,7 @@ export default async function Home() {
   const totalEnd = performance.now();
 
   console.log(
-    `[PERF] HOME SERVER CODE: ${(
-      totalEnd - totalStart
-    ).toFixed(0)}ms`,
+    `[PERF] HOME SERVER CODE: ${(totalEnd - totalStart).toFixed(0)}ms`,
   );
 
   console.log("========================================");
@@ -247,9 +222,7 @@ export default async function Home() {
           FEATURED PRODUCTS
       ====================================================== */}
 
-      <FeaturedProducts
-        products={serializedFeaturedProducts}
-      />
+      <FeaturedProducts products={serializedFeaturedProducts} />
 
       {/* =====================================================
           NEARBY PRODUCTS
@@ -261,16 +234,17 @@ export default async function Home() {
           JOBS NEAR YOU
       ====================================================== */}
 
-      <LatestJobs
-        jobs={serializedLatestJobs}
-      />
+      <LatestJobs jobs={serializedLatestJobs} />
 
       {/* =====================================================
           LATEST PRODUCTS
       ====================================================== */}
 
-      <LatestProducts
-        products={latestProducts}
+      <LatestProducts products={latestProducts} />
+
+      <LocalServicesAndBusinesses
+        services={localListings.services}
+        businesses={localListings.businesses}
       />
 
       {/* =====================================================

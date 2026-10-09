@@ -40,46 +40,37 @@ export default function ChatWindow({
 
   const router = useRouter();
 
- useEffect(() => {
-  const roomId = conversation._id.toString();
+  useEffect(() => {
+    const roomId = conversation._id.toString();
 
-  function joinRoom() {
-    console.log("📥 Joining conversation room:", roomId);
+    function joinRoom() {
+      console.log("📥 Joining conversation room:", roomId);
 
-    socket.emit(
-      SOCKET_EVENTS.JOIN_CONVERSATION,
-      roomId
-    );
-  }
-
-  /*
-   * Join immediately if already connected.
-   */
-  if (socket.connected) {
-    joinRoom();
-  } else {
-    /*
-     * Otherwise wait for WebSocket connection.
-     */
-    socket.once("connect", joinRoom);
-  }
-
-  return () => {
-    socket.off("connect", joinRoom);
-
-    if (socket.connected) {
-      console.log(
-        "📤 Leaving conversation room:",
-        roomId
-      );
-
-      socket.emit(
-        SOCKET_EVENTS.LEAVE_CONVERSATION,
-        roomId
-      );
+      socket.emit(SOCKET_EVENTS.JOIN_CONVERSATION, roomId);
     }
-  };
-}, [conversation._id, socket]);
+
+    /*
+     * Join immediately if already connected.
+     */
+    if (socket.connected) {
+      joinRoom();
+    } else {
+      /*
+       * Otherwise wait for WebSocket connection.
+       */
+      socket.once("connect", joinRoom);
+    }
+
+    return () => {
+      socket.off("connect", joinRoom);
+
+      if (socket.connected) {
+        console.log("📤 Leaving conversation room:", roomId);
+
+        socket.emit(SOCKET_EVENTS.LEAVE_CONVERSATION, roomId);
+      }
+    };
+  }, [conversation._id, socket]);
 
   const [messages, setMessages] = useState(initialMessages);
   const [message, setMessage] = useState("");
@@ -118,6 +109,15 @@ export default function ChatWindow({
 
   const isSeller = conversation.sellerId === currentUserId;
 
+  const listingType = conversation.listingType ?? "product";
+
+  const listingUrl =
+    listingType === "product"
+      ? `/products/${conversation.product?.slug}`
+      : `/services/${conversation.product?.slug}`;
+
+  const listingLabel = listingType === "product" ? "Product" : "Service";
+
   const [isMuted, setIsMuted] = useState(
     isSeller ? conversation.sellerMuted : conversation.buyerMuted,
   );
@@ -139,54 +139,44 @@ export default function ChatWindow({
   }, [messages]);
 
   useEffect(() => {
-  function handleReceiveMessage(newMessage: any) {
-    if (!newMessage) {
-      return;
-    }
-
-    /*
-     * Make sure the message belongs to
-     * the currently open conversation.
-     */
-    if (
-      newMessage.conversationId?.toString() !==
-      conversation._id.toString()
-    ) {
-      return;
-    }
-
-    /*
-     * Prevent duplicate messages.
-     */
-    setMessages((prev) => {
-      const messageId = newMessage._id?.toString();
-
-      if (
-        messageId &&
-        prev.some(
-          (msg: any) =>
-            msg._id?.toString() === messageId
-        )
-      ) {
-        return prev;
+    function handleReceiveMessage(newMessage: any) {
+      if (!newMessage) {
+        return;
       }
 
-      return [...prev, newMessage];
-    });
-  }
+      /*
+       * Make sure the message belongs to
+       * the currently open conversation.
+       */
+      if (
+        newMessage.conversationId?.toString() !== conversation._id.toString()
+      ) {
+        return;
+      }
 
-  socket.on(
-    SOCKET_EVENTS.RECEIVE_MESSAGE,
-    handleReceiveMessage
-  );
+      /*
+       * Prevent duplicate messages.
+       */
+      setMessages((prev) => {
+        const messageId = newMessage._id?.toString();
 
-  return () => {
-    socket.off(
-      SOCKET_EVENTS.RECEIVE_MESSAGE,
-      handleReceiveMessage
-    );
-  };
-}, [socket, conversation._id]);
+        if (
+          messageId &&
+          prev.some((msg: any) => msg._id?.toString() === messageId)
+        ) {
+          return prev;
+        }
+
+        return [...prev, newMessage];
+      });
+    }
+
+    socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
+
+    return () => {
+      socket.off(SOCKET_EVENTS.RECEIVE_MESSAGE, handleReceiveMessage);
+    };
+  }, [socket, conversation._id]);
 
   async function uploadChatImage(file: File) {
     // =====================================
@@ -556,12 +546,14 @@ export default function ChatWindow({
 
           <div>
             <h2 className="line-clamp-1 text-lg font-semibold">
-              {conversation.product?.title ?? "Product"}
+              {conversation.product?.title ?? listingLabel}
             </h2>
 
-            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
-              ₹ {conversation.product?.price ?? 0}
-            </p>
+            {conversation.product?.price != null && (
+              <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                ₹ {Number(conversation.product.price).toLocaleString("en-IN")}
+              </p>
+            )}
 
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               <span className="font-medium">{participantLabel}:</span>{" "}
@@ -626,7 +618,12 @@ export default function ChatWindow({
                   router.push(`/profile/${participant._id}`);
                 }}
                 onViewProduct={() => {
-                  router.push(`/products/${conversation.product.slug}`);
+                  if (!conversation.product?.slug) {
+                    toast.error(`${listingLabel} listing link not found.`);
+                    return;
+                  }
+
+                  router.push(listingUrl);
                 }}
                 onMute={handleMute}
                 onShare={() => {

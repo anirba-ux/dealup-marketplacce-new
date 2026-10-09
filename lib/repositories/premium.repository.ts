@@ -739,3 +739,71 @@ export async function deactivatePremiumSeller(
     0
   );
 }
+
+
+/**
+ * Atomically reserve one free Premium Boost quota.
+ * Returns false when the user is not eligible or quota is exhausted.
+ */
+export async function consumePremiumBoostQuota(
+  userId: string,
+): Promise<boolean> {
+  if (!ObjectId.isValid(userId)) {
+    return false;
+  }
+
+  const users = await getUsersCollection();
+  const now = new Date();
+
+  const result = await users.updateOne(
+    {
+      _id: new ObjectId(userId),
+      "premiumSeller.active": true,
+      "premiumSeller.expiresAt": { $gt: now },
+      $expr: {
+        $lt: [
+          { $ifNull: ["$premiumSeller.boostAdsUsed", 0] },
+          { $ifNull: ["$premiumSeller.boostAdsLimit", 0] },
+        ],
+      },
+    },
+    {
+      $inc: {
+        "premiumSeller.boostAdsUsed": 1,
+      },
+      $set: {
+        "premiumSeller.updatedAt": now,
+      },
+    },
+  );
+
+  return result.modifiedCount === 1;
+}
+
+/**
+ * Release a reserved Boost quota if Service activation fails.
+ */
+export async function releasePremiumBoostQuota(
+  userId: string,
+): Promise<void> {
+  if (!ObjectId.isValid(userId)) {
+    return;
+  }
+
+  const users = await getUsersCollection();
+
+  await users.updateOne(
+    {
+      _id: new ObjectId(userId),
+      "premiumSeller.boostAdsUsed": { $gt: 0 },
+    },
+    {
+      $inc: {
+        "premiumSeller.boostAdsUsed": -1,
+      },
+      $set: {
+        "premiumSeller.updatedAt": new Date(),
+      },
+    },
+  );
+}

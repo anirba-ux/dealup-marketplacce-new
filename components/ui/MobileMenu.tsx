@@ -1,19 +1,17 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
-
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
 import { useTranslations } from "next-intl";
 import { signOut, useSession } from "next-auth/react";
-
 import LanguageSwitcher from "./LanguageSwitcher";
 import NotificationBell from "./NotificationBell";
-
 import {
   BriefcaseBusiness,
+  Building2,
   ChevronDown,
   ChevronRight,
   Headphones,
@@ -27,953 +25,294 @@ import {
   Settings,
   ShieldCheck,
   User,
+  Wrench,
   X,
 } from "lucide-react";
 
+const serviceHref = "/dashboard/my-services";
+
 export default function MobileMenu() {
-  // =======================================================
-  // STATE
-  // =======================================================
-
   const [open, setOpen] = useState(false);
-
   const [myAdsOpen, setMyAdsOpen] = useState(false);
 
-  // =======================================================
-  // ROUTER
-  // =======================================================
-
   const pathname = usePathname();
-
-  // =======================================================
-  // SESSION
-  // =======================================================
-
   const { data: session } = useSession();
-
   const t = useTranslations("common");
 
-  // =======================================================
-  // MY ADS ACTIVE SECTION
-  // =======================================================
+  const name = session?.user?.name || "User";
+  const image = session?.user?.image || "/images/default-avatar.png";
+  const isAdmin = session?.user?.role === "admin";
 
   const isMyAdsSection =
     pathname === "/dashboard/my-ads" ||
     pathname.startsWith("/dashboard/my-ads/") ||
     pathname === "/dashboard/my-jobs" ||
-    pathname.startsWith("/dashboard/my-jobs/");
-
-  // =======================================================
-  // AUTO OPEN MY ADS
-  // =======================================================
+    pathname.startsWith("/dashboard/my-jobs/") ||
+    pathname === serviceHref ||
+    pathname.startsWith(`${serviceHref}/`);
 
   useEffect(() => {
-    if (isMyAdsSection) {
-      setMyAdsOpen(true);
-    }
+    if (isMyAdsSection) setMyAdsOpen(true);
   }, [isMyAdsSection]);
-
-  // =======================================================
-  // CLOSE MENU WITH ESCAPE
-  // =======================================================
 
   useEffect(() => {
     if (!open) return;
 
-    const handleEscape = (
-      event: KeyboardEvent,
-    ) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
     };
 
-    document.addEventListener(
-      "keydown",
-      handleEscape,
-    );
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.removeEventListener(
-        "keydown",
-        handleEscape,
-      );
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleEscape);
     };
   }, [open]);
 
-  // =======================================================
-  // CLOSE MENU AFTER NAVIGATION
-  // =======================================================
-
   useEffect(() => {
-    if (!open) return;
-
     setOpen(false);
   }, [pathname]);
 
-  // =======================================================
-  // PREVENT BODY SCROLL
-  // =======================================================
+  const closeMenu = () => setOpen(false);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const originalOverflow =
-      document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      document.body.style.overflow =
-        originalOverflow;
-    };
-  }, [open]);
-
-  // =======================================================
-  // USER INFORMATION
-  // =======================================================
-
-  const name =
-    session?.user?.name || "User";
-
-  const image =
-    session?.user?.image ||
-    "/images/default-avatar.png";
-
-  const isAdmin =
-    session?.user?.role === "admin";
-
-  // =======================================================
-  // STANDARD MENU ITEMS
-  //
-  // My Ads is intentionally NOT included here.
-  // It is rendered separately as a parent menu
-  // with My Products + My Jobs submenu.
-  // =======================================================
-
-  const menuItems = [
-    {
-      label: t("dashboard"),
-      href: "/dashboard",
-      icon: LayoutDashboard,
-    },
-
-    {
-      label: t("myProfile"),
-      href: "/dashboard/profile",
-      icon: User,
-    },
-
-    {
-      label: t("wishlist"),
-      href: "/wishlist",
-      icon: Heart,
-    },
-
-    {
-      label: t("messages"),
-      href: "/messages",
-      icon: MessageCircle,
-    },
-
-    {
-      label: t("settings"),
-      href: "/dashboard/settings",
-      icon: Settings,
-    },
-
-    {
-      label: "Help Center",
-      href: "/help",
-      icon: Headphones,
-    },
+  const standardItems = [
+    { label: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
+    { label: t("myProfile"), href: "/dashboard/profile", icon: User },
+    { label: t("wishlist"), href: "/wishlist", icon: Heart },
+    { label: t("messages"), href: "/messages", icon: MessageCircle },
+    { label: t("settings"), href: "/dashboard/settings", icon: Settings },
+    { label: "Help Center", href: "/help", icon: Headphones },
   ];
 
-  // =======================================================
-  // CLOSE MENU
-  // =======================================================
+  const adsItems = [
+    { label: "My Products", href: "/dashboard/my-ads", icon: Package },
+    { label: "My Jobs", href: "/dashboard/my-jobs", icon: BriefcaseBusiness },
+    { label: "My Services", href: serviceHref, icon: Wrench },
+  ];
 
-  const closeMenu = () => {
-    setOpen(false);
-  };
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
-  // =======================================================
-  // RENDER
-  // =======================================================
+  const navItemClass = (active: boolean) =>
+    `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+      active
+        ? "bg-blue-50 text-[#1565D8] dark:bg-[#1565D8]/10 dark:text-[#1976F3]"
+        : "text-slate-700 hover:bg-blue-50 hover:text-[#1565D8] dark:text-slate-200 dark:hover:bg-[#1565D8]/10 dark:hover:text-[#1976F3]"
+    }`;
 
   return (
     <>
-      {/* ===================================================
-          HAMBURGER BUTTON
-      =================================================== */}
-
       <button
         type="button"
         aria-label="Open menu"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="
-          flex
-          h-10
-          w-10
-          shrink-0
-          -translate-y-1.5
-          items-center
-          justify-center
-          rounded-xl
-          bg-[#1565D8]
-          text-white
-          shadow-sm
-          shadow-[#1565D8]/20
-          transition-all
-          duration-200
-          hover:bg-[#1257b8]
-          hover:shadow-md
-          hover:shadow-[#1565D8]/25
-          active:scale-95
-          dark:bg-[#1976F3]
-          dark:shadow-[#1976F3]/20
-          dark:hover:bg-[#1565D8]
-          md:hidden
-        "
+        className="flex h-10 w-10 shrink-0 -translate-y-1.5 items-center justify-center rounded-xl bg-[#1565D8] text-white shadow-sm transition hover:bg-[#1257b8] active:scale-95 dark:bg-[#1976F3] md:hidden"
       >
-        <Menu
-          size={22}
-          strokeWidth={2.3}
-        />
+        <Menu size={22} strokeWidth={2.3} />
       </button>
 
-      {/* ===================================================
-          FULL SCREEN MOBILE MENU
-      =================================================== */}
-
       {open && (
-        <div
-          className="
-            fixed
-            inset-0
-            z-[9999]
-            md:hidden
-          "
-        >
-          {/* =================================================
-              BACKDROP
-          ================================================= */}
-
+        <div className="fixed inset-0 z-[9999] md:hidden">
           <button
             type="button"
             aria-label="Close menu"
             onClick={closeMenu}
-            className="
-              absolute
-              inset-0
-              h-full
-              w-full
-              cursor-default
-              bg-black/60
-              backdrop-blur-[2px]
-            "
+            className="absolute inset-0 h-full w-full bg-black/60 backdrop-blur-[2px]"
           />
 
-          {/* =================================================
-              DRAWER
-          ================================================= */}
-
-          <aside
-            className="
-              absolute
-              left-0
-              top-0
-              flex
-              h-[100dvh]
-              w-[88%]
-              max-w-[380px]
-              flex-col
-              overflow-y-auto
-              bg-white
-              shadow-2xl
-              dark:bg-slate-950
-            "
-          >
-            {/* ===============================================
-                BLUE HEADER
-            ================================================ */}
-
-            <div
-              className="
-                flex
-                min-h-16
-                shrink-0
-                items-center
-                justify-between
-                bg-[#1565D8]
-                px-5
-                shadow-sm
-                dark:bg-[#1976F3]
-              "
-            >
-              {/* Brand */}
-
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-3
-                "
-              >
-                <div
-                  className="
-                    flex
-                    h-10
-                    w-10
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-white
-                    text-[#1565D8]
-                    shadow-sm
-                  "
-                >
-                  <Menu
-                    size={20}
-                    strokeWidth={2.3}
-                  />
-                </div>
-
-                <div>
-                  <p
-                    className="
-                      text-lg
-                      font-extrabold
-                      leading-none
-                      text-white
-                    "
-                  >
-                    DealUp
-                  </p>
-
-                  <p
-                    className="
-                      mt-1
-                      text-[10px]
-                      font-medium
-                      text-white/70
-                    "
-                  >
-                    Local Marketplace
-                  </p>
-                </div>
+          <aside className="absolute left-0 top-0 flex h-[100dvh] w-[88%] max-w-[380px] flex-col overflow-y-auto overscroll-contain bg-white shadow-2xl dark:bg-slate-950">
+            <div className="flex min-h-14 shrink-0 items-center justify-between bg-[#1565D8] px-4 text-white dark:bg-[#1976F3]">
+              <div>
+                <p className="text-lg font-extrabold leading-tight">DealUp</p>
+                <p className="text-[10px] text-white/75">Local Marketplace</p>
               </div>
-
-              {/* Close */}
 
               <button
                 type="button"
                 aria-label="Close menu"
                 onClick={closeMenu}
-                className="
-                  flex
-                  h-10
-                  w-10
-                  items-center
-                  justify-center
-                  rounded-xl
-                  text-white
-                  transition
-                  hover:bg-white/10
-                  active:scale-95
-                "
+                className="flex h-9 w-9 items-center justify-center rounded-xl transition hover:bg-white/10"
               >
-                <X
-                  size={23}
-                  strokeWidth={2.2}
-                />
+                <X size={22} />
               </button>
             </div>
 
-            {/* ===============================================
-                USER CARD
-            ================================================ */}
-
             {session?.user ? (
-              <div className="px-4 pt-4">
-                <div
-                  className="
-                    rounded-2xl
-                    border
-                    border-slate-200
-                    bg-slate-50
-                    p-4
-                    dark:border-slate-800
-                    dark:bg-slate-900
-                  "
-                >
-                  <div
-                    className="
-                      flex
-                      items-center
-                      gap-3
-                    "
-                  >
+              <div className="shrink-0 px-3 pt-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-center gap-3">
                     <Image
                       src={image}
                       alt={name}
-                      width={48}
-                      height={48}
+                      width={42}
+                      height={42}
                       unoptimized
                       onError={(event) => {
-                        event.currentTarget.src =
-                          "/images/default-avatar.png";
+                        event.currentTarget.src = "/images/default-avatar.png";
                       }}
-                      className="
-                        h-12
-                        w-12
-                        shrink-0
-                        rounded-full
-                        border-2
-                        border-[#1565D8]
-                        object-cover
-                        shadow-sm
-                        dark:border-[#1976F3]
-                      "
+                      className="h-10 w-10 shrink-0 rounded-full border-2 border-[#1565D8] object-cover dark:border-[#1976F3]"
                     />
-
                     <div className="min-w-0">
-                      <p
-                        className="
-                          truncate
-                          text-sm
-                          font-bold
-                          text-slate-900
-                          dark:text-white
-                        "
-                      >
+                      <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
                         {name}
                       </p>
-
-                      <p
-                        className="
-                          mt-0.5
-                          text-xs
-                          text-slate-500
-                          dark:text-slate-400
-                        "
-                      >
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         {t("myAccount")}
                       </p>
                     </div>
                   </div>
 
-                  {/* Admin badge */}
-
                   {isAdmin && (
-                    <div
-                      className="
-                        mt-3
-                        inline-flex
-                        items-center
-                        gap-1.5
-                        rounded-full
-                        bg-purple-100
-                        px-2.5
-                        py-1
-                        text-xs
-                        font-semibold
-                        text-purple-700
-                        dark:bg-purple-900/30
-                        dark:text-purple-300
-                      "
-                    >
-                      <ShieldCheck
-                        size={13}
-                      />
-
+                    <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-[11px] font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                      <ShieldCheck size={12} />
                       Administrator
-                    </div>
+                    </span>
                   )}
                 </div>
               </div>
             ) : (
-              <div className="px-4 pt-4">
+              <div className="shrink-0 px-3 pt-3">
                 <Link
                   href="/login"
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    justify-center
-                    rounded-xl
-                    bg-[#1565D8]
-                    px-4
-                    py-3
-                    text-sm
-                    font-bold
-                    text-white
-                    shadow-sm
-                    transition
-                    hover:bg-[#0f52ba]
-                    dark:bg-[#1976F3]
-                    dark:hover:bg-[#1565D8]
-                  "
+                  onClick={closeMenu}
+                  className="flex w-full items-center justify-center rounded-xl bg-[#1565D8] px-4 py-2.5 text-sm font-bold text-white dark:bg-[#1976F3]"
                 >
                   Login
                 </Link>
               </div>
             )}
 
-            {/* ===============================================
-                NAVIGATION
-            ================================================ */}
-
-            <div className="px-3 py-5">
+            <div className="px-3 py-3">
               {session?.user && (
                 <>
-                  <p
-                    className="
-                      px-3
-                      pb-2
-                      text-[10px]
-                      font-bold
-                      uppercase
-                      tracking-[0.15em]
-                      text-slate-400
-                    "
-                  >
+                  <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">
                     My Account
                   </p>
 
                   <div className="space-y-1">
-                    {/* =====================================
-                        STANDARD MENU
-                    ====================================== */}
-
-                    {menuItems.map((item) => {
-                      const Icon =
-                        item.icon;
-
-                      const isActive =
-                        pathname ===
-                          item.href ||
-                        pathname.startsWith(
-                          `${item.href}/`,
-                        );
-
+                    {standardItems.slice(0, 2).map((item) => {
+                      const Icon = item.icon;
                       return (
                         <Link
                           key={item.href}
                           href={item.href}
-                          className={`
-                            group
-                            flex
-                            items-center
-                            gap-3
-                            rounded-xl
-                            px-3
-                            py-3
-                            text-sm
-                            font-medium
-                            transition
-                            duration-200
-
-                            ${
-                              isActive
-                                ? `
-                                  bg-blue-50
-                                  text-[#1565D8]
-                                  dark:bg-[#1565D8]/10
-                                  dark:text-[#1976F3]
-                                `
-                                : `
-                                  text-slate-700
-                                  hover:bg-blue-50
-                                  hover:text-[#1565D8]
-                                  dark:text-slate-200
-                                  dark:hover:bg-[#1565D8]/10
-                                  dark:hover:text-[#1976F3]
-                                `
-                            }
-                          `}
+                          onClick={closeMenu}
+                          className={navItemClass(isActive(item.href))}
                         >
-                          <Icon
-                            size={19}
-                            strokeWidth={1.9}
-                          />
-
-                          <span>
-                            {item.label}
-                          </span>
+                          <Icon size={18} />
+                          {item.label}
                         </Link>
                       );
                     })}
 
-                    {/* ===================================
-                        MY ADS PARENT
-                    ==================================== */}
-
                     <button
                       type="button"
                       aria-expanded={myAdsOpen}
-                      onClick={() =>
-                        setMyAdsOpen(
-                          (current) =>
-                            !current,
-                        )
-                      }
-                      className={`
-                        group
-                        flex
-                        w-full
-                        items-center
-                        justify-between
-                        rounded-xl
-                        px-3
-                        py-3
-                        text-left
-                        text-sm
-                        font-medium
-                        transition
-                        duration-200
-
-                        ${
-                          isMyAdsSection
-                            ? `
-                              bg-blue-50
-                              text-[#1565D8]
-                              dark:bg-[#1565D8]/10
-                              dark:text-[#1976F3]
-                            `
-                            : `
-                              text-slate-700
-                              hover:bg-blue-50
-                              hover:text-[#1565D8]
-                              dark:text-slate-200
-                              dark:hover:bg-[#1565D8]/10
-                              dark:hover:text-[#1976F3]
-                            `
-                        }
-                      `}
+                      onClick={() => setMyAdsOpen((previous) => !previous)}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                        isMyAdsSection
+                          ? "bg-blue-50 text-[#1565D8] dark:bg-[#1565D8]/10 dark:text-[#1976F3]"
+                          : "text-slate-700 hover:bg-blue-50 dark:text-slate-200 dark:hover:bg-[#1565D8]/10"
+                      }`}
                     >
-                      <span
-                        className="
-                          flex
-                          items-center
-                          gap-3
-                        "
-                      >
-                        <Package
-                          size={19}
-                          strokeWidth={1.9}
-                        />
-
-                        <span>
-                          {t("myAds")}
-                        </span>
+                      <span className="flex items-center gap-3">
+                        <Package size={18} />
+                        {t("myAds")}
                       </span>
-
                       {myAdsOpen ? (
-                        <ChevronDown
-                          size={18}
-                          strokeWidth={2}
-                        />
+                        <ChevronDown size={17} />
                       ) : (
-                        <ChevronRight
-                          size={18}
-                          strokeWidth={2}
-                        />
+                        <ChevronRight size={17} />
                       )}
                     </button>
 
-                    {/* ===================================
-                        MY ADS SUBMENU
-                    ==================================== */}
-
                     {myAdsOpen && (
-                      <div
-                        className="
-                          ml-4
-                          space-y-1
-                          border-l-2
-                          border-blue-100
-                          pl-3
-                          dark:border-blue-900/40
-                        "
-                      >
-                        {/* ---------------------------------
-                            MY PRODUCTS
-                        ---------------------------------- */}
-
-                        <Link
-                          href="/dashboard/my-ads"
-                          className={`
-                            group
-                            flex
-                            items-center
-                            gap-3
-                            rounded-xl
-                            px-3
-                            py-2.5
-                            text-sm
-                            font-medium
-                            transition
-
-                            ${
-                              pathname ===
-                                "/dashboard/my-ads" ||
-                              pathname.startsWith(
-                                "/dashboard/my-ads/",
-                              )
-                                ? `
-                                  bg-[#1565D8]/10
-                                  text-[#1565D8]
-                                  dark:bg-[#1976F3]/10
-                                  dark:text-[#1976F3]
-                                `
-                                : `
-                                  text-slate-600
-                                  hover:bg-blue-50
-                                  hover:text-[#1565D8]
-                                  dark:text-slate-300
-                                  dark:hover:bg-[#1565D8]/10
-                                  dark:hover:text-[#1976F3]
-                                `
-                            }
-                          `}
-                        >
-                          <Package
-                            size={17}
-                            strokeWidth={1.9}
-                          />
-
-                          <span>
-                            My Products
-                          </span>
-                        </Link>
-
-                        {/* ---------------------------------
-                            MY JOBS
-                        ---------------------------------- */}
-
-                        <Link
-                          href="/dashboard/my-jobs"
-                          className={`
-                            group
-                            flex
-                            items-center
-                            gap-3
-                            rounded-xl
-                            px-3
-                            py-2.5
-                            text-sm
-                            font-medium
-                            transition
-
-                            ${
-                              pathname ===
-                                "/dashboard/my-jobs" ||
-                              pathname.startsWith(
-                                "/dashboard/my-jobs/",
-                              )
-                                ? `
-                                  bg-[#1565D8]/10
-                                  text-[#1565D8]
-                                  dark:bg-[#1976F3]/10
-                                  dark:text-[#1976F3]
-                                `
-                                : `
-                                  text-slate-600
-                                  hover:bg-blue-50
-                                  hover:text-[#1565D8]
-                                  dark:text-slate-300
-                                  dark:hover:bg-[#1565D8]/10
-                                  dark:hover:text-[#1976F3]
-                                `
-                            }
-                          `}
-                        >
-                          <BriefcaseBusiness
-                            size={17}
-                            strokeWidth={1.9}
-                          />
-
-                          <span>
-                            My Jobs
-                          </span>
-                        </Link>
+                      <div className="ml-4 space-y-1 border-l-2 border-blue-100 pl-3 dark:border-blue-900/40">
+                        {adsItems.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={closeMenu}
+                              className={navItemClass(isActive(item.href))}
+                            >
+                              <Icon size={17} />
+                              {item.label}
+                            </Link>
+                          );
+                        })}
                       </div>
                     )}
 
-                    {/* ===================================
-                        NOTIFICATIONS
-                    ==================================== */}
+                    {standardItems.slice(2).map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={closeMenu}
+                          className={navItemClass(isActive(item.href))}
+                        >
+                          <Icon size={18} />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
 
                     <NotificationBell
                       variant="menu"
                       onNavigate={closeMenu}
                     />
-                  </div>
 
-                  {/* =========================================
-                      ADMIN
-                  ========================================== */}
-
-                  {isAdmin && (
-                    <Link
-                      href="/admin"
-                      className="
-                        mt-1
-                        flex
-                        items-center
-                        gap-3
-                        rounded-xl
-                        px-3
-                        py-3
-                        text-sm
-                        font-semibold
-                        text-purple-700
-                        transition
-                        hover:bg-purple-50
-                        dark:text-purple-300
-                        dark:hover:bg-purple-900/20
-                      "
-                    >
-                      <ShieldCheck
-                        size={19}
-                      />
-
-                      <span>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        onClick={closeMenu}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-50 dark:text-purple-300 dark:hover:bg-purple-900/20"
+                      >
+                        <ShieldCheck size={18} />
                         Admin Dashboard
-                      </span>
-                    </Link>
-                  )}
+                      </Link>
+                    )}
+                  </div>
                 </>
               )}
 
-              {/* =============================================
-                  SELL BUTTON
-              ============================================== */}
-
-              <div
-                className="
-                  mt-4
-                  border-t
-                  border-slate-200
-                  pt-4
-                  dark:border-slate-800
-                "
-              >
+              <div className="mt-3 shrink-0 border-t border-slate-200 pt-3 dark:border-slate-800">
                 <Link
                   href="/sell"
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    justify-center
-                    gap-2
-                    rounded-xl
-                    bg-[#1565D8]
-                    px-4
-                    py-3.5
-                    text-sm
-                    font-extrabold
-                    text-white
-                    shadow-sm
-                    transition
-                    duration-200
-                    hover:bg-[#0f52ba]
-                    hover:shadow-md
-                    active:scale-[0.98]
-                    dark:bg-[#1976F3]
-                    dark:hover:bg-[#1565D8]
-                  "
+                  onClick={closeMenu}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1565D8] px-4 py-3 text-sm font-extrabold text-white transition hover:bg-[#0f52ba] dark:bg-[#1976F3]"
                 >
-                  <PlusCircle
-                    size={19}
-                    strokeWidth={2.2}
-                  />
-
-                  <span>
-                    + {t("sell")}
-                  </span>
+                  <PlusCircle size={18} />
+                  + {t("sell")}
                 </Link>
               </div>
 
-              {/* =============================================
-                  LANGUAGE
-              ============================================== */}
-
-              <div
-                className="
-                  mt-4
-                  border-t
-                  border-slate-200
-                  pt-4
-                  dark:border-slate-800
-                "
-              >
+              <div className="mt-3 shrink-0 border-t border-slate-200 pt-3 dark:border-slate-800">
                 <LanguageSwitcher />
               </div>
-
-              {/* =============================================
-                  LOGOUT
-              ============================================== */}
 
               {session?.user && (
                 <button
                   type="button"
-                  onClick={() =>
-                    signOut({
-                      callbackUrl:
-                        "/login",
-                    })
-                  }
-                  className="
-                    mt-2
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-xl
-                    px-3
-                    py-3
-                    text-sm
-                    font-medium
-                    text-red-600
-                    transition
-                    hover:bg-red-50
-                    dark:hover:bg-red-950/30
-                  "
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="mt-2 flex w-full shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 dark:hover:bg-red-950/30"
                 >
-                  <LogOut size={19} />
-
-                  <span>
-                    {t("logout")}
-                  </span>
+                  <LogOut size={18} />
+                  {t("logout")}
                 </button>
               )}
             </div>
 
-            {/* ===============================================
-                FOOTER
-            ================================================ */}
-
-            <div
-              className="
-                mt-auto
-                border-t
-                border-slate-200
-                px-5
-                py-4
-                dark:border-slate-800
-              "
-            >
-              <p
-                className="
-                  text-center
-                  text-[11px]
-                  font-medium
-                  text-slate-400
-                "
-              >
+            <div className="mt-auto shrink-0 border-t border-slate-200 px-4 py-3 dark:border-slate-800">
+              <p className="text-center text-[11px] font-medium text-slate-400">
                 DealUp Marketplace
               </p>
             </div>

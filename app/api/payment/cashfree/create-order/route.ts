@@ -17,8 +17,7 @@ import {
 const DATABASE_NAME = "dealup";
 
 // =====================================================
-// Cashfree Payment Pricing
-// Amounts are stored in paise
+// PRICING (ALL AMOUNTS IN PAISE)
 // =====================================================
 
 const PREMIUM_PRICES = {
@@ -27,93 +26,91 @@ const PREMIUM_PRICES = {
   yearly: 79900,
 } as const;
 
-// =====================================================
-// Job Promotion Pricing
-// =====================================================
+const PRODUCT_BOOST_PRICE = 1900;
+const PRODUCT_FEATURED_PRICE = 2900;
 
-const JOB_BOOST_PRICES = {
-  normalSeller: 2900, // ₹29
-  premiumQuotaExhausted: 1900, // ₹19
-} as const;
+const JOB_BOOST_NORMAL_PRICE = 2900;
+const JOB_BOOST_PREMIUM_PRICE = 1900;
+const JOB_FEATURED_PRICE = 2900;
 
-const JOB_FEATURED_PRICE = 2900; // ₹29
-
-const JOB_BOOST_DURATION_DAYS = 7;
-const JOB_FEATURED_DURATION_DAYS = 14;
+const SERVICE_BOOST_NORMAL_PRICE = 2900;
+const SERVICE_BOOST_PREMIUM_PRICE = 1900;
+const SERVICE_FEATURED_PRICE = 2900;
 
 // =====================================================
-// Helpers
+// PROMOTION DURATIONS
 // =====================================================
 
-function getPlanFromPaymentType(
-  type: PaymentType,
-) {
-  if (type === "PREMIUM_MONTHLY") {
-    return "monthly" as const;
-  }
+const BOOST_DURATION_DAYS = 7;
+const FEATURED_DURATION_DAYS = 14;
 
-  if (type === "PREMIUM_QUARTERLY") {
-    return "quarterly" as const;
-  }
+// =====================================================
+// HELPERS
+// =====================================================
 
-  if (type === "PREMIUM_YEARLY") {
-    return "yearly" as const;
-  }
+function getPlanFromPaymentType(type: PaymentType) {
+  if (type === "PREMIUM_MONTHLY") return "monthly" as const;
+  if (type === "PREMIUM_QUARTERLY") return "quarterly" as const;
+  if (type === "PREMIUM_YEARLY") return "yearly" as const;
 
   return null;
 }
 
-// =====================================================
-// Job Premium Helpers
-// =====================================================
-
-function getDefaultBoostLimit(
-  plan?: string,
-): number {
-  if (plan === "monthly") {
-    return 10;
-  }
-
-  if (plan === "quarterly") {
-    return 30;
-  }
-
-  if (plan === "yearly") {
-    return 120;
-  }
+function getDefaultBoostLimit(plan?: string): number {
+  if (plan === "monthly") return 10;
+  if (plan === "quarterly") return 30;
+  if (plan === "yearly") return 120;
 
   return 0;
 }
 
-function getDefaultFeaturedLimit(
-  plan?: string,
-): number {
-  if (plan === "monthly") {
-    return 3;
-  }
-
-  if (plan === "quarterly") {
-    return 9;
-  }
-
-  if (plan === "yearly") {
-    return 36;
-  }
+function getDefaultFeaturedLimit(plan?: string): number {
+  if (plan === "monthly") return 3;
+  if (plan === "quarterly") return 9;
+  if (plan === "yearly") return 36;
 
   return 0;
 }
 
+function isPremiumActive(premiumSeller: any): boolean {
+  if (!premiumSeller || premiumSeller.active !== true) {
+    return false;
+  }
+
+  if (!premiumSeller.expiresAt) {
+    return false;
+  }
+
+  const expiresAt = new Date(premiumSeller.expiresAt);
+
+  return (
+    !Number.isNaN(expiresAt.getTime()) &&
+    expiresAt.getTime() > Date.now()
+  );
+}
+
+function hasActivePromotion(
+  value: unknown,
+): boolean {
+  if (!value) return false;
+
+  const date = new Date(value as string | number | Date);
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.getTime() > Date.now()
+  );
+}
+
 // =====================================================
-// Create Cashfree Order
+// POST: CREATE CASHFREE ORDER
 // =====================================================
 
-export async function POST(
-  request: Request,
-) {
+export async function POST(request: Request) {
   try {
-    // =================================================
-    // Authentication
-    // =================================================
+    // -------------------------------------------------
+    // 1. Authentication
+    // -------------------------------------------------
 
     const session = await auth();
 
@@ -121,43 +118,39 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-          message: "Unauthorized.",
+          message: "Please log in to continue.",
         },
-        {
-          status: 401,
-        },
+        { status: 401 },
       );
     }
 
-    const userId = String(
-      session.user.id,
-    );
+    const userId = String(session.user.id);
 
-    // =================================================
-    // Request Body
-    // =================================================
+    // -------------------------------------------------
+    // 2. Parse request body
+    // -------------------------------------------------
 
     let body: {
       type?: PaymentType;
-      plan?:
-        | "monthly"
-        | "quarterly"
-        | "yearly";
+      plan?: "monthly" | "quarterly" | "yearly";
       productId?: string;
       jobId?: string;
-    } = {};
+      serviceId?: string;
+    };
 
     try {
       body = await request.json();
     } catch {
-      body = {};
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid request body.",
+        },
+        { status: 400 },
+      );
     }
 
     const type = body.type;
-
-    // =================================================
-    // Validate Payment Type
-    // =================================================
 
     if (
       type !== "PREMIUM_MONTHLY" &&
@@ -171,807 +164,600 @@ export async function POST(
           success: false,
           message: "Invalid payment type.",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
-    // =================================================
-    // Variables
-    // =================================================
+    // -------------------------------------------------
+    // 3. Resolve promotion target
+    // -------------------------------------------------
 
-    let amount = 0;
+    const suppliedTargets = [
+      body.productId ? "product" : null,
+      body.jobId ? "job" : null,
+      body.serviceId ? "service" : null,
+    ].filter(Boolean);
 
-    let productId: string | null =
-      null;
+    const isPremiumPayment =
+      type === "PREMIUM_MONTHLY" ||
+      type === "PREMIUM_QUARTERLY" ||
+      type === "PREMIUM_YEARLY";
 
-    let jobId: string | null = null;
-
-    let orderNote = `DealUp ${type}`;
-
-    // =================================================
-    // Premium Plans
-    // =================================================
-
-    if (type === "PREMIUM_MONTHLY") {
-      amount = PREMIUM_PRICES.monthly;
+    if (
+      suppliedTargets.length > 1 ||
+      (isPremiumPayment && suppliedTargets.length > 0)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Please provide exactly one valid payment target.",
+        },
+        { status: 400 },
+      );
     }
 
-    if (type === "PREMIUM_QUARTERLY") {
-      amount = PREMIUM_PRICES.quarterly;
-    }
-
-    if (type === "PREMIUM_YEARLY") {
-      amount = PREMIUM_PRICES.yearly;
-    }
-
-    // =================================================
-    // FEATURED AD
-    // =================================================
-
-    if (type === "FEATURED_AD") {
-      // -------------------------------------------------
-      // JOB FEATURED PAYMENT
-      // -------------------------------------------------
-
-      if (body.jobId) {
-        const requestedJobId =
-          String(body.jobId);
-
-        if (
-          !ObjectId.isValid(
-            requestedJobId,
-          )
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Invalid Job ID.",
-            },
-            {
-              status: 400,
-            },
-          );
-        }
-
-        const client =
-          await clientPromise;
-
-        const db =
-          client.db(DATABASE_NAME);
-
-        const jobs =
-          db.collection("jobs");
-
-        const users =
-          db.collection("users");
-
-        // -----------------------------------------------
-        // Find only user's own active job
-        // -----------------------------------------------
-
-        const job =
-          await jobs.findOne({
-            _id: new ObjectId(
-              requestedJobId,
-            ),
-            employerId: userId,
-          });
-
-        if (!job) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Job not found or you do not have permission to promote this job.",
-            },
-            {
-              status: 404,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Job must be active
-        // -----------------------------------------------
-
-        if (job.status !== "active") {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Only active jobs can be featured.",
-            },
-            {
-              status: 400,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Prevent duplicate active feature
-        // -----------------------------------------------
-
-        const featuredUntil =
-          job.featuredUntil
-            ? new Date(
-                job.featuredUntil,
-              )
-            : null;
-
-        if (
-          featuredUntil &&
-          !Number.isNaN(
-            featuredUntil.getTime(),
-          ) &&
-          featuredUntil.getTime() >
-            Date.now()
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "This job is already featured.",
-              featuredUntil,
-            },
-            {
-              status: 409,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Find seller Premium information
-        // -----------------------------------------------
-
-        const employer =
-          await users.findOne(
-            {
-              _id: new ObjectId(
-                userId,
-              ),
-            },
-            {
-              projection: {
-                premiumSeller: 1,
-              },
-            },
-          );
-
-        if (!employer) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Seller account not found.",
-            },
-            {
-              status: 404,
-            },
-          );
-        }
-
-        const premiumSeller =
-          employer.premiumSeller;
-
-        if (!premiumSeller) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Premium Seller membership is required to feature a job.",
-            },
-            {
-              status: 403,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Premium must be active
-        // -----------------------------------------------
-
-        const premiumExpiresAt =
-          premiumSeller.expiresAt
-            ? new Date(
-                premiumSeller.expiresAt,
-              )
-            : null;
-
-        const premiumActive =
-          premiumSeller.active ===
-            true &&
-          premiumExpiresAt !==
-            null &&
-          !Number.isNaN(
-            premiumExpiresAt.getTime(),
-          ) &&
-          premiumExpiresAt.getTime() >
-            Date.now();
-
-        if (!premiumActive) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Premium Seller membership is inactive or expired.",
-            },
-            {
-              status: 403,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Featured Ads feature must be enabled
-        // -----------------------------------------------
-
-        if (
-          premiumSeller.featuredAds !==
-          true
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Featured Ads are not enabled for your Premium Seller plan.",
-            },
-            {
-              status: 403,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Determine Featured quota
-        // -----------------------------------------------
-
-        let featuredAdsLimit =
-          Number(
-            premiumSeller.featuredAdsLimit ??
-              0,
-          );
-
-        if (featuredAdsLimit <= 0) {
-          featuredAdsLimit =
-            getDefaultFeaturedLimit(
-              premiumSeller.plan,
-            );
-        }
-
-        const featuredAdsUsed =
-          Math.max(
-            0,
-            Number(
-              premiumSeller.featuredAdsUsed ??
-                0,
-            ),
-          );
-
-        if (
-          featuredAdsLimit <= 0
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Invalid Premium Seller plan.",
-            },
-            {
-              status: 400,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // IMPORTANT:
-        // If free quota is still available,
-        // payment should NOT be created.
-        // -----------------------------------------------
-
-        if (
-          featuredAdsUsed <
-          featuredAdsLimit
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Your free Featured Ads quota is still available. Please use the Job Feature API instead of creating a payment order.",
-              paymentRequired: false,
-              featuredAdsLimit,
-              featuredAdsUsed,
-              featuredAdsRemaining:
-                featuredAdsLimit -
-                featuredAdsUsed,
-            },
-            {
-              status: 409,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Paid Job Featured
-        // -----------------------------------------------
-
-        amount =
-          JOB_FEATURED_PRICE;
-
-        jobId = requestedJobId;
-
-        orderNote =
-          "DealUp Job Featured Ad";
-      }
-
-      // -------------------------------------------------
-      // EXISTING PRODUCT FEATURED PAYMENT
-      // -------------------------------------------------
-
-      else if (body.productId) {
-        productId = String(
-          body.productId,
-        );
-
-        // Keep existing Product pricing
-        amount = 2900;
-
-        orderNote =
-          "DealUp Product Featured Ad";
-      }
-
-      // -------------------------------------------------
-      // Missing ID
-      // -------------------------------------------------
-
-      else {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Product ID or Job ID is required for Featured Ad payment.",
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-    }
-
-    // =================================================
-    // BOOST AD
-    // =================================================
-
-    if (type === "BOOST_AD") {
-      // -------------------------------------------------
-      // JOB BOOST PAYMENT
-      // -------------------------------------------------
-
-      if (body.jobId) {
-        const requestedJobId =
-          String(body.jobId);
-
-        if (
-          !ObjectId.isValid(
-            requestedJobId,
-          )
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Invalid Job ID.",
-            },
-            {
-              status: 400,
-            },
-          );
-        }
-
-        const client =
-          await clientPromise;
-
-        const db =
-          client.db(DATABASE_NAME);
-
-        const jobs =
-          db.collection("jobs");
-
-        const users =
-          db.collection("users");
-
-        // -----------------------------------------------
-        // Find user's own active job
-        // -----------------------------------------------
-
-        const job =
-          await jobs.findOne({
-            _id: new ObjectId(
-              requestedJobId,
-            ),
-            employerId: userId,
-          });
-
-        if (!job) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Job not found or you do not have permission to promote this job.",
-            },
-            {
-              status: 404,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Job must be active
-        // -----------------------------------------------
-
-        if (job.status !== "active") {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Only active jobs can be boosted.",
-            },
-            {
-              status: 400,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Prevent duplicate active boost
-        // -----------------------------------------------
-
-        const boostedUntil =
-          job.boostedUntil
-            ? new Date(
-                job.boostedUntil,
-              )
-            : null;
-
-        if (
-          boostedUntil &&
-          !Number.isNaN(
-            boostedUntil.getTime(),
-          ) &&
-          boostedUntil.getTime() >
-            Date.now()
-        ) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "This job is already boosted.",
-              boostedUntil,
-            },
-            {
-              status: 409,
-            },
-          );
-        }
-
-        // -----------------------------------------------
-        // Find seller Premium information
-        // -----------------------------------------------
-
-        const employer =
-          await users.findOne(
-            {
-              _id: new ObjectId(
-                userId,
-              ),
-            },
-            {
-              projection: {
-                premiumSeller: 1,
-              },
-            },
-          );
-
-        if (!employer) {
-          return NextResponse.json(
-            {
-              success: false,
-              message:
-                "Seller account not found.",
-            },
-            {
-              status: 404,
-            },
-          );
-        }
-
-        const premiumSeller =
-          employer.premiumSeller;
-
-        // -----------------------------------------------
-        // Default:
-        // Normal seller = ₹29
-        // -----------------------------------------------
-
-        amount =
-          JOB_BOOST_PRICES.normalSeller;
-
-        // -----------------------------------------------
-        // Check active Premium
-        // -----------------------------------------------
-
-        if (premiumSeller) {
-          const premiumExpiresAt =
-            premiumSeller.expiresAt
-              ? new Date(
-                  premiumSeller.expiresAt,
-                )
-              : null;
-
-          const premiumActive =
-            premiumSeller.active ===
-              true &&
-            premiumExpiresAt !==
-              null &&
-            !Number.isNaN(
-              premiumExpiresAt.getTime(),
-            ) &&
-            premiumExpiresAt.getTime() >
-              Date.now();
-
-          if (premiumActive) {
-            let boostAdsLimit =
-              Number(
-                premiumSeller.boostAdsLimit ??
-                  0,
-              );
-
-            if (boostAdsLimit <= 0) {
-              boostAdsLimit =
-                getDefaultBoostLimit(
-                  premiumSeller.plan,
-                );
-            }
-
-            const boostAdsUsed =
-              Math.max(
-                0,
-                Number(
-                  premiumSeller.boostAdsUsed ??
-                    0,
-                ),
-              );
-
-            if (
-              boostAdsLimit <= 0
-            ) {
-              return NextResponse.json(
-                {
-                  success: false,
-                  message:
-                    "Invalid Premium Seller plan.",
-                },
-                {
-                  status: 400,
-                },
-              );
-            }
-
-            // -------------------------------------------
-            // Free quota still available
-            // -------------------------------------------
-
-            if (
-              boostAdsUsed <
-              boostAdsLimit
-            ) {
-              return NextResponse.json(
-                {
-                  success: false,
-                  message:
-                    "Your free Boost quota is still available. Please use the Job Boost API instead of creating a payment order.",
-                  paymentRequired: false,
-                  boostAdsLimit,
-                  boostAdsUsed,
-                  boostAdsRemaining:
-                    boostAdsLimit -
-                    boostAdsUsed,
-                },
-                {
-                  status: 409,
-                },
-              );
-            }
-
-            // -------------------------------------------
-            // Premium quota exhausted
-            // ₹19
-            // -------------------------------------------
-
-            amount =
-              JOB_BOOST_PRICES.premiumQuotaExhausted;
-          }
-        }
-
-        jobId = requestedJobId;
-
-        orderNote =
-          "DealUp Job Boost Ad";
-      }
-
-      // -------------------------------------------------
-      // EXISTING PRODUCT BOOST PAYMENT
-      // -------------------------------------------------
-
-      else if (body.productId) {
-        productId = String(
-          body.productId,
-        );
-
-        // IMPORTANT:
-        // Keep existing Product Boost price
-        // untouched.
-        amount = 1900;
-
-        orderNote =
-          "DealUp Product Boost Ad";
-      }
-
-      // -------------------------------------------------
-      // Missing ID
-      // -------------------------------------------------
-
-      else {
-        return NextResponse.json(
-          {
-            success: false,
-            message:
-              "Product ID or Job ID is required for Boost Ad payment.",
-          },
-          {
-            status: 400,
-          },
-        );
-      }
-    }
-
-    // =================================================
-    // Premium Plan
-    // =================================================
-
-    const plan =
-      getPlanFromPaymentType(type);
-
-    // =================================================
-    // Amount Validation
-    // =================================================
-
-    if (!amount || amount <= 0) {
+    if (!isPremiumPayment && suppliedTargets.length !== 1) {
       return NextResponse.json(
         {
           success: false,
           message:
-            "Invalid payment amount.",
+            "Product ID, Job ID, or Service ID is required for a promotion.",
         },
-        {
-          status: 400,
-        },
+        { status: 400 },
       );
     }
 
-    // =================================================
-    // Cashfree Order ID
-    // =================================================
+    let amount = 0;
+    let productId: string | null = null;
+    let jobId: string | null = null;
+    let serviceId: string | null = null;
+    let orderNote = `DealUp ${type}`;
+
+    let promotionTarget:
+      | "premium"
+      | "product"
+      | "job"
+      | "service" = "premium";
+
+    // -------------------------------------------------
+    // 4. Premium Seller subscription
+    // -------------------------------------------------
+
+    if (type === "PREMIUM_MONTHLY") {
+      amount = PREMIUM_PRICES.monthly;
+    } else if (type === "PREMIUM_QUARTERLY") {
+      amount = PREMIUM_PRICES.quarterly;
+    } else if (type === "PREMIUM_YEARLY") {
+      amount = PREMIUM_PRICES.yearly;
+    }
+
+    // -------------------------------------------------
+    // 5. Load database when processing a promotion
+    // -------------------------------------------------
+
+    if (!isPremiumPayment) {
+      const client = await clientPromise;
+      const db = client.db(DATABASE_NAME);
+
+      if (!ObjectId.isValid(userId)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "Invalid user account.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const user = await db.collection("users").findOne(
+        { _id: new ObjectId(userId) },
+        { projection: { premiumSeller: 1 } },
+      );
+
+      const premiumSeller = user?.premiumSeller;
+      const premiumActive = isPremiumActive(premiumSeller);
+
+      // ===============================================
+      // SERVICE PROMOTION
+      // ===============================================
+
+      if (body.serviceId) {
+        serviceId = String(body.serviceId);
+        promotionTarget = "service";
+
+        if (!ObjectId.isValid(serviceId)) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Invalid Service ID.",
+            },
+            { status: 400 },
+          );
+        }
+
+        const service = await db.collection("services").findOne({
+          _id: new ObjectId(serviceId),
+        });
+
+        if (
+          !service ||
+          String(service.sellerId ?? "") !== userId
+        ) {
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                "Service not found or you do not have permission to promote it.",
+            },
+            { status: 404 },
+          );
+        }
+
+        if (service.status !== "active") {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Only active services can be promoted.",
+            },
+            { status: 400 },
+          );
+        }
+
+        // ---------------------------------------------
+        // SERVICE FEATURED
+        // ---------------------------------------------
+
+        if (type === "FEATURED_AD") {
+          if (!premiumActive) {
+            return NextResponse.json(
+              {
+                success: false,
+                message:
+                  "An active Premium Seller subscription is required to feature a service.",
+              },
+              { status: 403 },
+            );
+          }
+
+          if (premiumSeller.featuredAds !== true) {
+            return NextResponse.json(
+              {
+                success: false,
+                message:
+                  "Featured Ads are not enabled for your Premium Seller plan.",
+              },
+              { status: 403 },
+            );
+          }
+
+          if (hasActivePromotion(service.featuredUntil)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "This service is already featured.",
+                featuredUntil: service.featuredUntil,
+              },
+              { status: 409 },
+            );
+          }
+
+          let featuredLimit = Number(
+            premiumSeller.featuredAdsLimit ?? 0,
+          );
+
+          if (featuredLimit <= 0) {
+            featuredLimit = getDefaultFeaturedLimit(
+              premiumSeller.plan,
+            );
+          }
+
+          const featuredUsed = Math.max(
+            0,
+            Number(premiumSeller.featuredAdsUsed ?? 0),
+          );
+
+          if (featuredLimit <= 0) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "Invalid Premium Seller plan.",
+              },
+              { status: 400 },
+            );
+          }
+
+          // Free quota must be used before paid promotion.
+          if (featuredUsed < featuredLimit) {
+            return NextResponse.json(
+              {
+                success: false,
+                paymentRequired: false,
+                message:
+                  "Your free Featured Ads quota is available. Use the Service Feature API instead.",
+                featuredAdsLimit: featuredLimit,
+                featuredAdsUsed: featuredUsed,
+                featuredAdsRemaining:
+                  featuredLimit - featuredUsed,
+              },
+              { status: 409 },
+            );
+          }
+
+          // Quota exhausted: ₹29 for 14 days.
+          amount = SERVICE_FEATURED_PRICE;
+          orderNote = "DealUp Service Featured Ad";
+        }
+
+        // ---------------------------------------------
+        // SERVICE BOOST
+        // ---------------------------------------------
+
+        if (type === "BOOST_AD") {
+          if (hasActivePromotion(service.boostedUntil)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "This service is already boosted.",
+                boostedUntil: service.boostedUntil,
+              },
+              { status: 409 },
+            );
+          }
+
+          // Free seller pays ₹29.
+          amount = SERVICE_BOOST_NORMAL_PRICE;
+
+          if (premiumActive) {
+            let boostLimit = Number(
+              premiumSeller.boostAdsLimit ?? 0,
+            );
+
+            if (boostLimit <= 0) {
+              boostLimit = getDefaultBoostLimit(
+                premiumSeller.plan,
+              );
+            }
+
+            const boostUsed = Math.max(
+              0,
+              Number(premiumSeller.boostAdsUsed ?? 0),
+            );
+
+            if (boostLimit <= 0) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  message: "Invalid Premium Seller plan.",
+                },
+                { status: 400 },
+              );
+            }
+
+            // Free quota must be used first.
+            if (boostUsed < boostLimit) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  paymentRequired: false,
+                  message:
+                    "Your free Boost quota is available. Use the Service Boost API instead.",
+                  boostAdsLimit: boostLimit,
+                  boostAdsUsed: boostUsed,
+                  boostAdsRemaining: boostLimit - boostUsed,
+                },
+                { status: 409 },
+              );
+            }
+
+            // Premium quota exhausted: ₹19.
+            amount = SERVICE_BOOST_PREMIUM_PRICE;
+          }
+
+          orderNote = "DealUp Service Boost Ad";
+        }
+      }
+
+      // ===============================================
+      // JOB PROMOTION
+      // ===============================================
+
+      else if (body.jobId) {
+        jobId = String(body.jobId);
+        promotionTarget = "job";
+
+        if (!ObjectId.isValid(jobId)) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Invalid Job ID.",
+            },
+            { status: 400 },
+          );
+        }
+
+        const job = await db.collection("jobs").findOne({
+          _id: new ObjectId(jobId),
+          employerId: userId,
+        });
+
+        if (!job) {
+          return NextResponse.json(
+            {
+              success: false,
+              message:
+                "Job not found or you do not have permission to promote it.",
+            },
+            { status: 404 },
+          );
+        }
+
+        if (job.status !== "active") {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Only active jobs can be promoted.",
+            },
+            { status: 400 },
+          );
+        }
+
+        if (type === "FEATURED_AD") {
+          if (!premiumActive) {
+            return NextResponse.json(
+              {
+                success: false,
+                message:
+                  "An active Premium Seller subscription is required to feature a job.",
+              },
+              { status: 403 },
+            );
+          }
+
+          if (premiumSeller.featuredAds !== true) {
+            return NextResponse.json(
+              {
+                success: false,
+                message:
+                  "Featured Ads are not enabled for your Premium Seller plan.",
+              },
+              { status: 403 },
+            );
+          }
+
+          if (hasActivePromotion(job.featuredUntil)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "This job is already featured.",
+                featuredUntil: job.featuredUntil,
+              },
+              { status: 409 },
+            );
+          }
+
+          let featuredLimit = Number(
+            premiumSeller.featuredAdsLimit ?? 0,
+          );
+
+          if (featuredLimit <= 0) {
+            featuredLimit = getDefaultFeaturedLimit(
+              premiumSeller.plan,
+            );
+          }
+
+          const featuredUsed = Math.max(
+            0,
+            Number(premiumSeller.featuredAdsUsed ?? 0),
+          );
+
+          if (featuredLimit <= 0) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "Invalid Premium Seller plan.",
+              },
+              { status: 400 },
+            );
+          }
+
+          if (featuredUsed < featuredLimit) {
+            return NextResponse.json(
+              {
+                success: false,
+                paymentRequired: false,
+                message:
+                  "Your free Featured Ads quota is available. Use the Job Feature API instead.",
+                featuredAdsLimit: featuredLimit,
+                featuredAdsUsed: featuredUsed,
+                featuredAdsRemaining:
+                  featuredLimit - featuredUsed,
+              },
+              { status: 409 },
+            );
+          }
+
+          amount = JOB_FEATURED_PRICE;
+          orderNote = "DealUp Job Featured Ad";
+        }
+
+        if (type === "BOOST_AD") {
+          if (hasActivePromotion(job.boostedUntil)) {
+            return NextResponse.json(
+              {
+                success: false,
+                message: "This job is already boosted.",
+                boostedUntil: job.boostedUntil,
+              },
+              { status: 409 },
+            );
+          }
+
+          amount = JOB_BOOST_NORMAL_PRICE;
+
+          if (premiumActive) {
+            let boostLimit = Number(
+              premiumSeller.boostAdsLimit ?? 0,
+            );
+
+            if (boostLimit <= 0) {
+              boostLimit = getDefaultBoostLimit(
+                premiumSeller.plan,
+              );
+            }
+
+            const boostUsed = Math.max(
+              0,
+              Number(premiumSeller.boostAdsUsed ?? 0),
+            );
+
+            if (boostLimit <= 0) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  message: "Invalid Premium Seller plan.",
+                },
+                { status: 400 },
+              );
+            }
+
+            if (boostUsed < boostLimit) {
+              return NextResponse.json(
+                {
+                  success: false,
+                  paymentRequired: false,
+                  message:
+                    "Your free Boost quota is available. Use the Job Boost API instead.",
+                  boostAdsLimit: boostLimit,
+                  boostAdsUsed: boostUsed,
+                  boostAdsRemaining: boostLimit - boostUsed,
+                },
+                { status: 409 },
+              );
+            }
+
+            amount = JOB_BOOST_PREMIUM_PRICE;
+          }
+
+          orderNote = "DealUp Job Boost Ad";
+        }
+      }
+
+      // ===============================================
+      // PRODUCT PROMOTION
+      // ===============================================
+
+      else if (body.productId) {
+        productId = String(body.productId);
+        promotionTarget = "product";
+
+        if (!ObjectId.isValid(productId)) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: "Invalid Product ID.",
+            },
+            { status: 400 },
+          );
+        }
+
+        // Keep the existing Product pricing unchanged.
+        if (type === "BOOST_AD") {
+          amount = PRODUCT_BOOST_PRICE;
+          orderNote = "DealUp Product Boost Ad";
+        } else {
+          amount = PRODUCT_FEATURED_PRICE;
+          orderNote = "DealUp Product Featured Ad";
+        }
+      }
+    }
+
+    // -------------------------------------------------
+    // 6. Validate amount
+    // -------------------------------------------------
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid payment amount.",
+        },
+        { status: 400 },
+      );
+    }
+
+    // -------------------------------------------------
+    // 7. Create Cashfree order ID
+    // -------------------------------------------------
 
     const orderId =
       `dealup_${type.toLowerCase()}_${Date.now()}_${crypto
         .randomUUID()
         .slice(0, 8)}`;
 
-    // =================================================
-    // Customer Details
-    // =================================================
-
     const customerEmail =
-      session.user.email ||
-      `user-${userId}@dealup.local`;
+      session.user.email || `user-${userId}@dealup.local`;
 
     const customerPhone =
-      session.user.phone ||
-      "9999999999";
+      session.user.phone || "9999999999";
 
-    // =================================================
-    // Return URL
-    // =================================================
-
-    const appUrl =
+    const appUrl = (
       process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
+      "http://localhost:3000"
+    ).replace(/\/+$/, "");
 
     const returnUrl =
       `${appUrl}/dashboard/premium/payment-success?order_id=${encodeURIComponent(
         orderId,
       )}`;
 
-    // =================================================
-    // Cashfree Create Order
-    // =================================================
+    // -------------------------------------------------
+    // 8. Create order with Cashfree
+    // -------------------------------------------------
 
-    const cashfreeResponse =
-      await fetch(
-        `${cashfreeConfig.baseUrl}/orders`,
-        {
-          method: "POST",
+    const cashfreeResponse = await fetch(
+      `${cashfreeConfig.baseUrl}/orders`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-version": cashfreeConfig.apiVersion,
+          "x-client-id": cashfreeConfig.appId,
+          "x-client-secret": cashfreeConfig.secretKey,
+          "x-request-id": crypto.randomUUID(),
+          "x-idempotency-key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          order_amount: amount / 100,
+          order_currency: "INR",
 
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            "x-api-version":
-              cashfreeConfig.apiVersion,
-
-            "x-client-id":
-              cashfreeConfig.appId,
-
-            "x-client-secret":
-              cashfreeConfig.secretKey,
-
-            "x-request-id":
-              crypto.randomUUID(),
-
-            "x-idempotency-key":
-              crypto.randomUUID(),
+          customer_details: {
+            customer_id: userId,
+            customer_email: customerEmail,
+            customer_phone: customerPhone,
           },
 
-          body: JSON.stringify({
-            order_id: orderId,
+          order_meta: {
+            return_url: returnUrl,
+          },
 
-            order_amount:
-              amount / 100,
+          order_note: orderNote,
 
-            order_currency: "INR",
+          order_tags: {
+            userId,
+            paymentType: type,
+            productId: productId ?? "",
+            jobId: jobId ?? "",
+            serviceId: serviceId ?? "",
+            plan: getPlanFromPaymentType(type) ?? "",
+            promotionTarget,
+          },
+        }),
+        cache: "no-store",
+      },
+    );
 
-            customer_details: {
-              customer_id: userId,
-              customer_email:
-                customerEmail,
-              customer_phone:
-                customerPhone,
-            },
-
-            order_meta: {
-              return_url:
-                returnUrl,
-            },
-
-            order_note: orderNote,
-
-            order_tags: {
-              userId,
-
-              paymentType: type,
-
-              productId:
-                productId ?? "",
-
-              jobId:
-                jobId ?? "",
-
-              plan:
-                plan ?? "",
-            },
-          }),
-        },
-      );
-
-    // =================================================
-    // Read Cashfree Response
-    // =================================================
-
-    const cashfreeData =
-      await cashfreeResponse.json();
+    const cashfreeData = await cashfreeResponse.json();
 
     if (!cashfreeResponse.ok) {
       console.error(
@@ -988,19 +774,13 @@ export async function POST(
         },
         {
           status:
-            cashfreeResponse.status >=
-              400 &&
-            cashfreeResponse.status <
-              500
+            cashfreeResponse.status >= 400 &&
+            cashfreeResponse.status < 500
               ? cashfreeResponse.status
               : 500,
         },
       );
     }
-
-    // =================================================
-    // Validate Cashfree Response
-    // =================================================
 
     if (
       !cashfreeData?.cf_order_id ||
@@ -1017,70 +797,52 @@ export async function POST(
           message:
             "Cashfree did not return a valid payment session.",
         },
-        {
-          status: 500,
-        },
+        { status: 502 },
       );
     }
 
-    // =================================================
-    // Save Payment Record
-    // =================================================
+    // -------------------------------------------------
+    // 9. Save payment record
+    // -------------------------------------------------
 
     const now = new Date();
 
     await createPaymentRecord({
       userId,
-
       type,
 
       productId,
-
       jobId,
+      serviceId,
 
       razorpayOrderId: "",
-
       razorpayPaymentId: null,
-
       razorpaySignature: null,
 
       cashfreeOrderId: orderId,
-
       cashfreePaymentSessionId:
         cashfreeData.payment_session_id,
-
       cashfreePaymentId: null,
 
       amount,
-
       currency: "INR",
-
       status: "created",
 
       metadata: {
-        plan,
-
-        cashfreeCfOrderId:
-          cashfreeData.cf_order_id,
-
-        promotionTarget:
-          jobId
-            ? "job"
-            : productId
-              ? "product"
-              : "premium",
+        plan: getPlanFromPaymentType(type),
+        cashfreeCfOrderId: cashfreeData.cf_order_id,
+        promotionTarget,
+        activationStatus: "pending",
       },
 
       createdAt: now,
-
       paidAt: null,
-
       updatedAt: now,
     });
 
-    // =================================================
-    // Success
-    // =================================================
+    // -------------------------------------------------
+    // 10. Return checkout details
+    // -------------------------------------------------
 
     return NextResponse.json(
       {
@@ -1088,12 +850,8 @@ export async function POST(
 
         order: {
           id: orderId,
-
-          cfOrderId:
-            cashfreeData.cf_order_id,
-
+          cfOrderId: cashfreeData.cf_order_id,
           amount,
-
           currency: "INR",
         },
 
@@ -1101,35 +859,29 @@ export async function POST(
           cashfreeData.payment_session_id,
 
         paymentType: type,
-
         productId,
-
         jobId,
+        serviceId,
 
-        plan,
+        plan: getPlanFromPaymentType(type),
 
-        environment:
-          cashfreeConfig.environment,
+        promotionTarget,
 
-        priceInRupees:
-          amount / 100,
+        environment: cashfreeConfig.environment,
+
+        priceInRupees: amount / 100,
 
         durationDays:
-          jobId
-            ? type === "BOOST_AD"
-              ? JOB_BOOST_DURATION_DAYS
-              : JOB_FEATURED_DURATION_DAYS
-            : null,
+          type === "BOOST_AD"
+            ? BOOST_DURATION_DAYS
+            : type === "FEATURED_AD"
+              ? FEATURED_DURATION_DAYS
+              : null,
       },
-      {
-        status: 200,
-      },
+      { status: 200 },
     );
   } catch (error: unknown) {
-    console.error(
-      "CASHFREE CREATE ORDER ERROR:",
-      error,
-    );
+    console.error("CASHFREE CREATE ORDER ERROR:", error);
 
     const message =
       error instanceof Error
@@ -1139,16 +891,12 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-
         message:
-          process.env.NODE_ENV ===
-          "development"
+          process.env.NODE_ENV === "development"
             ? message
             : "Unable to create Cashfree payment order.",
       },
-      {
-        status: 500,
-      },
+      { status: 500 },
     );
   }
 }

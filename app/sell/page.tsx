@@ -1,4 +1,3 @@
-
 import Link from "next/link";
 import { Home } from "lucide-react";
 import BackButton from "@/components/ui/BackButton";
@@ -260,28 +259,28 @@ export default async function SellPage() {
 
           <p
             className="
-              mx-auto
-              mt-5
-              max-w-2xl
-              px-2
-              text-sm
-              leading-6
-              text-slate-600
+    mx-auto
+    mt-5
+    max-w-2xl
+    px-2
+    text-sm
+    leading-6
+    text-slate-600
 
-              sm:mt-6
-              sm:px-0
-              sm:text-base
-              sm:leading-7
+    sm:mt-6
+    sm:px-0
+    sm:text-base
+    sm:leading-7
 
-              lg:mt-7
-              lg:text-lg
-              lg:leading-8
+    lg:mt-7
+    lg:text-lg
+    lg:leading-8
 
-              dark:text-slate-300
-            "
+    dark:text-slate-300
+  "
           >
-            Publish your product or post job opportunities and connect with
-            people across India.
+            Publish products, post job opportunities, or offer local services
+            and connect with people across India.
           </p>
         </div>
 
