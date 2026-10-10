@@ -12,6 +12,8 @@ import {
   WalletCards,
 } from "lucide-react";
 
+import ViewAllLink from "@/components/ui/ViewAllLink";
+
 type EmploymentType =
   | "full-time"
   | "part-time"
@@ -133,12 +135,7 @@ function formatSalary(salary?: JobPosition["salary"]) {
 
   let amount = "";
 
-  if (
-    max !== undefined &&
-    max !== null &&
-    max > 0 &&
-    max !== min
-  ) {
+  if (max !== undefined && max !== null && max > 0 && max !== min) {
     amount = `₹${formatAmount(min)} - ₹${formatAmount(max)}`;
   } else if (min > 0) {
     amount = `₹${formatAmount(min)}`;
@@ -146,10 +143,7 @@ function formatSalary(salary?: JobPosition["salary"]) {
     return "Salary not specified";
   }
 
-  const periodMap: Record<
-    "hour" | "day" | "month" | "year",
-    string
-  > = {
+  const periodMap: Record<"hour" | "day" | "month" | "year", string> = {
     hour: "/hr",
     day: "/day",
     month: "/month",
@@ -157,9 +151,7 @@ function formatSalary(salary?: JobPosition["salary"]) {
   };
 
   const period =
-    salary.period && periodMap[salary.period]
-      ? periodMap[salary.period]
-      : "";
+    salary.period && periodMap[salary.period] ? periodMap[salary.period] : "";
 
   return `${amount}${period}`;
 }
@@ -213,33 +205,20 @@ function JobCard({ job }: { job: Job }) {
   const position = job.jobs?.[0];
 
   const imageUrl =
-    job.thumbnail?.url?.trim() ||
-    job.infographic?.url?.trim() ||
-    "";
+    job.thumbnail?.url?.trim() || job.infographic?.url?.trim() || "";
 
   const companyName =
-    job.employer?.companyName ||
-    job.employerName ||
-    "Company";
+    job.employer?.companyName || job.employerName || "Company";
 
-  const jobTitle =
-    position?.title ||
-    "Job Opportunity";
+  const jobTitle = position?.title || "Job Opportunity";
 
   const location = getLocation(job);
 
-  const employmentType =
-    formatEmploymentType(
-      position?.employmentType,
-    );
+  const employmentType = formatEmploymentType(position?.employmentType);
 
-  const workMode =
-    formatWorkMode(
-      position?.workMode,
-    );
+  const workMode = formatWorkMode(position?.workMode);
 
-  const salary =
-    formatSalary(position?.salary);
+  const salary = formatSalary(position?.salary);
 
   return (
     <article
@@ -340,9 +319,7 @@ function JobCard({ job }: { job: Job }) {
                 dark:bg-slate-950
               "
             >
-              <BriefcaseBusiness
-                size={30}
-              />
+              <BriefcaseBusiness size={30} />
             </div>
           </div>
         )}
@@ -367,9 +344,7 @@ function JobCard({ job }: { job: Job }) {
             dark:bg-slate-950/90
           "
         >
-          {job.listingType === "multiple"
-            ? "Multiple Jobs"
-            : "Job Opening"}
+          {job.listingType === "multiple" ? "Multiple Jobs" : "Job Opening"}
         </div>
       </div>
 
@@ -395,10 +370,7 @@ function JobCard({ job }: { job: Job }) {
             gap-2
           "
         >
-          <Building2
-            size={15}
-            className="shrink-0 text-[#1565d8]"
-          />
+          <Building2 size={15} className="shrink-0 text-[#1565d8]" />
 
           <span
             className="
@@ -456,9 +428,7 @@ function JobCard({ job }: { job: Job }) {
             "
           />
 
-          <span className="line-clamp-2">
-            {location}
-          </span>
+          <span className="line-clamp-2">{location}</span>
         </div>
 
         {/* Employment + Work mode */}
@@ -525,10 +495,7 @@ function JobCard({ job }: { job: Job }) {
             dark:text-white
           "
         >
-          <WalletCards
-            size={16}
-            className="text-[#f5a623]"
-          />
+          <WalletCards size={16} className="text-[#f5a623]" />
 
           <span>{salary}</span>
         </div>
@@ -563,9 +530,7 @@ function JobCard({ job }: { job: Job }) {
           >
             {position?.vacancies
               ? `${position.vacancies} ${
-                  position.vacancies === 1
-                    ? "vacancy"
-                    : "vacancies"
+                  position.vacancies === 1 ? "vacancy" : "vacancies"
                 }`
               : "Hiring now"}
           </span>
@@ -584,10 +549,7 @@ function JobCard({ job }: { job: Job }) {
             "
           >
             View
-
-            <ChevronRight
-              size={16}
-            />
+            <ChevronRight size={16} />
           </Link>
         </div>
       </div>
@@ -599,9 +561,7 @@ function JobCard({ job }: { job: Job }) {
 // LATEST JOBS / CAREER OPPORTUNITIES
 // =====================================================
 
-export default function LatestJobs({
-  jobs,
-}: LatestJobsProps) {
+export default function LatestJobs({ jobs }: LatestJobsProps) {
   const visibleJobs =
     jobs
       ?.filter(
@@ -673,9 +633,7 @@ export default function LatestJobs({
                   text-[#1565d8]
                 "
               >
-                <BriefcaseBusiness
-                  size={19}
-                />
+                <BriefcaseBusiness size={19} />
               </div>
 
               <span
@@ -715,48 +673,15 @@ export default function LatestJobs({
                 dark:text-slate-400
               "
             >
-              Discover the latest job
-              opportunities on DealUp.
+              Discover the latest job opportunities on DealUp.
             </p>
           </div>
 
-          {/* View All */}
+          {/* DESKTOP VIEW ALL */}
 
-          <Link
-            href="/jobs"
-            className="
-              group
-              inline-flex
-              shrink-0
-              items-center
-              gap-1.5
-              rounded-full
-              border
-              border-[#1565d8]/20
-              bg-[#1565d8]/5
-              px-4
-              py-2
-              text-sm
-              font-bold
-              text-[#1565d8]
-              transition-all
-              hover:border-[#1565d8]/40
-              hover:bg-[#1565d8]/10
-
-              dark:border-[#1565d8]/30
-              dark:bg-[#1565d8]/10
-            "
-          >
-            View All
-
-            <ChevronRight
-              size={16}
-              className="
-                transition-transform
-                group-hover:translate-x-0.5
-              "
-            />
-          </Link>
+          <div className="hidden sm:block">
+            <ViewAllLink href="/jobs" />
+          </div>
         </div>
 
         {/* =================================================
@@ -800,12 +725,15 @@ export default function LatestJobs({
             "
           >
             {visibleJobs.map((job) => (
-              <JobCard
-                key={job._id}
-                job={job}
-              />
+              <JobCard key={job._id} job={job} />
             ))}
           </div>
+        </div>
+
+        {/* MOBILE VIEW ALL */}
+
+        <div className="mt-5 flex justify-center sm:hidden">
+          <ViewAllLink href="/jobs" />
         </div>
       </div>
     </section>

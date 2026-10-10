@@ -1,6 +1,5 @@
 
 import Link from "next/link";
-
 import {
   ArrowRight,
   BadgeCheck,
@@ -11,12 +10,8 @@ import {
 } from "lucide-react";
 
 import Container from "@/components/ui/Container";
-
+import ViewAllLink from "@/components/ui/ViewAllLink";
 import type { Service } from "@/lib/models/service";
-
-// =====================================================
-// Types
-// =====================================================
 
 type HomepageListing = Service;
 
@@ -33,11 +28,9 @@ function getListingTitle(
   item: HomepageListing,
   business: boolean,
 ) {
-  if (business) {
-    return item.businessName?.trim() || item.title;
-  }
-
-  return item.title;
+  return business
+    ? item.businessName?.trim() || item.title
+    : item.title;
 }
 
 function getListingImage(item: HomepageListing) {
@@ -49,16 +42,15 @@ function getListingImage(item: HomepageListing) {
 }
 
 function getListingLocation(item: HomepageListing) {
-  return [
-    item.location?.city,
-    item.location?.district,
-  ]
-    .filter(Boolean)
-    .filter(
-      (value, index, array) =>
-        array.indexOf(value) === index,
-    )
-    .join(", ") || "Location not specified";
+  return (
+    [item.location?.city, item.location?.district]
+      .filter(Boolean)
+      .filter(
+        (value, index, array) =>
+          array.indexOf(value) === index,
+      )
+      .join(", ") || "Location not specified"
+  );
 }
 
 function getListingPrice(item: HomepageListing) {
@@ -228,13 +220,10 @@ function LocalListingCard({
             size={14}
             className="mt-0.5 shrink-0 text-blue-500"
           />
-
-          <span className="line-clamp-1">
-            {location}
-          </span>
+          <span className="line-clamp-1">{location}</span>
         </div>
 
-        {/* Price */}
+        {/* Price and Views */}
         <div
           className="
             mt-auto flex flex-wrap items-end
@@ -271,7 +260,7 @@ function LocalListingCard({
           </div>
         </div>
 
-        {/* Action */}
+        {/* View Details */}
         <span
           className="
             mt-3 inline-flex w-full items-center
@@ -335,57 +324,51 @@ function ListingGroup({
           {title}
         </h3>
 
-        <Link
-          href={viewAllHref}
-          className="
-            group inline-flex shrink-0
-            items-center gap-1.5 text-sm
-            font-semibold text-[#1565d8]
-            transition-colors hover:text-blue-700
-            dark:text-blue-400
-            dark:hover:text-blue-300
-          "
-        >
-          View All
-          <ArrowRight
-            size={15}
-            className="transition-transform group-hover:translate-x-1"
-          />
-        </Link>
+        {/* DESKTOP VIEW ALL */}
+        <div className="hidden sm:block">
+          <ViewAllLink href={viewAllHref} />
+        </div>
       </div>
 
-      {/* Cards */}
+      {/* Listing Cards */}
       {items.length > 0 ? (
-        <div
-          className="
-            flex gap-3 overflow-x-auto
-            overscroll-x-contain pb-4
-            [scrollbar-width:none]
-            [-ms-overflow-style:none]
-            [&::-webkit-scrollbar]:hidden
-            sm:grid sm:grid-cols-2
-            sm:gap-5 sm:overflow-visible sm:pb-0
-            lg:grid-cols-4 lg:gap-6
-          "
-        >
-          {items.map((item, index) => (
-            <div
-              key={
-                item._id?.toString() ||
-                `${item.slug}-${index}`
-              }
-              className="
-                w-[78vw] min-w-[78vw] shrink-0
-                sm:w-auto sm:min-w-0
-              "
-            >
-              <LocalListingCard
-                item={item}
-                business={business}
-              />
-            </div>
-          ))}
-        </div>
+        <>
+          <div
+            className="
+              flex gap-3 overflow-x-auto
+              overscroll-x-contain pb-4
+              [scrollbar-width:none]
+              [-ms-overflow-style:none]
+              [&::-webkit-scrollbar]:hidden
+              sm:grid sm:grid-cols-2
+              sm:gap-5 sm:overflow-visible sm:pb-0
+              lg:grid-cols-4 lg:gap-6
+            "
+          >
+            {items.map((item, index) => (
+              <div
+                key={
+                  item._id?.toString() ||
+                  `${item.slug}-${index}`
+                }
+                className="
+                  w-[78vw] min-w-[78vw] shrink-0
+                  sm:w-auto sm:min-w-0
+                "
+              >
+                <LocalListingCard
+                  item={item}
+                  business={business}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* MOBILE VIEW ALL */}
+          <div className="mt-5 flex justify-center sm:hidden">
+            <ViewAllLink href={viewAllHref} />
+          </div>
+        </>
       ) : (
         <div
           className="
@@ -463,7 +446,7 @@ export default function LocalServicesAndBusinesses({
               sm:text-3xl lg:text-4xl
             "
           >
-            Services & Local Businesses
+            Services &amp; Local Businesses
           </h2>
 
           <p
@@ -473,8 +456,7 @@ export default function LocalServicesAndBusinesses({
               sm:text-base
             "
           >
-            Find trusted local service providers
-            and businesses near you.
+            Find trusted local service providers and businesses near you.
           </p>
         </div>
 

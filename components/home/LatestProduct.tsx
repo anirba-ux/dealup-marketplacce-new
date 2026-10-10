@@ -8,6 +8,8 @@ import ProductCard from "@/components/card/ProductCard";
 
 import { Product } from "@/lib/models/product";
 
+import ViewAllLink from "@/components/ui/ViewAllLink";
+
 interface ProductWithSellerVerification extends WithId<Product> {
   sellerIsPhoneVerified?: boolean;
   sellerVerificationStatus?: string;
@@ -124,53 +126,11 @@ export default function LatestProducts({ products }: Props) {
             </p>
           </div>
 
-          {/* =================================================
-              VIEW ALL
-          ================================================== */}
+          {/* DESKTOP VIEW ALL */}
 
-          <Link
-            href="/search?latest=true"
-            className="
-              group
-              inline-flex
-              w-fit
-              items-center
-              gap-2
-              rounded-xl
-              border
-              border-[#1565d8]
-              bg-white
-              px-4
-              py-2.5
-              text-sm
-              font-semibold
-              text-[#1565d8]
-              shadow-sm
-              transition-all
-              duration-200
-              ease-out
-              hover:-translate-y-0.5
-              hover:bg-[#1565d8]
-              hover:text-white
-              hover:shadow-md
-              active:translate-y-0
-              dark:bg-slate-900
-              dark:text-blue-400
-              dark:hover:bg-[#1565d8]
-              dark:hover:text-white
-            "
-          >
-            View All
-
-            <ArrowRight
-              size={16}
-              className="
-                transition-transform
-                duration-200
-                group-hover:translate-x-0.5
-              "
-            />
-          </Link>
+          <div className="hidden sm:block">
+            <ViewAllLink href="/search?latest=true" />
+          </div>
         </div>
 
         {/* =================================================
@@ -291,22 +251,14 @@ export default function LatestProducts({ products }: Props) {
                     sellerIsPhoneVerified={
                       product.sellerIsPhoneVerified ?? false
                     }
-                    sellerVerificationStatus={
-                      product.sellerVerificationStatus
-                    }
+                    sellerVerificationStatus={product.sellerVerificationStatus}
                     sellerBadge={product.sellerBadge}
-                    sellerPremiumSeller={
-                      product.sellerPremiumSeller ?? false
-                    }
-                    sellerPremiumBadge={
-                      product.sellerPremiumBadge ?? false
-                    }
+                    sellerPremiumSeller={product.sellerPremiumSeller ?? false}
+                    sellerPremiumBadge={product.sellerPremiumBadge ?? false}
                     isFeatured={product.isFeatured ?? false}
                     isPremium={product.isPremium ?? false}
                     isBoosted={product.isBoosted ?? false}
-                    createdAt={
-                      product.createdAt ?? new Date()
-                    }
+                    createdAt={product.createdAt ?? new Date()}
                     views={product.views ?? 0}
                   />
                 </div>
@@ -357,6 +309,10 @@ export default function LatestProducts({ products }: Props) {
                 />
               </div>
             )}
+            {/* MOBILE VIEW ALL */}
+            <div className="mt-5 flex justify-center sm:hidden">
+              <ViewAllLink href="/search?latest=true" />
+            </div>
           </>
         )}
       </Container>

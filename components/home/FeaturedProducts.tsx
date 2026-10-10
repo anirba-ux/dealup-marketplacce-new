@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 
 import ProductCard from "@/components/card/ProductCard";
 import Container from "@/components/ui/Container";
+import ViewAllLink from "@/components/ui/ViewAllLink";
 
 interface FeaturedProduct {
   id: string;
@@ -94,9 +95,7 @@ export default function FeaturedProducts({
    * ============================================================
    */
 
-  const handlePointerDown = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ) => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     /*
      * Only enable custom dragging for mouse.
      *
@@ -118,9 +117,7 @@ export default function FeaturedProducts({
     scrollStartLeft.current = carousel.scrollLeft;
   };
 
-  const handlePointerMove = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ) => {
+  const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     /*
      * Touch devices must be left completely native.
      */
@@ -143,9 +140,7 @@ export default function FeaturedProducts({
     carousel.scrollLeft = scrollStartLeft.current - distance;
   };
 
-  const handlePointerUp = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ) => {
+  const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "mouse") {
       return;
     }
@@ -153,9 +148,7 @@ export default function FeaturedProducts({
     setIsDragging(false);
   };
 
-  const handlePointerCancel = (
-    event: React.PointerEvent<HTMLDivElement>,
-  ) => {
+  const handlePointerCancel = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.pointerType !== "mouse") {
       return;
     }
@@ -169,9 +162,7 @@ export default function FeaturedProducts({
    * ============================================================
    */
 
-  const handleClickCapture = (
-    event: React.MouseEvent<HTMLDivElement>,
-  ) => {
+  const handleClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
     if (hasDragged) {
       event.preventDefault();
       event.stopPropagation();
@@ -236,11 +227,7 @@ export default function FeaturedProducts({
                   dark:text-amber-400
                 "
               >
-                <Star
-                  size={17}
-                  fill="currentColor"
-                  strokeWidth={2}
-                />
+                <Star size={17} fill="currentColor" strokeWidth={2} />
               </div>
 
               <span
@@ -281,8 +268,8 @@ export default function FeaturedProducts({
                 dark:text-slate-400
               "
             >
-              Discover handpicked products and special deals from
-              trusted sellers.
+              Discover handpicked products and special deals from trusted
+              sellers.
             </p>
           </div>
 
@@ -369,22 +356,7 @@ export default function FeaturedProducts({
 
             {/* View all */}
 
-            <Link
-              href="/search?featured=true"
-              className="
-                ml-1
-                text-sm
-                font-semibold
-                text-[#1565d8]
-                transition-colors
-                duration-200
-                hover:text-[#0f52ba]
-                dark:text-blue-400
-                dark:hover:text-blue-300
-              "
-            >
-              View All
-            </Link>
+            <ViewAllLink href="/search?featured=true" className="ml-1" />
           </div>
         </div>
 
@@ -445,24 +417,14 @@ export default function FeaturedProducts({
                 price={product.price}
                 image={product.image}
                 seller={product.seller ?? "Seller"}
-                sellerIsPhoneVerified={
-                  product.sellerIsPhoneVerified ?? false
-                }
-                sellerVerificationStatus={
-                  product.sellerVerificationStatus
-                }
+                sellerIsPhoneVerified={product.sellerIsPhoneVerified ?? false}
+                sellerVerificationStatus={product.sellerVerificationStatus}
                 sellerBadge={product.sellerBadge}
-                sellerPremiumSeller={
-                  product.sellerPremiumSeller ?? false
-                }
-                sellerPremiumBadge={
-                  product.sellerPremiumBadge ?? false
-                }
+                sellerPremiumSeller={product.sellerPremiumSeller ?? false}
+                sellerPremiumBadge={product.sellerPremiumBadge ?? false}
                 location={product.location ?? "Unknown"}
                 condition={product.condition ?? "Used"}
-                createdAt={
-                  product.createdAt ?? new Date()
-                }
+                createdAt={product.createdAt ?? new Date()}
                 views={product.views ?? 0}
                 isFeatured={product.isFeatured ?? true}
                 isPremium={product.isPremium ?? false}
@@ -522,41 +484,7 @@ export default function FeaturedProducts({
         ======================================================= */}
 
         <div className="mt-5 flex justify-center sm:hidden">
-          <Link
-             href="/search?featured=true"
-            className="
-              inline-flex
-              items-center
-              gap-1.5
-              rounded-full
-              border
-              border-slate-200
-              bg-white
-              px-4
-              py-2
-              text-sm
-              font-semibold
-              text-[#1565d8]
-              shadow-sm
-              transition-all
-              duration-200
-              hover:-translate-y-0.5
-              hover:border-[#1565d8]
-              hover:bg-[#1565d8]
-              hover:text-white
-              hover:shadow-md
-              active:translate-y-0
-              dark:border-slate-700
-              dark:bg-slate-900
-              dark:text-blue-400
-              dark:hover:border-blue-500
-              dark:hover:bg-[#1565d8]
-              dark:hover:text-white
-            "
-          >
-            View All
-            <ChevronRight size={15} />
-          </Link>
+          <ViewAllLink href="/search?featured=true" />
         </div>
       </Container>
     </section>
