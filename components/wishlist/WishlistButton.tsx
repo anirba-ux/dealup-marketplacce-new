@@ -50,7 +50,7 @@ export default function WishlistButton({
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: queryKeys.wishlist,
+          queryKey: ["wishlist"],
         }),
 
         queryClient.invalidateQueries({
@@ -82,7 +82,11 @@ export default function WishlistButton({
     >
       <Heart
         size={18}
-        className={wishlisted ? "fill-red-500 text-red-500" : "text-slate-500 dark:text-slate-400"}
+        className={
+          wishlisted
+            ? "fill-red-500 text-red-500"
+            : "text-slate-500 dark:text-slate-400"
+        }
       />
     </button>
   );

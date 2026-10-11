@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -15,9 +16,8 @@ export default function WishlistBroadcastListener() {
 
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: queryKeys.wishlist,
+          queryKey: ["wishlist"],
         }),
-
         queryClient.invalidateQueries({
           queryKey: queryKeys.wishlistProducts,
         }),

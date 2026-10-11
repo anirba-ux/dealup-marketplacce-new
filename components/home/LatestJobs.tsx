@@ -14,6 +14,8 @@ import {
 
 import ViewAllLink from "@/components/ui/ViewAllLink";
 
+import SaveListingButton from "@/components/wishlist/SaveListingButton";
+
 type EmploymentType =
   | "full-time"
   | "part-time"
@@ -268,6 +270,9 @@ function JobCard({ job }: { job: Job }) {
           dark:bg-slate-900
         "
       >
+        <div className="absolute right-3 top-3 z-10">
+          <SaveListingButton listingId={job._id} listingType="job" />
+        </div>
         {imageUrl ? (
           <Image
             src={imageUrl}

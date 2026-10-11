@@ -1,4 +1,5 @@
+
 export const queryKeys = {
-  wishlist: ["wishlist"] as const,
+  wishlist: (userId: string) => ["wishlist", userId] as const,
   wishlistProducts: ["wishlist-products"] as const,
 };

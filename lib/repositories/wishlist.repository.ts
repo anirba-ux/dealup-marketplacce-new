@@ -1,3 +1,4 @@
+
 import { ObjectId } from "mongodb";
 
 import clientPromise from "@/lib/db/mongodb";
@@ -22,10 +23,17 @@ async function getProductsCollection() {
     .collection("products");
 }
 
+/**
+ * Add a product to a user's wishlist.
+ */
 export async function addToWishlist(
   userId: string,
   productId: string
 ) {
+  if (!ObjectId.isValid(productId)) {
+    throw new Error("Invalid product ID");
+  }
+
   const collection = await getCollection();
 
   const existing = await collection.findOne({
@@ -37,29 +45,34 @@ export async function addToWishlist(
     return existing;
   }
 
-  const result = await collection.insertOne({
-  userId,
-  productId,
-  createdAt: new Date(),
-});
+  const products = await getProductsCollection();
 
-// products collection
-const products = await getProductsCollection();
-
-await products.updateOne(
-  {
+  const product = await products.findOne({
     _id: new ObjectId(productId),
-  },
-  {
-    $inc: {
-      favorites: 1,
-    },
-  }
-);
+    status: "active",
+  });
 
-return result;
+  if (!product) {
+    throw new Error("Product not found or inactive");
+  }
+
+  const result = await collection.insertOne({
+    userId,
+    productId,
+    createdAt: new Date(),
+  });
+
+  await products.updateOne(
+    { _id: new ObjectId(productId) },
+    { $inc: { favorites: 1 } }
+  );
+
+  return result;
 }
 
+/**
+ * Remove a product from a user's wishlist.
+ */
 export async function removeFromWishlist(
   userId: string,
   productId: string
@@ -71,64 +84,77 @@ export async function removeFromWishlist(
     productId,
   });
 
-  if (result.deletedCount > 0) {
+  if (result.deletedCount > 0 && ObjectId.isValid(productId)) {
     const products = await getProductsCollection();
 
     await products.updateOne(
-      {
-        _id: new ObjectId(productId),
-      },
-      {
-        $inc: {
-          favorites: -1,
+      { _id: new ObjectId(productId) },
+      [
+        {
+          $set: {
+            favorites: {
+              $max: [
+                {
+                  $subtract: [
+                    { $ifNull: ["$favorites", 0] },
+                    1,
+                  ],
+                },
+                0,
+              ],
+            },
+          },
         },
-      }
+      ]
     );
   }
 
   return result;
 }
 
+/**
+ * Check whether a product is wishlisted by a user.
+ */
 export async function isWishlisted(
   userId: string,
   productId: string
 ) {
-  const collection = await getCollection();
-
-  return collection.findOne({
-    userId,
-    productId,
-  });
+  return getCollection().then((collection) =>
+    collection.findOne({
+      userId,
+      productId,
+    })
+  );
 }
 
-export async function getUserWishlist(
-  userId: string
-) {
+/**
+ * Return all raw wishlist records for a user.
+ */
+export async function getUserWishlist(userId: string) {
   const collection = await getCollection();
 
   return collection
-    .find({
-      userId,
-    })
-    .sort({
-      createdAt: -1,
-    })
-    .toArray();
-}
-
-export async function getWishlistProductIds(userId: string) {
-  const collection = await getCollection();
-
-  const wishlist = await collection
     .find({ userId })
+    .sort({ createdAt: -1 })
     .toArray();
-
-  return wishlist.map((item) => item.productId);
 }
 
-export async function getWishlistProducts(
+/**
+ * Return IDs of products that still exist and are active.
+ * Used by the Navbar wishlist count and wishlist buttons.
+ */
+export async function getWishlistProductIds(
   userId: string
-) {
+): Promise<string[]> {
+  const products = await getWishlistProducts(userId);
+
+  return products.map((product: any) => product._id);
+}
+
+/**
+ * Return existing active products in wishlist order.
+ */
+export async function getWishlistProducts(userId: string) {
   const collection = await getCollection();
 
   const wishlist = await collection
@@ -140,29 +166,45 @@ export async function getWishlistProducts(
     return [];
   }
 
-  const client = await clientPromise;
+  const validIds = wishlist
+    .map((item) => item.productId)
+    .filter((id) => ObjectId.isValid(id))
+    .map((id) => new ObjectId(id));
 
-  const db = client.db(DATABASE_NAME);
+  if (validIds.length === 0) {
+    return [];
+  }
 
- const products = db.collection("products");
+  const productsCollection = await getProductsCollection();
 
-const productIds = wishlist.map(
-  (item) => new ObjectId(item.productId)
-);
+  const products = await productsCollection
+    .find({
+      _id: { $in: validIds },
+      status: "active",
+    })
+    .toArray();
 
-const result = await products
-  .find({
-    _id: {
-      $in: productIds,
-    },
-    status: "active",
-  })
-  .toArray();
+  // Preserve the user's original wishlist order.
+  const productsById = new Map(
+    products.map((product: any) => [
+      product._id.toString(),
+      product,
+    ])
+  );
 
-return result.map((product: any) => ({
-  ...product,
-  _id: product._id.toString(),
-  createdAt: product.createdAt?.toISOString(),
-  updatedAt: product.updatedAt?.toISOString(),
-}));
+  return wishlist
+    .map((item) => productsById.get(item.productId))
+    .filter((product): product is NonNullable<typeof product> => Boolean(product))
+    .map((product: any) => ({
+      ...product,
+      _id: product._id.toString(),
+      createdAt:
+        product.createdAt instanceof Date
+          ? product.createdAt.toISOString()
+          : product.createdAt,
+      updatedAt:
+        product.updatedAt instanceof Date
+          ? product.updatedAt.toISOString()
+          : product.updatedAt,
+    }));
 }

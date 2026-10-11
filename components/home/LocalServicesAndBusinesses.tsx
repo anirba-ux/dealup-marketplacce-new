@@ -11,6 +11,7 @@ import {
 
 import Container from "@/components/ui/Container";
 import ViewAllLink from "@/components/ui/ViewAllLink";
+import SaveListingButton from "@/components/wishlist/SaveListingButton";
 import type { Service } from "@/lib/models/service";
 
 type HomepageListing = Service;
@@ -21,7 +22,7 @@ interface Props {
 }
 
 // =====================================================
-// Helpers
+// HELPERS
 // =====================================================
 
 function getListingTitle(
@@ -42,15 +43,12 @@ function getListingImage(item: HomepageListing) {
 }
 
 function getListingLocation(item: HomepageListing) {
-  return (
-    [item.location?.city, item.location?.district]
-      .filter(Boolean)
-      .filter(
-        (value, index, array) =>
-          array.indexOf(value) === index,
-      )
-      .join(", ") || "Location not specified"
-  );
+  const parts = [
+    item.location?.city,
+    item.location?.district,
+  ].filter(Boolean);
+
+  return [...new Set(parts)].join(", ") || "Location not specified";
 }
 
 function getListingPrice(item: HomepageListing) {
@@ -62,15 +60,13 @@ function getListingPrice(item: HomepageListing) {
     maximumFractionDigits: 0,
   }).format(item.startingPrice);
 
-  const unit = item.priceUnit
-    ? ` / ${item.priceUnit}`
-    : "";
+  const unit = item.priceUnit ? ` / ${item.priceUnit}` : "";
 
   return `₹${price}${unit}`;
 }
 
 // =====================================================
-// Listing Card
+// LISTING CARD
 // =====================================================
 
 function LocalListingCard({
@@ -83,213 +79,225 @@ function LocalListingCard({
   const title = getListingTitle(item, business);
   const image = getListingImage(item);
   const location = getListingLocation(item);
+  const listingId = item._id?.toString();
 
   const href = item.slug
     ? `/services/${encodeURIComponent(item.slug)}`
     : "/search";
 
   return (
-    <Link
-      href={href}
-      className="
-        group flex h-full min-w-0 flex-col
-        overflow-hidden rounded-2xl border
-        border-slate-200 bg-white
-        shadow-sm transition-all duration-300
-        hover:-translate-y-1 hover:border-blue-300
-        hover:shadow-lg
-        dark:border-slate-800 dark:bg-slate-900
-        dark:hover:border-blue-800
-      "
-    >
-      {/* Image */}
-      <div
+    <div className="relative h-full">
+      {/* Main card */}
+      <Link
+        href={href}
         className="
-          relative aspect-[4/3] overflow-hidden
-          bg-slate-100 dark:bg-slate-800
+          group flex h-full min-w-0 flex-col
+          overflow-hidden rounded-2xl border
+          border-slate-200 bg-white
+          shadow-sm transition-all duration-300
+          hover:-translate-y-1 hover:border-blue-300
+          hover:shadow-lg
+          dark:border-slate-800 dark:bg-slate-900
+          dark:hover:border-blue-800
         "
       >
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={image}
-            alt={title}
-            loading="lazy"
-            className="
-              h-full w-full object-cover
-              transition-transform duration-500
-              group-hover:scale-105
-            "
-          />
-        ) : (
-          <div
-            className="
-              flex h-full items-center justify-center
-              text-blue-500 dark:text-blue-400
-            "
-          >
-            {business ? (
-              <Store size={42} strokeWidth={1.5} />
-            ) : (
-              <Wrench size={42} strokeWidth={1.5} />
-            )}
-          </div>
-        )}
-
-        {/* Listing Type */}
-        <span
-          className="
-            absolute left-3 top-3
-            rounded-lg bg-slate-950/80
-            px-2.5 py-1 text-[10px]
-            font-bold uppercase tracking-wide
-            text-white backdrop-blur-sm
-          "
-        >
-          {business ? "Local Business" : "Service"}
-        </span>
-
-        {/* Trusted Badge */}
-        {item.trustedProvider && (
-          <span
-            className="
-              absolute right-3 top-3
-              inline-flex items-center gap-1
-              rounded-full bg-blue-600
-              px-2 py-1 text-[10px]
-              font-semibold text-white
-            "
-          >
-            <BadgeCheck size={12} />
-            Trusted
-          </span>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex flex-1 flex-col p-3 sm:p-4">
-        {/* Category */}
-        <p
-          className="
-            mb-1.5 line-clamp-1 text-xs
-            font-semibold text-[#1565d8]
-            dark:text-blue-400
-          "
-        >
-          {item.category}
-          {item.subcategory
-            ? ` · ${item.subcategory}`
-            : ""}
-        </p>
-
-        {/* Title */}
-        <h3
-          className="
-            line-clamp-2 min-h-10
-            text-sm font-bold leading-5
-            text-slate-900 transition-colors
-            group-hover:text-[#1565d8]
-            dark:text-white dark:group-hover:text-blue-400
-            sm:text-base
-          "
-        >
-          {title}
-        </h3>
-
-        {/* Business Type */}
-        {business && item.businessType && (
-          <p
-            className="
-              mt-1 line-clamp-1 text-xs
-              text-slate-500 dark:text-slate-400
-            "
-          >
-            {item.businessType}
-          </p>
-        )}
-
-        {/* Location */}
+        {/* Image */}
         <div
           className="
-            mt-3 flex min-w-0 items-start gap-1.5
-            text-xs text-slate-500
-            dark:text-slate-400
+            relative aspect-[4/3] overflow-hidden
+            bg-slate-100 dark:bg-slate-800
           "
         >
-          <MapPin
-            size={14}
-            className="mt-0.5 shrink-0 text-blue-500"
-          />
-          <span className="line-clamp-1">{location}</span>
-        </div>
-
-        {/* Price and Views */}
-        <div
-          className="
-            mt-auto flex flex-wrap items-end
-            justify-between gap-2 border-t
-            border-slate-100 pt-3
-            dark:border-slate-800
-          "
-        >
-          <div className="min-w-0">
-            <p className="text-[10px] text-slate-500 dark:text-slate-400">
-              Starting price
-            </p>
-
-            <p
+          {image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt={title}
+              loading="lazy"
               className="
-                mt-0.5 break-words text-sm
-                font-bold text-[#1565d8]
-                dark:text-blue-400 sm:text-base
+                h-full w-full object-cover
+                transition-transform duration-500
+                group-hover:scale-105
+              "
+            />
+          ) : (
+            <div
+              className="
+                flex h-full items-center justify-center
+                text-blue-500 dark:text-blue-400
               "
             >
-              {getListingPrice(item)}
-            </p>
-          </div>
+              {business ? (
+                <Store size={42} strokeWidth={1.5} />
+              ) : (
+                <Wrench size={42} strokeWidth={1.5} />
+              )}
+            </div>
+          )}
 
+          {/* Listing type */}
+          <span
+            className="
+              absolute left-3 top-3
+              rounded-lg bg-slate-950/80
+              px-2.5 py-1 text-[10px]
+              font-bold uppercase tracking-wide
+              text-white backdrop-blur-sm
+            "
+          >
+            {business ? "Local Business" : "Service"}
+          </span>
+
+          {/* Trusted badge */}
+          {item.trustedProvider && (
+            <span
+              className="
+                absolute right-14 top-3
+                inline-flex items-center gap-1
+                rounded-full bg-blue-600
+                px-2 py-1 text-[10px]
+                font-semibold text-white
+              "
+            >
+              <BadgeCheck size={12} />
+              Trusted
+            </span>
+          )}
+        </div>
+
+        {/* Card content */}
+        <div className="flex flex-1 flex-col p-3 sm:p-4">
+          {/* Category */}
+          <p
+            className="
+              mb-1.5 line-clamp-1 text-xs
+              font-semibold text-[#1565d8]
+              dark:text-blue-400
+            "
+          >
+            {item.category}
+            {item.subcategory ? ` · ${item.subcategory}` : ""}
+          </p>
+
+          {/* Title */}
+          <h3
+            className="
+              line-clamp-2 min-h-10
+              text-sm font-bold leading-5
+              text-slate-900 transition-colors
+              group-hover:text-[#1565d8]
+              dark:text-white dark:group-hover:text-blue-400
+              sm:text-base
+            "
+          >
+            {title}
+          </h3>
+
+          {/* Business type */}
+          {business && item.businessType && (
+            <p
+              className="
+                mt-1 line-clamp-1 text-xs
+                text-slate-500 dark:text-slate-400
+              "
+            >
+              {item.businessType}
+            </p>
+          )}
+
+          {/* Location */}
           <div
             className="
-              inline-flex shrink-0 items-center gap-1
+              mt-3 flex min-w-0 items-start gap-1.5
               text-xs text-slate-500
               dark:text-slate-400
             "
           >
-            <Eye size={13} />
-            {item.views ?? 0}
+            <MapPin
+              size={14}
+              className="mt-0.5 shrink-0 text-blue-500"
+            />
+            <span className="line-clamp-1">{location}</span>
           </div>
-        </div>
 
-        {/* View Details */}
-        <span
-          className="
-            mt-3 inline-flex w-full items-center
-            justify-center gap-2 rounded-xl
-            bg-blue-50 px-3 py-2.5
-            text-xs font-semibold text-[#1565d8]
-            transition-colors
-            group-hover:bg-[#1565d8]
-            group-hover:text-white
-            dark:bg-blue-950/40
-            dark:text-blue-400
-            dark:group-hover:bg-[#1565d8]
-            dark:group-hover:text-white
-            sm:text-sm
-          "
-        >
-          View Details
-          <ArrowRight
-            size={14}
-            className="transition-transform group-hover:translate-x-1"
+          {/* Price and views */}
+          <div
+            className="
+              mt-auto flex flex-wrap items-end
+              justify-between gap-2 border-t
+              border-slate-100 pt-3
+              dark:border-slate-800
+            "
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                Starting price
+              </p>
+
+              <p
+                className="
+                  mt-0.5 break-words text-sm
+                  font-bold text-[#1565d8]
+                  dark:text-blue-400 sm:text-base
+                "
+              >
+                {getListingPrice(item)}
+              </p>
+            </div>
+
+            <div
+              className="
+                inline-flex shrink-0 items-center gap-1
+                text-xs text-slate-500
+                dark:text-slate-400
+              "
+            >
+              <Eye size={13} />
+              {item.views ?? 0}
+            </div>
+          </div>
+
+          {/* View details */}
+          <span
+            className="
+              mt-3 inline-flex w-full items-center
+              justify-center gap-2 rounded-xl
+              bg-blue-50 px-3 py-2.5
+              text-xs font-semibold text-[#1565d8]
+              transition-colors
+              group-hover:bg-[#1565d8]
+              group-hover:text-white
+              dark:bg-blue-950/40
+              dark:text-blue-400
+              dark:group-hover:bg-[#1565d8]
+              dark:group-hover:text-white
+              sm:text-sm
+            "
+          >
+            View Details
+            <ArrowRight
+              size={14}
+              className="transition-transform group-hover:translate-x-1"
+            />
+          </span>
+        </div>
+      </Link>
+
+      {/* Save button: outside Link to avoid nested buttons */}
+      {listingId && (
+        <div className="absolute right-3 top-3 z-20">
+          <SaveListingButton
+            listingId={listingId}
+            listingType={business ? "business" : "service"}
           />
-        </span>
-      </div>
-    </Link>
+        </div>
+      )}
+    </div>
   );
 }
 
 // =====================================================
-// Listing Group
+// LISTING GROUP
 // =====================================================
 
 function ListingGroup({
@@ -307,13 +315,8 @@ function ListingGroup({
 
   return (
     <div className="min-w-0">
-      {/* Group Header */}
-      <div
-        className="
-          mb-4 flex items-center
-          justify-between gap-3
-        "
-      >
+      {/* Group header */}
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h3
           className="
             text-lg font-bold tracking-tight
@@ -324,13 +327,12 @@ function ListingGroup({
           {title}
         </h3>
 
-        {/* DESKTOP VIEW ALL */}
         <div className="hidden sm:block">
           <ViewAllLink href={viewAllHref} />
         </div>
       </div>
 
-      {/* Listing Cards */}
+      {/* Listing cards */}
       {items.length > 0 ? (
         <>
           <div
@@ -364,7 +366,7 @@ function ListingGroup({
             ))}
           </div>
 
-          {/* MOBILE VIEW ALL */}
+          {/* Mobile View All */}
           <div className="mt-5 flex justify-center sm:hidden">
             <ViewAllLink href={viewAllHref} />
           </div>
@@ -393,7 +395,7 @@ function ListingGroup({
 }
 
 // =====================================================
-// Main Section
+// MAIN SECTION
 // =====================================================
 
 export default function LocalServicesAndBusinesses({
@@ -413,7 +415,7 @@ export default function LocalServicesAndBusinesses({
       "
     >
       <Container>
-        {/* Main Header */}
+        {/* Main header */}
         <div className="mb-6 sm:mb-8">
           <div className="mb-2 flex items-center gap-2">
             <div
@@ -460,7 +462,7 @@ export default function LocalServicesAndBusinesses({
           </p>
         </div>
 
-        {/* Service & Business Groups */}
+        {/* Service and business groups */}
         <div className="space-y-8 sm:space-y-10">
           {services.length > 0 && (
             <ListingGroup

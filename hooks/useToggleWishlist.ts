@@ -28,7 +28,7 @@ export function useToggleWishlist() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: queryKeys.wishlist,
+          queryKey: ["wishlist"],
         }),
 
         queryClient.invalidateQueries({

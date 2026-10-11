@@ -1,55 +1,66 @@
+
 "use client";
 
 import ProductCard from "@/components/card/ProductCard";
 import { useWishlistProducts } from "@/hooks/useWishlistProducts";
 
 export default function WishlistGrid() {
-  const { data: products, isLoading, error } = useWishlistProducts();
+  const {
+    data: products,
+    isLoading,
+    error,
+  } = useWishlistProducts();
 
   if (isLoading) {
-    return <div className="py-10 text-center">Loading wishlist...</div>;
+    return (
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="h-[380px] animate-pulse rounded-2xl bg-slate-200 dark:bg-slate-800"
+          />
+        ))}
+      </div>
+    );
   }
 
   if (error) {
     return (
-      <div className="py-10 text-center text-red-500">
-        Failed to load wishlist.
+      <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-8 text-center dark:border-red-900 dark:bg-red-950/30">
+        <p className="font-semibold text-red-600 dark:text-red-400">
+          Failed to load wishlist.
+        </p>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Please refresh the page and try again.
+        </p>
       </div>
     );
   }
 
   if (!products || products.length === 0) {
     return (
-      <div className="rounded-xl border p-10 text-center">
-        <h2 className="text-xl font-semibold">
-          ❤️ Your wishlist is empty
-        </h2>
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-10 text-center dark:border-slate-700 dark:bg-slate-900 sm:py-12">
+        <div className="text-4xl" aria-hidden="true">
+          ❤️
+        </div>
 
-        <p className="mt-2 text-slate-500 dark:text-slate-400">
-          Save products to see them here.
+        <h3 className="mt-3 text-lg font-bold text-slate-900 dark:text-white">
+          Your product wishlist is empty
+        </h3>
+
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Save your favourite products to see them here.
         </p>
       </div>
     );
   }
 
   return (
-    <div
-      className="
-        flex gap-3 overflow-x-auto overscroll-x-contain pb-4
-        [-ms-overflow-style:none] [scrollbar-width:none]
-
-        sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0
-        lg:grid-cols-4 lg:gap-6
-      "
-    >
+    <div className="grid min-w-0 grid-cols-1 items-stretch gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
       {products.map((product: any) => (
         <div
           key={product._id}
-          className="
-            w-[78vw] min-w-[78vw] max-w-[340px] shrink-0
-
-            sm:w-auto sm:min-w-0 sm:max-w-none sm:shrink
-          "
+          className="min-w-0 w-full"
         >
           <ProductCard
             id={product._id}
