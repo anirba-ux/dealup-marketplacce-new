@@ -294,7 +294,7 @@ export default async function SavedListingsSection({
               </span>
             </h2>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid w-full min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {section.items.map((item) => (
                 <article
                   key={`${item.type}-${item.id}`}

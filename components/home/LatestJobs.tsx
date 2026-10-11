@@ -685,7 +685,7 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
           {/* DESKTOP VIEW ALL */}
 
           <div className="hidden sm:block">
-            <ViewAllLink href="/jobs" />
+            <ViewAllLink href="/search?category=jobs" />
           </div>
         </div>
 
@@ -738,7 +738,7 @@ export default function LatestJobs({ jobs }: LatestJobsProps) {
         {/* MOBILE VIEW ALL */}
 
         <div className="mt-5 flex justify-center sm:hidden">
-          <ViewAllLink href="/jobs" />
+          <ViewAllLink href="/search?category=jobs" />
         </div>
       </div>
     </section>
