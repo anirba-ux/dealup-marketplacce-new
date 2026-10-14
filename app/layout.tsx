@@ -41,7 +41,24 @@ export const metadata: Metadata = {
   description:
     "DealUp Marketplace is a local online marketplace to buy and sell new and used products safely. Discover products from sellers near you across Bansberia, Hooghly and nearby areas.",
 
+  
   applicationName: "DealUp Marketplace",
+
+  icons: {
+    icon: [
+      {
+        url: "/icons/dealup-icon-192.png",
+        type: "image/png",
+        sizes: "192x192",
+      },
+      {
+        url: "/icons/dealup-icon-512.png",
+        type: "image/png",
+        sizes: "512x512",
+      },
+    ],
+    apple: "/icons/dealup-icon-192.png",
+  },
 
   authors: [
     {
